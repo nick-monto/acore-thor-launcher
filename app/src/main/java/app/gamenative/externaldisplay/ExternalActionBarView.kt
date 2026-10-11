@@ -388,13 +388,13 @@ class ExternalActionBarView(
             ),
         )
 
-        // The Extra Buttons panel. They start on F9, F10, F11, F12 and F8; remap them to whatever is needed.
+        // The Extra Buttons panel. They start on F8 to F12; remap them to whatever is needed.
         private val EXTRA_SLOTS = listOf(
-            Slot("Extra 1", XKeycode.KEY_F9),
-            Slot("Extra 2", XKeycode.KEY_F10),
-            Slot("Extra 3", XKeycode.KEY_F11),
-            Slot("Extra 4", XKeycode.KEY_F12),
-            Slot("Extra 5", XKeycode.KEY_F8),
+            Slot("Extra 1", XKeycode.KEY_F8),
+            Slot("Extra 2", XKeycode.KEY_F9),
+            Slot("Extra 3", XKeycode.KEY_F10),
+            Slot("Extra 4", XKeycode.KEY_F11),
+            Slot("Extra 5", XKeycode.KEY_F12),
         )
 
         // WoW's default bindings for Action Bar 1, slots 1 to 12.
