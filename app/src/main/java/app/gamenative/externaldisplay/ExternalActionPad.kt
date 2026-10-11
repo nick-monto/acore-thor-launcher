@@ -106,7 +106,7 @@ class ExternalActionPad(
                     layoutParams = LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f).apply {
                         val m = (10 * density).toInt()
                         // Only a thin gap here; the modifier row below keeps its own gap above the click buttons.
-                        setMargins(m, 0, m, (4 * density).toInt())
+                        setMargins(m, (3 * density).toInt(), m, (4 * density).toInt())
                     }
                     addView(trackpadView)
                     if (PadSettings.bool(PadSettings.SCROLLBAR_ON)) {
@@ -155,8 +155,10 @@ class ExternalActionPad(
             background = theme.groupBackground(density, strong = false)
             val side = (8 * density).toInt()
             layoutParams = LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-                // The same breathing room on both sides, so whatever fills the body never touches the tab bar.
-                setMargins(side, side / 2, side, side / 2)
+                // Only 1 dp on the side facing the body: the pad's panels bring 3 dp of their own, and the
+                // trackpad has a 3 dp top margin, so everything sits 4 dp from the tab bar.
+                val gap = (1 * density).toInt()
+                if (PadSettings.int(PadSettings.TAB_POS) == 1) setMargins(side, gap, side, side / 2) else setMargins(side, side / 2, side, gap)
             }
             val inset = (4 * density).toInt()
             setPadding(inset, inset, inset, inset)

@@ -74,9 +74,8 @@ class ExternalActionBarView(
         isMotionEventSplittingEnabled = true
         setBackgroundColor(theme.background)
         val pad = dp(8)
-        // Less room on the side next to the tab bar, so the panels sit closer to it.
-        val tight = dp(2)
-        if (PadSettings.int(PadSettings.TAB_POS) == 1) setPadding(pad, pad, pad, tight) else setPadding(pad, tight, pad, pad)
+        // No padding on the side next to the tab bar: the panels' own 3 dp margin is the whole gap.
+        if (PadSettings.int(PadSettings.TAB_POS) == 1) setPadding(pad, pad, pad, 0) else setPadding(pad, 0, pad, pad)
 
         // Each group of buttons sits on its own faint backing; the number block's is the strongest.
         // The page area shows one page of buttons at a time (see [showPage]).
