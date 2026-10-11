@@ -154,9 +154,9 @@ class ExternalActionPad(
             // The two header buttons sit on a faint gold backing, like the button groups below.
             background = theme.groupBackground(density, strong = false)
             val side = (8 * density).toInt()
-            val bottom = PadSettings.int(PadSettings.TAB_POS) == 1
             layoutParams = LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-                if (bottom) setMargins(side, 0, side, side / 2) else setMargins(side, side / 2, side, 0)
+                // The same breathing room on both sides, so whatever fills the body never touches the tab bar.
+                setMargins(side, side / 2, side, side / 2)
             }
             val inset = (4 * density).toInt()
             setPadding(inset, inset, inset, inset)
