@@ -427,7 +427,7 @@ class ExternalActionPad(
      */
     @SuppressLint("ClickableViewAccessibility")
     private fun mouseButton(label: String, button: Pointer.Button, downFlag: Int, upFlag: Int): TextView {
-        return TextView(context).apply {
+        return GlowTextView(context).apply {
             text = label
             gravity = Gravity.CENTER
             setTextColor(theme.text)
