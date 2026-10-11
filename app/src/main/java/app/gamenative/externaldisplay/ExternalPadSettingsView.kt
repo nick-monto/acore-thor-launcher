@@ -52,8 +52,29 @@ class ExternalPadSettingsView(
         content.removeAllViews()
         scrollTo(0, 0)
 
-        section("Modifier keys shown", collapsible = true) {
+        section("Pad layout", collapsible = true) {
+            addView(cycleRow("Tab bar", PadSettings.TAB_POS, listOf("Top", "Bottom")))
+            addView(toggleRow(listOf("Swap sides (pages on the right)" to PadSettings.SWAP_SIDES)))
+            addView(sliderRow("Page area width", PadSettings.PAGE_WIDTH, 60, 160) { "$it%" })
+            addView(note("Order of the right-hand column, top to bottom:"))
+            addView(cycleRow("Order", PadSettings.COL_ORDER, ExternalActionBarView.COLUMN_ORDER_NAMES))
+        }
+        section("Number block", collapsible = true) {
+            addView(toggleRow(listOf("Show 1-9 0 - =" to PadSettings.SEC_NUMBERS)))
+            addView(sliderRow("Number emphasis", PadSettings.EMPHASIS, 0, 200) { "$it%" })
+        }
+        section("Modifier keys", collapsible = true) {
+            addView(toggleRow(listOf("Show modifier row on the pad" to PadSettings.MOD_ON)))
+            addView(note("Keys shown in the row (the trackpad always has all three):"))
             addView(toggleRow(listOf("Shift" to PadSettings.MOD_SHIFT, "Ctrl" to PadSettings.MOD_CTRL, "Alt" to PadSettings.MOD_ALT)))
+            addView(sliderRow("Row height", PadSettings.MOD_HEIGHT, 50, 200) { "$it%" })
+            addView(sliderRow("Double-tap lock", PadSettings.DOUBLE_TAP_MS, 200, 600) { "$it ms" })
+        }
+        section("Extra Buttons", collapsible = true) {
+            addView(toggleRow(listOf("Show Extra Buttons panel" to PadSettings.EXTRA_ON)))
+            addView(sliderRow("Buttons shown", PadSettings.EXTRA_N, 1, 3) { "$it" })
+            addView(sliderRow("Panel height", PadSettings.EXTRA_HEIGHT, 50, 250) { "$it%" })
+            addView(note("Extra 1 to 3 start on F9 to F11. Remap them under \"Remap, rename, and recolor buttons\"."))
         }
         section("Buttons shown", collapsible = true) {
             addView(note("Tap a button to hide or show it. Hidden numbers leave a gap."))
@@ -75,37 +96,16 @@ class ExternalPadSettingsView(
                 }
             }
         }
-        section("Pad layout", collapsible = true) {
-            addView(cycleRow("Tab bar", PadSettings.TAB_POS, listOf("Top", "Bottom")))
-            addView(note("Top to bottom, the right-hand column stacks:"))
-            addView(cycleRow("Order", PadSettings.COL_ORDER, ExternalActionBarView.COLUMN_ORDER_NAMES))
-            addView(toggleRow(listOf("Modifier keys on the pad" to PadSettings.MOD_ON)))
-            addView(sliderRow("Page area width", PadSettings.PAGE_WIDTH, 60, 160) { "$it%" })
-            addView(sliderRow("Modifier row height", PadSettings.MOD_HEIGHT, 50, 200) { "$it%" })
-            addView(toggleRow(listOf("Extra Buttons panel" to PadSettings.EXTRA_ON)))
-            addView(sliderRow("Extra buttons shown", PadSettings.EXTRA_N, 1, 3) { "$it" })
-            addView(sliderRow("Extra Buttons height", PadSettings.EXTRA_HEIGHT, 50, 250) { "$it%" })
-            addView(
-                toggleRow(
-                    listOf(
-                        "1-9 0 - =" to PadSettings.SEC_NUMBERS,
-                    ),
-                ),
-            )
-            addView(toggleRow(listOf("Swap sides (pages on the right)" to PadSettings.SWAP_SIDES)))
-        }
         section("Look and feel", collapsible = true) {
             addView(sliderRow("Muted borders", PadSettings.MUTED, 0, 100) { "$it" })
-            addView(sliderRow("Number emphasis", PadSettings.EMPHASIS, 0, 200) { "$it%" })
             addView(sliderRow("Label size", PadSettings.LABEL_SCALE, 80, 140) { "$it%" })
             addView(cycleRow("Haptics", PadSettings.HAPTICS, listOf("Off", "Light", "Normal", "Strong")))
-            addView(sliderRow("Double-tap lock", PadSettings.DOUBLE_TAP_MS, 200, 600) { "$it ms" })
-            addView(sliderRow("Click wait for double tap", PadSettings.CLICK_WAIT_MS, 0, 300) { if (it == 0) "Off" else "$it ms" })
         }
         section("Trackpad", collapsible = true) {
             addView(sliderRow("Speed", PadSettings.TP_SPEED, 1, 20) { tenths(it) })
             addView(sliderRow("Acceleration", PadSettings.TP_ACCEL, 10, 30) { tenths(it) })
             addView(toggleRow(listOf("Tap to click" to PadSettings.TP_TAP)))
+            addView(sliderRow("Click wait for double tap", PadSettings.CLICK_WAIT_MS, 0, 300) { if (it == 0) "Off" else "$it ms" })
             addView(toggleRow(listOf("Scroll area" to PadSettings.SCROLLBAR_ON, "Invert scroll" to PadSettings.SCROLLBAR_INVERT)))
             addView(cycleRow("Scroll area side", PadSettings.SCROLLBAR_SIDE, listOf("Right", "Left")))
             addView(sliderRow("Scroll area speed", PadSettings.SCROLLBAR_SPEED, 1, 10) { "$it" })
