@@ -175,7 +175,7 @@ Release builds are signed with `app/keystores/keystore.properties` when it exist
 
 This project packages other people's work into a single-purpose app. None of it would exist without:
 
-- **[jaredgei/wow-forever-android](https://github.com/jaredgei/wow-forever-android)** by **jaredgei**. This repo is a fork of it. The WoW launcher screen, the pre-configured container, native ARM64 launch, the Battle.net client downloader, the bundled runtime components and most of the Thor fixes described below were done there. Thank you.
+- **[jaredgei/wow-forever-android](https://github.com/jaredgei/wow-forever-android)** by **jaredgei**. This repo is a fork of it.
 
 - **[GameNative](https://github.com/utkarshdalal/GameNative)** by Utkarsh Dalal and contributors (GPL-3.0). The Android app, the Wine container management and the X server are all GameNative, based on v1.2.1. GameNative in turn builds on **[Pluvia](https://github.com/oxters168/Pluvia)**, **[Winlator](https://github.com/brunodev85/winlator)**, **[Winlator Cmod](https://github.com/coffincolors/winlator)** and the **[Bionic Vulkan wrapper](https://github.com/leegao/bionic-vulkan-wrapper)**.
 - **The WoW Forever RP6 community bundle**, which first got the beta running on a Retroid Pocket 6 in GameNative and supplied the three custom runtime components:
