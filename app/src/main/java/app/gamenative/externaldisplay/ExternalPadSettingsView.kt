@@ -78,24 +78,17 @@ class ExternalPadSettingsView(
             addView(note("Extra 1 to 5 start on F8 to F12. Remap them under \"Remap, rename, and recolor buttons\"."))
         }
         section("Buttons shown", collapsible = true) {
-            addView(note("Tap a button to hide or show it. Hidden numbers leave a gap."))
-            (ExternalActionBarView.PAGE_IDS + ExternalActionBarView.GROUP_NUMBERS).forEach { group ->
+            addView(note("Tap a name to hide or show that button. Use the arrows to move it up or down inside its group. Hidden numbers leave a gap."))
+            (ExternalActionBarView.PAGE_IDS + ExternalActionBarView.GROUP_EXTRAS + ExternalActionBarView.GROUP_NUMBERS).forEach { group ->
                 addView(note(ExternalActionBarView.groupTitle(group).replaceFirstChar { it.uppercase() }))
-                ExternalActionBarView.defaultLabels(group).chunked(3).forEach { chunk ->
-                    addView(
-                        rowOf(
-                            *chunk.map { label ->
-                                button(PadSettings.displayName(label), active = !PadSettings.isHidden(label)) { b ->
-                                    val show = PadSettings.isHidden(label)
-                                    PadSettings.setHidden(label, !show)
-                                    style(b, show)
-                                }
-                            }.toTypedArray(),
-                            filler = 3 - chunk.size,
-                        ),
-                    )
-                }
+                val list = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+                addView(list)
+                fillButtonList(list, group)
             }
+            addView(rowOf(button("Reset button order") {
+                PadSettings.clearOrder()
+                showMain()
+            }, filler = 2))
         }
         section("Look and feel", collapsible = true) {
             addView(sliderRow("Muted borders", PadSettings.MUTED, 0, 100) { "$it" })
@@ -194,6 +187,27 @@ class ExternalPadSettingsView(
         }
     }
 
+    /** One row per button of [group], in its current order: a show/hide toggle and Up / Down arrows. Rebuilds itself on a move. */
+    private fun fillButtonList(list: LinearLayout, group: String) {
+        list.removeAllViews()
+        val defaults = ExternalActionBarView.defaultLabels(group)
+        val labels = PadSettings.ordered(group, defaults)
+        fun arrow(text: String, delta: Int) = button(text) {
+            PadSettings.move(group, defaults, it.tag as String, delta)
+            fillButtonList(list, group)
+        }.apply { layoutParams = LinearLayout.LayoutParams(dp(48), ViewGroup.LayoutParams.WRAP_CONTENT).apply { setMargins(dp(3), dp(3), dp(3), dp(3)) } }
+        labels.forEach { label ->
+            val toggle = button(PadSettings.displayName(label), active = !PadSettings.isHidden(label)) { b ->
+                val show = PadSettings.isHidden(label)
+                PadSettings.setHidden(label, !show)
+                style(b, show)
+            }
+            val up = arrow("\u25B2", -1).also { it.tag = label }
+            val down = arrow("\u25BC", 1).also { it.tag = label }
+            list.addView(rowOf(toggle, up, down))
+        }
+    }
+
     private fun showRemap() {
         content.removeAllViews()
         scrollTo(0, 0)
@@ -218,11 +232,7 @@ class ExternalPadSettingsView(
                         PadSettings.clearColors()
                         showRemap()
                     },
-                    button("Reset button order") {
-                        PadSettings.clearOrder()
-                        showRemap()
-                    },
-                    filler = 1,
+                    filler = 2,
                 ),
             )
         }
@@ -297,26 +307,6 @@ class ExternalPadSettingsView(
                     rowOf(
                         button("Apply to whole group") {
                             PadSettings.setColor(ExternalActionBarView.defaultLabels(group), PadSettings.colorOf(label))
-                            showKeyPicker(label, default)
-                        },
-                    ),
-                )
-            }
-        }
-        ExternalActionBarView.groupOf(label)?.let { group ->
-            section("Order in ${ExternalActionBarView.groupTitle(group)}") {
-                val defaults = ExternalActionBarView.defaultLabels(group)
-                val list = PadSettings.ordered(group, defaults)
-                val pos = list.indexOf(label)
-                addView(note("Position ${pos + 1} of ${list.size}. A button only moves inside its own group."))
-                addView(
-                    rowOf(
-                        button("\u25B2 Up") {
-                            PadSettings.move(group, defaults, label, -1)
-                            showKeyPicker(label, default)
-                        },
-                        button("\u25BC Down") {
-                            PadSettings.move(group, defaults, label, 1)
                             showKeyPicker(label, default)
                         },
                     ),
