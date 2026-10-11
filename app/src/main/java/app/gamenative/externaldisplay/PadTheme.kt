@@ -33,10 +33,12 @@ data class PadTheme(
     /** Faint gold panel behind a group of buttons. [strong] is for the main group. */
     fun groupBackground(density: Float, strong: Boolean): Drawable = GradientDrawable().apply {
         cornerRadius = 12 * density
-        // The number block's backing follows the "number emphasis" setting (100% = the standard look).
-        val scale = if (strong) PadSettings.emphasis else 1f
-        setColor(withAlpha(border, ((if (strong) 0x21 else 0x0F) * scale).toInt().coerceIn(0, 0xFF)))
-        setStroke(density.toInt().coerceAtLeast(1), withAlpha(border, ((if (strong) 0x59 else 0x2E) * scale).toInt().coerceIn(0, 0xFF)))
+        // The number block's backing follows the "number emphasis" setting: 0% matches the other panels,
+        // 100% is the standard stronger look, and above that it keeps getting stronger.
+        val t = if (strong) PadSettings.emphasis else 0f
+        fun mix(plain: Int, bold: Int) = (plain + (bold - plain) * t).toInt().coerceIn(0, 0xFF)
+        setColor(withAlpha(border, mix(0x0F, 0x21)))
+        setStroke(density.toInt().coerceAtLeast(1), withAlpha(border, mix(0x2E, 0x59)))
     }
 
     /** Dim, thinner trim for secondary buttons, so the action buttons stand out. */
