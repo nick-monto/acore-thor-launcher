@@ -104,14 +104,15 @@ class ExternalActionBarView(
                 addView(keyRow(slots, textSp = 14f, weight = 1f, muted = true, wrap = true))
             }
         } else null
-        // Top to bottom: modifiers (if above), extra buttons (if above), numbers, extra buttons (if below), modifiers (if below).
+        // The three panels stack in the order chosen in settings (see [COLUMN_ORDERS]).
         rightColumn = column(RIGHT_WEIGHT).apply {
-            val extraAbove = PadSettings.int(PadSettings.EXTRA_POS) == 0
-            if (PadSettings.int(PadSettings.MOD_POS) == 1) addView(modifierGroup)
-            if (extraAbove) extraGroup?.let { addView(it) }
-            addView(numberGroup)
-            if (!extraAbove) extraGroup?.let { addView(it) }
-            if (PadSettings.int(PadSettings.MOD_POS) != 1) addView(modifierGroup)
+            COLUMN_ORDERS[PadSettings.int(PadSettings.COL_ORDER).coerceIn(0, COLUMN_ORDERS.lastIndex)].forEach { panel ->
+                when (panel) {
+                    'N' -> addView(numberGroup)
+                    'M' -> addView(modifierGroup)
+                    else -> extraGroup?.let { addView(it) }
+                }
+            }
         }
         // "Swap sides" puts the page area on the right.
         if (PadSettings.bool(PadSettings.SWAP_SIDES)) {
@@ -293,6 +294,14 @@ class ExternalActionBarView(
     companion object {
         const val GROUP_NUMBERS = "numbers"
         const val GROUP_EXTRAS = "extras"
+
+        /** Every top-to-bottom order of the right column: N = numbers, M = modifier keys, E = Extra Buttons. */
+        val COLUMN_ORDERS = listOf("NME", "NEM", "MNE", "ENM", "MEN", "EMN")
+
+        /** [COLUMN_ORDERS] worded for the settings button. */
+        val COLUMN_ORDER_NAMES: List<String> = COLUMN_ORDERS.map { order ->
+            order.map { when (it) { 'N' -> "Numbers"; 'M' -> "Modifiers"; else -> "Extras" } }.joinToString(", ")
+        }
 
         /** The page ids, in tab order: "interface", "target", "utility". */
         val PAGE_IDS: List<String> get() = PAGES.map { it.id }

@@ -33,16 +33,14 @@ object PadSettings {
     const val PAGE_WIDTH = "page_width"
     /** Height of the modifier row, in percent of its default. */
     const val MOD_HEIGHT = "mod_height"
-    /** 0 = modifier keys below the number block, 1 = above it. */
-    const val MOD_POS = "mod_pos"
+    /** Top-to-bottom order of the number block, modifier row and Extra Buttons: an index into the six orders. */
+    const val COL_ORDER = "col_order"
     /** Shows the modifier row on the pad. The trackpad keeps its own. */
     const val MOD_ON = "mod_on"
     /** The optional "Extra Buttons" panel next to the number block. */
     const val EXTRA_ON = "extra_on"
     /** How many extra buttons it shows, 1 to 3. */
     const val EXTRA_N = "extra_n"
-    /** 0 = above the number block, 1 = below it. */
-    const val EXTRA_POS = "extra_pos"
     /** Height of the Extra Buttons panel, in percent of its default. */
     const val EXTRA_HEIGHT = "extra_height"
     /** 0 = tab bar at the top, 1 = at the bottom. */
@@ -85,11 +83,10 @@ object PadSettings {
         SWAP_SIDES to false,
         PAGE_WIDTH to 100,
         MOD_HEIGHT to 100,
-        MOD_POS to 0,
+        COL_ORDER to 0,
         MOD_ON to true,
         EXTRA_ON to false,
         EXTRA_N to 3,
-        EXTRA_POS to 0,
         EXTRA_HEIGHT to 100,
         TAB_POS to 0,
         MUTED to 55,
