@@ -47,6 +47,10 @@ object PadSettings {
     const val MOD_GLOW_ALT = "mod_glow_alt"
     /** Shows the modifier row on the pad. The trackpad keeps its own. */
     const val MOD_ON = "mod_on"
+    /** How bold the number buttons' outline is: 0 matches the other buttons, 100 is the standard number look. */
+    const val NUM_OUTLINE = "num_outline"
+    /** How raised the number buttons' face is: 0 matches the other buttons, 100 is the standard number look. */
+    const val NUM_FACE = "num_face"
     /** The optional "Extra Buttons" panel next to the number block. */
     const val EXTRA_ON = "extra_on"
     /** How many extra buttons it shows, 1 to 5. */
@@ -103,6 +107,8 @@ object PadSettings {
         MOD_GLOW_SHIFT to 0,
         MOD_GLOW_CTRL to 0,
         MOD_GLOW_ALT to 0,
+        NUM_OUTLINE to 100,
+        NUM_FACE to 100,
         EXTRA_ON to false,
         EXTRA_N to 3,
         EXTRA_MODS to false,

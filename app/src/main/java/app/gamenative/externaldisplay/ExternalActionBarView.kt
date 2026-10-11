@@ -96,7 +96,7 @@ class ExternalActionBarView(
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 0, 4f).apply { setMargins(0, dp(3), 0, dp(3)) }
             // A hidden number keeps its place as a gap, so the others stay where the thumb expects them.
             orderedSlots(GROUP_NUMBERS, ACTION_SLOTS).chunked(3).forEach {
-                addView(keyRow(it, textSp = 26f, weight = 1f, raised = PadSettings.emphasis > 0f))
+                addView(keyRow(it, textSp = 26f, weight = 1f, numbers = true))
             }
             if (!PadSettings.bool(PadSettings.SEC_NUMBERS)) visibility = GONE
         }
@@ -190,7 +190,7 @@ class ExternalActionBarView(
         textSp: Float,
         weight: Float,
         muted: Boolean = false,
-        raised: Boolean = false,
+        numbers: Boolean = false,
         wrap: Boolean = false,
     ): LinearLayout {
         return LinearLayout(context).apply {
@@ -199,7 +199,7 @@ class ExternalActionBarView(
             // Rows share the column's height by weight, so everything always fits.
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 0, weight)
             slots.forEach { slot ->
-                val button = createButton(slot, textSp, muted, raised, wrap)
+                val button = createButton(slot, textSp, muted, numbers, wrap)
                 if (PadSettings.isHidden(slot.label)) {
                     button.visibility = INVISIBLE
                     button.isEnabled = false
@@ -211,7 +211,7 @@ class ExternalActionBarView(
     }
 
     @SuppressLint("ClickableViewAccessibility")
-    private fun createButton(slot: Slot, textSp: Float, muted: Boolean, raised: Boolean, wrap: Boolean = false): View {
+    private fun createButton(slot: Slot, textSp: Float, muted: Boolean, numbers: Boolean, wrap: Boolean = false): View {
         return GlowTextView(context).apply {
             text = if (wrap) wrapLabel(PadSettings.displayName(slot.label)) else PadSettings.displayName(slot.label)
             contentDescription = slot.label
@@ -227,7 +227,7 @@ class ExternalActionBarView(
                 maxLines = 1
             }
             val accent = PadSettings.colorOf(slot.label)
-            background = createKeyBackground(muted, raised, accent)
+            background = createKeyBackground(muted, numbers, accent)
             if (accent != null) setTextColor(accent)
             layoutParams = LayoutParams(0, LayoutParams.MATCH_PARENT, 1f).apply {
                 val margin = dp(3)
@@ -286,8 +286,8 @@ class ExternalActionBarView(
         }
     }
 
-    private fun createKeyBackground(muted: Boolean, raised: Boolean, accent: Int? = null) =
-        theme.buttonStates(resources.displayMetrics.density, 10f, muted, raised, accent)
+    private fun createKeyBackground(muted: Boolean, numbers: Boolean, accent: Int? = null) =
+        theme.buttonStates(resources.displayMetrics.density, 10f, muted, numbers, accent)
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 

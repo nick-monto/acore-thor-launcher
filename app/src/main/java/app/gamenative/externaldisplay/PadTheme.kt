@@ -64,6 +64,8 @@ data class PadTheme(
         emphasized: Boolean = false,
         muted: Boolean = false,
         raised: Boolean = false,
+        /** The number block's buttons: their outline and face follow the number block settings. */
+        numbers: Boolean = false,
         /** A user-chosen trim color replacing the gold. */
         accent: Int? = null,
     ): Drawable {
@@ -71,27 +73,40 @@ data class PadTheme(
         val edgeInner = if (accent != null) blend(accent, keyBottom, 0.55f) else borderInner
         val edgeBright = if (accent != null) blend(accent, Color.WHITE, 0.3f) else borderBright
         val dim = muted && !active && !emphasized
-        val top = if (active) pressedTop else if (raised) raisedTop else keyTop
-        val bottom = if (active) pressedBottom else if (raised) raisedBottom else keyBottom
+        // Number buttons at rest sit between the other buttons' look (0) and the standard bold number look (1).
+        val custom = numbers && !active && !emphasized
+        val outline = PadSettings.int(PadSettings.NUM_OUTLINE) / 100f
+        val face = PadSettings.int(PadSettings.NUM_FACE) / 100f
+        val top = if (active) pressedTop else if (custom) blend(keyTop, raisedTop, face) else if (raised) raisedTop else keyTop
+        val bottom = if (active) pressedBottom else if (custom) blend(keyBottom, raisedBottom, face) else if (raised) raisedBottom else keyBottom
         val outer = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(top, bottom)).apply {
             cornerRadius = radiusDp * density
-            val strokeDp = if (emphasized) 4 else if (dim) 2 else 3
-            setStroke((strokeDp * density).toInt(), if (emphasized) edgeBright else if (dim) borderMuted(edge) else edge)
+            val strokeDp = if (emphasized) 4f else if (custom) 2f + outline else if (dim) 2f else 3f
+            val strokeColor = when {
+                emphasized -> edgeBright
+                custom -> blend(borderMuted(edge), edge, outline)
+                dim -> borderMuted(edge)
+                else -> edge
+            }
+            setStroke((strokeDp * density).toInt(), strokeColor)
         }
         val inner = GradientDrawable().apply {
             cornerRadius = (radiusDp - 2).coerceAtLeast(2f) * density
             setColor(Color.TRANSPARENT)
-            setStroke(density.toInt().coerceAtLeast(1), if (dim) borderInnerMuted(edgeInner) else edgeInner)
+            setStroke(
+                density.toInt().coerceAtLeast(1),
+                if (custom) blend(borderInnerMuted(edgeInner), edgeInner, outline) else if (dim) borderInnerMuted(edgeInner) else edgeInner,
+            )
         }
         val inset = (3 * density).toInt()
         return LayerDrawable(arrayOf(outer, inner)).apply { setLayerInset(1, inset, inset, inset, inset) }
     }
 
     /** Normal face, switching to the glowing face while pressed. */
-    fun buttonStates(density: Float, radiusDp: Float, muted: Boolean = false, raised: Boolean = false, accent: Int? = null): StateListDrawable =
+    fun buttonStates(density: Float, radiusDp: Float, muted: Boolean = false, numbers: Boolean = false, accent: Int? = null): StateListDrawable =
         StateListDrawable().apply {
             addState(intArrayOf(android.R.attr.state_pressed), buttonBackground(density, radiusDp, active = true, accent = accent))
-            addState(intArrayOf(), buttonBackground(density, radiusDp, active = false, muted = muted, raised = raised, accent = accent))
+            addState(intArrayOf(), buttonBackground(density, radiusDp, active = false, muted = muted, numbers = numbers, accent = accent))
         }
 
     companion object {

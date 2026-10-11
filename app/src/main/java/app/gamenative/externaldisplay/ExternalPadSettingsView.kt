@@ -63,6 +63,9 @@ class ExternalPadSettingsView(
         section("Number block", collapsible = true) {
             addView(toggleRow(listOf("Show 1-9 0 - =" to PadSettings.SEC_NUMBERS)))
             addView(sliderRow("Number emphasis", PadSettings.EMPHASIS, 0, 200) { "$it%" })
+            addView(note("Number buttons: 0% looks like the other buttons, 100% is the standard bold number look."))
+            addView(sliderRow("Outline", PadSettings.NUM_OUTLINE, 0, 100) { "$it%" })
+            addView(sliderRow("Face", PadSettings.NUM_FACE, 0, 100) { "$it%" })
         }
         section("Modifier keys", collapsible = true) {
             addView(toggleRow(listOf("Show modifier row on the pad" to PadSettings.MOD_ON)))
