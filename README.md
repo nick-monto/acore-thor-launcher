@@ -108,11 +108,13 @@ On the AYN Thor the bottom screen shows a touch pad while you play. The tab bar 
   - **Target:** Self, Party 1 to 4, and next and previous enemy.
   - **Utility:** chat page up and down, sheathe weapons, auto-run, walk/run, sit/stand, hide UI, nameplates and screenshot.
   
+  All of the page buttons come mapped to World of Warcraft's default key bindings, so they work out of the box. If you've changed a binding in game, remap the button to match.
+
   Every button shows on every client, including ones a client doesn't have, because any button can be renamed and remapped. Pages with more than eight buttons split into two columns, and long names wrap onto two lines.
 - **Extra Buttons:** an optional panel of one to five buttons (off by default, starting on F8 to F12) that can go above, below or between the other panels.
 - **Keyboard:** a Gboard-style on-screen keyboard with a number row, shift and caps, and a `?123` symbols page with arrow keys.
 - **Settings page** (the gear) lets you change:
-  - **pad layout:** tab bar position, swapping the page area and number block, swapping the tabs and buttons, the top-to-bottom order of the numbers, modifier keys and Extra Buttons, and the width and height of each section
+  - **pad layout:** tab bar position, swapping the page area and number block, swapping the tabs and buttons, the top-to-bottom order of the numbers, modifier keys and Extra Buttons, the page area width, and the modifier row and Extra Buttons heights
   - which number block, modifier keys and Extra Buttons are shown, and per-button show, hide and reorder controls
   - label size, number emphasis, haptics and double-tap lock time
   - trackpad speed, acceleration, tap-to-click and the scroll area
