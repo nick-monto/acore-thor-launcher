@@ -55,6 +55,7 @@ class ExternalPadSettingsView(
         section("Pad layout", collapsible = true) {
             addView(cycleRow("Tab bar", PadSettings.TAB_POS, listOf("Top", "Bottom")))
             addView(toggleRow(listOf("Swap sides (pages on the right)" to PadSettings.SWAP_SIDES)))
+            addView(toggleRow(listOf("Swap sides (tabs on the right)" to PadSettings.SWAP_TABS)))
             addView(sliderRow("Page area width", PadSettings.PAGE_WIDTH, 60, 160) { "$it%" })
             addView(note("Order of the right-hand column, top to bottom:"))
             addView(cycleRow("Order", PadSettings.COL_ORDER, ExternalActionBarView.COLUMN_ORDER_NAMES))

@@ -163,13 +163,17 @@ class ExternalActionPad(
             // Page tabs on the left share the width; the three mode buttons stay fixed on the right.
             pageTabs.clear()
             ExternalActionBarView.PAGE_TITLES.forEachIndexed { i, title ->
-                val tab = pageTab(title) { selectPage(i) }
-                pageTabs.add(tab)
-                addView(tab)
+                pageTabs.add(pageTab(title) { selectPage(i) })
             }
-            addView(settingsButton)
-            addView(trackpadButton)
-            addView(keyboardButton)
+            val modeButtons = listOf(settingsButton, trackpadButton, keyboardButton)
+            // "Swap sides (tabs on the right)" puts the three mode buttons first.
+            if (PadSettings.bool(PadSettings.SWAP_TABS)) {
+                modeButtons.forEach { addView(it) }
+                pageTabs.forEach { addView(it) }
+            } else {
+                pageTabs.forEach { addView(it) }
+                modeButtons.forEach { addView(it) }
+            }
         }
         // Modifier buttons on the pad (above the number block) follow the "modifier keys shown" setting.
         // With none showing, the row and its backing stay out of the way.

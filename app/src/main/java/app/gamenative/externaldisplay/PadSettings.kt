@@ -29,6 +29,8 @@ object PadSettings {
     const val MOD_ALT = "mod_alt"
     const val SEC_NUMBERS = "sec_numbers"
     const val SWAP_SIDES = "swap_sides"
+    /** Puts the Settings, Trackpad and Keyboard buttons on the left of the tab bar and the page tabs on the right. */
+    const val SWAP_TABS = "swap_tabs"
     /** Width of the page area against the number block, in percent of the default split. */
     const val PAGE_WIDTH = "page_width"
     /** Height of the modifier row, in percent of its default. */
@@ -81,6 +83,7 @@ object PadSettings {
         MOD_ALT to true,
         SEC_NUMBERS to true,
         SWAP_SIDES to false,
+        SWAP_TABS to false,
         PAGE_WIDTH to 100,
         MOD_HEIGHT to 100,
         COL_ORDER to 0,
