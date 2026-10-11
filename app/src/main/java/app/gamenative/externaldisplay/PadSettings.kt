@@ -39,7 +39,7 @@ object PadSettings {
     const val MOD_ON = "mod_on"
     /** The optional "Extra Buttons" panel next to the number block. */
     const val EXTRA_ON = "extra_on"
-    /** How many extra buttons it shows, 1 to 3. */
+    /** How many extra buttons it shows, 1 to 5. */
     const val EXTRA_N = "extra_n"
     /** Height of the Extra Buttons panel, in percent of its default. */
     const val EXTRA_HEIGHT = "extra_height"

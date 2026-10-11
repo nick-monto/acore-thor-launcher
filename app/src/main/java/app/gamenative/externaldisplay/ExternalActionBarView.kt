@@ -96,9 +96,9 @@ class ExternalActionBarView(
             }
             if (!PadSettings.bool(PadSettings.SEC_NUMBERS)) visibility = GONE
         }
-        // The optional Extra Buttons panel: up to three buttons in one row.
+        // The optional Extra Buttons panel: up to five buttons in one row.
         val extraGroup: LinearLayout? = if (PadSettings.bool(PadSettings.EXTRA_ON)) {
-            val slots = orderedSlots(GROUP_EXTRAS, EXTRA_SLOTS).take(PadSettings.int(PadSettings.EXTRA_N).coerceIn(1, 3))
+            val slots = orderedSlots(GROUP_EXTRAS, EXTRA_SLOTS).take(PadSettings.int(PadSettings.EXTRA_N).coerceIn(1, 5))
             group(vertical = true, strong = false).apply {
                 layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 0, 0.7f * PadSettings.int(PadSettings.EXTRA_HEIGHT) / 100f).apply { setMargins(0, dp(3), 0, dp(3)) }
                 addView(keyRow(slots, textSp = 14f, weight = 1f, muted = true, wrap = true))
@@ -388,11 +388,13 @@ class ExternalActionBarView(
             ),
         )
 
-        // The Extra Buttons panel. They start on F9 to F11; remap them to whatever is needed.
+        // The Extra Buttons panel. They start on F9, F10, F11, F12 and F8; remap them to whatever is needed.
         private val EXTRA_SLOTS = listOf(
             Slot("Extra 1", XKeycode.KEY_F9),
             Slot("Extra 2", XKeycode.KEY_F10),
             Slot("Extra 3", XKeycode.KEY_F11),
+            Slot("Extra 4", XKeycode.KEY_F12),
+            Slot("Extra 5", XKeycode.KEY_F8),
         )
 
         // WoW's default bindings for Action Bar 1, slots 1 to 12.

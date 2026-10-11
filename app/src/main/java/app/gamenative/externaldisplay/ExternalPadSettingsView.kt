@@ -72,9 +72,9 @@ class ExternalPadSettingsView(
         }
         section("Extra Buttons", collapsible = true) {
             addView(toggleRow(listOf("Show Extra Buttons panel" to PadSettings.EXTRA_ON)))
-            addView(sliderRow("Buttons shown", PadSettings.EXTRA_N, 1, 3) { "$it" })
+            addView(sliderRow("Buttons shown", PadSettings.EXTRA_N, 1, 5) { "$it" })
             addView(sliderRow("Panel height", PadSettings.EXTRA_HEIGHT, 50, 250) { "$it%" })
-            addView(note("Extra 1 to 3 start on F9 to F11. Remap them under \"Remap, rename, and recolor buttons\"."))
+            addView(note("Extra 1 to 5 start on F9, F10, F11, F12 and F8. Remap them under \"Remap, rename, and recolor buttons\"."))
         }
         section("Buttons shown", collapsible = true) {
             addView(note("Tap a button to hide or show it. Hidden numbers leave a gap."))
