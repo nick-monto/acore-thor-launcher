@@ -222,6 +222,7 @@ class ExternalActionPad(
         text = title
         gravity = Gravity.CENTER
         textSize = 14f
+        typeface = theme.typeface
         maxLines = 1
         setOnClickListener { onClick() }
     }

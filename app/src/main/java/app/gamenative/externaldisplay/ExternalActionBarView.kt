@@ -134,11 +134,11 @@ class ExternalActionBarView(
             pageHost.addView(
                 group(vertical = true, strong = false).apply {
                     layoutParams = LayoutParams(0, LayoutParams.MATCH_PARENT, 1f).apply { setMargins(dp(3), dp(3), dp(3), dp(3)) }
-                    column.forEach { addView(keyRow(listOf(it), textSp = if (split) 13f else 15f, weight = 1f, muted = true)) }
+                    column.forEach { addView(keyRow(listOf(it), textSp = if (split) 13f else 15f, weight = 1f, muted = true, wrap = split)) }
                 },
             )
         }
-        (pageHost.layoutParams as LayoutParams).weight = (if (split) SPLIT_LEFT_WEIGHT else LEFT_WEIGHT) * pageWidthScale()
+        (pageHost.layoutParams as LayoutParams).weight = LEFT_WEIGHT * pageWidthScale()
         pageHost.requestLayout()
     }
 
@@ -171,6 +171,7 @@ class ExternalActionBarView(
         weight: Float,
         muted: Boolean = false,
         raised: Boolean = false,
+        wrap: Boolean = false,
     ): LinearLayout {
         return LinearLayout(context).apply {
             orientation = HORIZONTAL
@@ -178,7 +179,7 @@ class ExternalActionBarView(
             // Rows share the column's height by weight, so everything always fits.
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 0, weight)
             slots.forEach { slot ->
-                val button = createButton(slot, textSp, muted, raised)
+                val button = createButton(slot, textSp, muted, raised, wrap)
                 if (PadSettings.isHidden(slot.label)) {
                     button.visibility = INVISIBLE
                     button.isEnabled = false
@@ -190,7 +191,7 @@ class ExternalActionBarView(
     }
 
     @SuppressLint("ClickableViewAccessibility")
-    private fun createButton(slot: Slot, textSp: Float, muted: Boolean, raised: Boolean): View {
+    private fun createButton(slot: Slot, textSp: Float, muted: Boolean, raised: Boolean, wrap: Boolean = false): View {
         return TextView(context).apply {
             text = PadSettings.displayName(slot.label)
             contentDescription = slot.label
@@ -198,7 +199,13 @@ class ExternalActionBarView(
             setTextColor(theme.text)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, textSp * PadSettings.labelScale)
             typeface = theme.typeface
-            maxLines = 1
+            if (wrap) {
+                // Narrow two-column buttons may wrap a label onto a second line, shrinking only if it still will not fit.
+                maxLines = 2
+                setAutoSizeTextTypeUniformWithConfiguration(8, (textSp * PadSettings.labelScale).toInt().coerceAtLeast(9), 1, TypedValue.COMPLEX_UNIT_SP)
+            } else {
+                maxLines = 1
+            }
             val accent = PadSettings.colorOf(slot.label)
             background = createKeyBackground(muted, raised, accent)
             if (accent != null) setTextColor(accent)
@@ -308,7 +315,6 @@ class ExternalActionBarView(
 
         // Up to this many buttons on a page stay in one column; more split it in two, a little wider overall.
         private const val SINGLE_COLUMN_MAX = 8
-        private const val SPLIT_LEFT_WEIGHT = 1.2f
 
         /** A page button. It sends its own modifiers and ignores any the user holds on the pad. */
         private fun page(label: String, key: XKeycode, vararg mods: XKeycode) = Slot(label, key, mods.toList(), isolated = true)
