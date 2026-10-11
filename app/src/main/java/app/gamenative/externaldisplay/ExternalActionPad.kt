@@ -43,6 +43,8 @@ class ExternalActionPad(
     private lateinit var textEntryPanel: LinearLayout
     private lateinit var padView: ExternalActionBarView
     private var settingsOpen = false
+    private var currentPage = 0
+    private val pageTabs = mutableListOf<TextView>()
     private var settingsVersion = 0
     private val heldModifiers = mutableSetOf<XKeycode>()
     private val lockedModifiers = mutableSetOf<XKeycode>()
@@ -79,6 +81,7 @@ class ExternalActionPad(
             onKeyTapped = { releaseModifiers() },
             onSuspendModifiers = { suspendModifiers() },
             onResumeModifiers = { resumeModifiers(it) },
+            initialPage = currentPage,
         ).apply {
             layoutParams = FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         }
@@ -155,8 +158,16 @@ class ExternalActionPad(
             }
             val inset = (4 * density).toInt()
             setPadding(inset, inset, inset, inset)
-            addView(trackpadButton)
+            gravity = Gravity.CENTER_VERTICAL
+            // Page tabs on the left share the width; the three mode buttons stay fixed on the right.
+            pageTabs.clear()
+            ExternalActionBarView.PAGE_TITLES.forEachIndexed { i, title ->
+                val tab = pageTab(title) { selectPage(i) }
+                pageTabs.add(tab)
+                addView(tab)
+            }
             addView(settingsButton)
+            addView(trackpadButton)
             addView(keyboardButton)
         }
         // Modifier buttons on the pad (above the number block) follow the "modifier keys shown" setting.
@@ -194,6 +205,39 @@ class ExternalActionPad(
         }
         addView(header)
         addView(body)
+        refreshTabs()
+    }
+
+    private fun pageTab(title: String, onClick: () -> Unit) = TextView(context).apply {
+        layoutParams = LayoutParams(0, (44 * density).toInt(), 1f).apply {
+            val m = (3 * density).toInt()
+            setMargins(m, 0, m, 0)
+        }
+        text = title
+        gravity = Gravity.CENTER
+        textSize = 14f
+        maxLines = 1
+        setOnClickListener { onClick() }
+    }
+
+    /** Shows a page on the pad, closing the trackpad, keyboard or settings if one of them is open. */
+    private fun selectPage(index: Int) {
+        currentPage = index
+        setTrackpad(false)
+        setKeyboard(false)
+        setSettings(false)
+        padView.showPage(index)
+        refreshTabs()
+    }
+
+    /** The active page tab only lights up while the pad itself is showing. */
+    private fun refreshTabs() {
+        val mainVisible = padView.visibility == View.VISIBLE
+        pageTabs.forEachIndexed { i, tab ->
+            val active = mainVisible && i == currentPage
+            tab.background = theme.buttonBackground(density, 12f, active, muted = true)
+            tab.setTextColor(if (active) theme.textPressed else theme.text)
+        }
     }
 
     private lateinit var textPrompt: TextView
@@ -540,6 +584,7 @@ class ExternalActionPad(
         // A modifier armed on one view shows as armed on the other too.
         modifierStyles.forEach { (key, styles) -> styles.forEach { it(key in heldModifiers) } }
         styleButton(trackpadButton, on)
+        refreshTabs()
     }
 
     private fun setKeyboard(on: Boolean) {
@@ -553,6 +598,7 @@ class ExternalActionPad(
         // With the keyboard up, the space above it is left blank (just the pad background).
         padView.visibility = if (on) View.GONE else View.VISIBLE
         styleButton(keyboardButton, on)
+        refreshTabs()
     }
 
     /**
@@ -571,6 +617,7 @@ class ExternalActionPad(
             settingsView.visibility = View.VISIBLE
             padView.visibility = View.GONE
             styleButton(settingsButton, true)
+            refreshTabs()
         } else {
             settingsOpen = false
             if (PadSettings.version != settingsVersion) {
@@ -579,14 +626,15 @@ class ExternalActionPad(
                 settingsView.visibility = View.GONE
                 padView.visibility = View.VISIBLE
                 styleButton(settingsButton, false)
+                refreshTabs()
             }
         }
     }
 
     private fun circleButton(@DrawableRes icon: Int, label: String, onClick: () -> Unit): ImageButton {
         return ImageButton(context).apply {
-            // The header buttons split the full width between them.
-            layoutParams = LayoutParams(0, (44 * density).toInt(), 1f).apply {
+            // Fixed-width icon buttons; the page tabs take the rest of the header.
+            layoutParams = LayoutParams((52 * density).toInt(), (44 * density).toInt()).apply {
                 val m = (3 * density).toInt()
                 setMargins(m, 0, m, 0)
             }

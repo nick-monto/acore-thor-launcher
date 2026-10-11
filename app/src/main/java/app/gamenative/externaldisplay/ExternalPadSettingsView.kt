@@ -55,36 +55,15 @@ class ExternalPadSettingsView(
         section("Modifier keys shown", collapsible = true) {
             addView(toggleRow(listOf("Shift" to PadSettings.MOD_SHIFT, "Ctrl" to PadSettings.MOD_CTRL, "Alt" to PadSettings.MOD_ALT)))
         }
-        section("Window buttons shown", collapsible = true) {
-            addView(note("Up to 8 stay in one column. More split it in two."))
-            ExternalActionBarView.availableWindowLabels().chunked(3).forEach { chunk ->
-                addView(
-                    rowOf(
-                        *chunk.map { label ->
-                            button(label, active = PadSettings.bool(PadSettings.windowKey(label))) { b ->
-                                val on = !PadSettings.bool(PadSettings.windowKey(label))
-                                PadSettings.set(PadSettings.windowKey(label), on)
-                                style(b, on)
-                            }
-                        }.toTypedArray(),
-                        filler = 3 - chunk.size,
-                    ),
-                )
-            }
-        }
         section("Pad sections shown", collapsible = true) {
             addView(
                 toggleRow(
                     listOf(
-                        "Windows" to PadSettings.SEC_WINDOWS,
                         "1-9 0 - =" to PadSettings.SEC_NUMBERS,
-                        "F-keys" to PadSettings.SEC_FKEYS,
                     ),
                 ),
             )
-            addView(sliderRow("F-keys shown", PadSettings.FKEY_N, 3, 12) { "F1-F$it" })
-            addView(toggleRow(listOf("Swap sides (windows on the right)" to PadSettings.SWAP_SIDES)))
-            addView(toggleRow(listOf("Swap F-keys and modifier keys" to PadSettings.SWAP_FKEYS_MODS)))
+            addView(toggleRow(listOf("Swap sides (pages on the right)" to PadSettings.SWAP_SIDES)))
         }
         section("Look and feel", collapsible = true) {
             addView(sliderRow("Muted borders", PadSettings.MUTED, 0, 100) { "$it" })
@@ -239,7 +218,7 @@ class ExternalPadSettingsView(
     /** Shift, Ctrl and Alt picked for the key about to be chosen; starts from the button's current remap. */
     private val pickerMods = mutableSetOf<String>()
 
-    private fun showKeyPicker(label: String, default: XKeycode, keepMods: Boolean = false) {
+    private fun showKeyPicker(label: String, default: KeyCombo, keepMods: Boolean = false) {
         if (!keepMods) {
             pickerMods.clear()
             pickerMods.addAll(KeyCombo.modNames(PadSettings.remapped(label)))
@@ -260,7 +239,7 @@ class ExternalPadSettingsView(
                         PadSettings.setRename(label, null)
                         showKeyPicker(label, default)
                     },
-                    button("Default (${keyName(default.name)})") {
+                    button("Default (${comboLabel(defaultValue(default))})") {
                         PadSettings.setRemap(label, null)
                         showRemap()
                     },
@@ -295,7 +274,7 @@ class ExternalPadSettingsView(
             }
         }
         ExternalActionBarView.groupOf(label)?.let { group ->
-            section("Order in ${GROUP_NAMES[group]}") {
+            section("Order in ${ExternalActionBarView.groupTitle(group)}") {
                 val defaults = ExternalActionBarView.defaultLabels(group)
                 val list = PadSettings.ordered(group, defaults)
                 val pos = list.indexOf(label)
@@ -563,6 +542,9 @@ class ExternalPadSettingsView(
         (KeyCombo.modNames(value).toList().sortedBy { n -> KeyCombo.MODIFIERS.indexOfFirst { it.first == n } }
             .map { it.lowercase().replaceFirstChar { c -> c.uppercase() } } + keyName(KeyCombo.keyName(value))).joinToString("+")
 
+    private fun defaultValue(combo: KeyCombo): String =
+        KeyCombo.encode(combo.key.name, combo.mods.mapNotNull { m -> KeyCombo.MODIFIERS.firstOrNull { it.second == m }?.first }.toSet())
+
     private fun keyName(enumName: String): String = when (val n = enumName.removePrefix("KEY_")) {
         "PRIOR" -> "PgUp"
         "NEXT" -> "PgDn"
@@ -583,12 +565,6 @@ class ExternalPadSettingsView(
 
     private companion object {
         private const val MAX_NAME = 12
-
-        private val GROUP_NAMES = mapOf(
-            ExternalActionBarView.GROUP_WINDOWS to "the window buttons",
-            ExternalActionBarView.GROUP_FKEYS to "the F-keys",
-            ExternalActionBarView.GROUP_NUMBERS to "the number block",
-        )
 
         /** Trim colors offered per button; "Default" keeps the gold. */
         private val COLOR_CHOICES = listOf(

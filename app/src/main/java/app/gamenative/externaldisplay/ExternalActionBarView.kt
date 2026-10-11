@@ -35,6 +35,8 @@ class ExternalActionBarView(
     private val onSuspendModifiers: () -> List<XKeycode> = { emptyList() },
     /** Presses back the modifiers [onSuspendModifiers] returned, those the user is still holding. */
     private val onResumeModifiers: (List<XKeycode>) -> Unit = {},
+    /** The page shown first (index into the pages). */
+    initialPage: Int = 0,
 ) : LinearLayout(context) {
 
     /**
@@ -64,6 +66,9 @@ class ExternalActionBarView(
         }
     }
 
+    private val pageHost: LinearLayout
+    private var pageIndex = initialPage.coerceIn(PAGES.indices)
+
     init {
         orientation = HORIZONTAL
         isMotionEventSplittingEnabled = true
@@ -72,24 +77,13 @@ class ExternalActionBarView(
         setPadding(pad, pad, pad, pad)
 
         // Each group of buttons sits on its own faint backing; the number block's is the strongest.
-        // Window buttons: one column up to SINGLE_COLUMN_MAX buttons, two columns beyond that.
-        val windows = visibleWindows()
-        val columns = if (windows.size > SINGLE_COLUMN_MAX) windows.chunked((windows.size + 1) / 2) else listOf(windows)
-        val split = columns.size > 1
-        val leftColumn = LinearLayout(context).apply {
+        // The page area shows one page of buttons at a time (see [showPage]).
+        pageHost = LinearLayout(context).apply {
             orientation = HORIZONTAL
             isMotionEventSplittingEnabled = true
-            layoutParams = LayoutParams(0, LayoutParams.MATCH_PARENT, if (split) SPLIT_LEFT_WEIGHT else LEFT_WEIGHT)
-            columns.forEach { slots ->
-                addView(
-                    group(vertical = true, strong = false).apply {
-                        layoutParams = LayoutParams(0, LayoutParams.MATCH_PARENT, 1f).apply { setMargins(dp(3), dp(3), dp(3), dp(3)) }
-                        slots.forEach { addView(keyRow(listOf(it), textSp = if (split) 13f else 15f, weight = 1f, muted = true)) }
-                    },
-                )
-            }
-            if (windows.isEmpty() || !PadSettings.bool(PadSettings.SEC_WINDOWS)) visibility = GONE
+            layoutParams = LayoutParams(0, LayoutParams.MATCH_PARENT, LEFT_WEIGHT)
         }
+        populatePage()
         modifierGroup = group(vertical = false, strong = false).apply {
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 0, 0.7f).apply { setMargins(0, dp(3), 0, dp(3)) }
             visibility = GONE
@@ -101,42 +95,45 @@ class ExternalActionBarView(
             }
             if (!PadSettings.bool(PadSettings.SEC_NUMBERS)) visibility = GONE
         }
-        val functionGroup = group(vertical = true, strong = false).apply {
-            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 0, 1.2f).apply { setMargins(0, dp(3), 0, dp(3)) }
-            // F1 up to the chosen count (3-12). Up to six sit in one row of big buttons; more split into two
-            // balanced rows, so the group always fills the same space.
-            val count = PadSettings.int(PadSettings.FKEY_N).coerceIn(3, 12)
-            val fKeys = orderedSlots(GROUP_FKEYS, FUNCTION_KEYS).take(count)
-            val oneRow = count <= 6
-            fKeys.chunked(if (oneRow) count else (count + 1) / 2)
-                .forEach { addView(keyRow(it, textSp = if (oneRow) 16f else 13f, weight = 1f, muted = true)) }
-            if (!PadSettings.bool(PadSettings.SEC_FKEYS)) visibility = GONE
-        }
+        // Numbers on top, modifier keys below them.
         rightColumn = column(RIGHT_WEIGHT).apply {
-            // F-keys on top and modifier keys at the bottom by default; "Swap F-keys and modifier keys" reverses that.
-            if (PadSettings.bool(PadSettings.SWAP_FKEYS_MODS)) {
-                addView(modifierGroup)
-                addView(numberGroup)
-                addView(functionGroup)
-            } else {
-                addView(functionGroup)
-                addView(numberGroup)
-                addView(modifierGroup)
-            }
+            addView(numberGroup)
+            addView(modifierGroup)
         }
-        // "Swap sides" puts the window column on the right.
+        // "Swap sides" puts the page area on the right.
         if (PadSettings.bool(PadSettings.SWAP_SIDES)) {
             addView(rightColumn)
-            addView(leftColumn)
+            addView(pageHost)
         } else {
-            addView(leftColumn)
+            addView(pageHost)
             addView(rightColumn)
         }
     }
 
-    /** The window buttons to show: switched on in settings. Every game shows them all, since any button can be renamed. */
-    private fun visibleWindows(): List<Slot> = orderedSlots(GROUP_WINDOWS, PANELS).filter { slot ->
-        PadSettings.bool(PadSettings.windowKey(slot.label))
+    /** Shows page [index] of [PAGES]. Lets go of any pressed button first, since its view is about to go. */
+    fun showPage(index: Int) {
+        releaseAllKeys()
+        pageIndex = index.coerceIn(PAGES.indices)
+        populatePage()
+    }
+
+    /** Fills the page area: one column of buttons, or two when the page has more than [SINGLE_COLUMN_MAX]. */
+    private fun populatePage() {
+        pageHost.removeAllViews()
+        val page = PAGES[pageIndex]
+        val slots = orderedSlots(page.id, page.slots)
+        val columns = if (slots.size > SINGLE_COLUMN_MAX) slots.chunked((slots.size + 1) / 2) else listOf(slots)
+        val split = columns.size > 1
+        columns.forEach { column ->
+            pageHost.addView(
+                group(vertical = true, strong = false).apply {
+                    layoutParams = LayoutParams(0, LayoutParams.MATCH_PARENT, 1f).apply { setMargins(dp(3), dp(3), dp(3), dp(3)) }
+                    column.forEach { addView(keyRow(listOf(it), textSp = if (split) 13f else 15f, weight = 1f, muted = true)) }
+                },
+            )
+        }
+        (pageHost.layoutParams as LayoutParams).weight = if (split) SPLIT_LEFT_WEIGHT else LEFT_WEIGHT
+        pageHost.requestLayout()
     }
 
     /** Puts the modifier buttons above the action buttons. */
@@ -240,15 +237,21 @@ class ExternalActionBarView(
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
-    /** Never leave a key stuck down if the display goes away or the game closes mid-press. */
-    override fun onDetachedFromWindow() {
+    /** Lets go of every pressed button, and gives back any modifier held aside for an isolated one. */
+    private fun releaseAllKeys() {
         downKeys.values.toList().forEach { d ->
             xServer.injectKeyRelease(d.combo.key)
             d.combo.mods.forEach { xServer.injectKeyRelease(it) }
         }
         downKeys.clear()
+        if (isolatedDown > 0) onResumeModifiers(suspendedModifiers)
         isolatedDown = 0
         suspendedModifiers = emptyList()
+    }
+
+    /** Never leave a key stuck down if the display goes away or the game closes mid-press. */
+    override fun onDetachedFromWindow() {
+        releaseAllKeys()
         super.onDetachedFromWindow()
     }
 
@@ -258,72 +261,91 @@ class ExternalActionBarView(
     }
 
     companion object {
-        const val GROUP_WINDOWS = "windows"
-        const val GROUP_FKEYS = "fkeys"
         const val GROUP_NUMBERS = "numbers"
 
-        /** The group a pad button belongs to, or null for a label that is not a pad button. */
-        fun groupOf(label: String): String? = when {
-            PANELS.any { it.label == label } -> GROUP_WINDOWS
-            FUNCTION_KEYS.any { it.label == label } -> GROUP_FKEYS
-            ACTION_SLOTS.any { it.label == label } -> GROUP_NUMBERS
-            else -> null
-        }
+        /** The page ids, in tab order: "interface", "target", "utility". */
+        val PAGE_IDS: List<String> get() = PAGES.map { it.id }
+
+        /** The page tab titles, in tab order. */
+        val PAGE_TITLES: List<String> get() = PAGES.map { it.title }
+
+        /** A group's name for the settings: a page's title, or the number block. */
+        fun groupTitle(group: String): String = PAGES.firstOrNull { it.id == group }?.title?.let { "the $it page" } ?: "the number block"
+
+        /** The group a pad button belongs to (a page id or the number block), or null for a label that is not a pad button. */
+        fun groupOf(label: String): String? =
+            PAGES.firstOrNull { page -> page.slots.any { it.label == label } }?.id
+                ?: GROUP_NUMBERS.takeIf { ACTION_SLOTS.any { it.label == label } }
 
         /** A group's button labels in the default order. */
-        fun defaultLabels(group: String): List<String> = when (group) {
-            GROUP_WINDOWS -> PANELS
-            GROUP_FKEYS -> FUNCTION_KEYS
-            else -> ACTION_SLOTS
-        }.map { it.label }
+        fun defaultLabels(group: String): List<String> =
+            (PAGES.firstOrNull { it.id == group }?.slots ?: ACTION_SLOTS).map { it.label }
 
-        /** Every remappable pad button: its label and the key it sends by default. */
-        /** Window buttons that exist in the selected client, for the "Window buttons shown" settings. */
-        fun availableWindowLabels(): List<String> =
-            PANELS.map { it.label }
+        /** Every remappable pad button: its label and what it sends by default. */
+        fun remappableButtons(): List<Pair<String, KeyCombo>> =
+            (PAGES.flatMap { it.slots } + ACTION_SLOTS).map { it.label to KeyCombo(it.key, it.mods) }
 
-        fun remappableButtons(): List<Pair<String, XKeycode>> =
-            (PANELS + ACTION_SLOTS + FUNCTION_KEYS).map { it.label to it.key }
-
-        // Width split between the window-shortcut column and the F-key/number/modifier block.
+        // Width split between the page area and the number/modifier block.
         // A smaller RIGHT_WEIGHT squeezes that block toward the right edge, within reach of a right thumb.
         private const val LEFT_WEIGHT = 1f
         private const val RIGHT_WEIGHT = 1f
 
-        // Up to this many window buttons stay in one column; more split it in two, a little wider overall.
+        // Up to this many buttons on a page stay in one column; more split it in two, a little wider overall.
         private const val SINGLE_COLUMN_MAX = 8
-        private const val SPLIT_LEFT_WEIGHT = 1.45f
+        private const val SPLIT_LEFT_WEIGHT = 1.2f
 
-        // WoW's default bindings for the character, spellbook and similar windows.
-        private val PANELS = listOf(
-            Slot("Map", XKeycode.KEY_M),
-            Slot("Character", XKeycode.KEY_C),
-            Slot("Spellbook", XKeycode.KEY_P),
-            Slot("Talents", XKeycode.KEY_N),
-            Slot("Skills", XKeycode.KEY_K),
-            Slot("Quest Log", XKeycode.KEY_L),
-            Slot("Social", XKeycode.KEY_O),
-            // Escape opens the game menu ("System") when nothing else is open.
-            Slot("System", XKeycode.KEY_ESC),
-            Slot("Bags", XKeycode.KEY_B),
-            Slot("Group Finder", XKeycode.KEY_I),
-            Slot("Achievements", XKeycode.KEY_Y),
-            Slot("Guild", XKeycode.KEY_J),
-        )
+        /** A page button. It sends its own modifiers and ignores any the user holds on the pad. */
+        private fun page(label: String, key: XKeycode, vararg mods: XKeycode) = Slot(label, key, mods.toList(), isolated = true)
 
-        private val FUNCTION_KEYS = listOf(
-            Slot("F1", XKeycode.KEY_F1),
-            Slot("F2", XKeycode.KEY_F2),
-            Slot("F3", XKeycode.KEY_F3),
-            Slot("F4", XKeycode.KEY_F4),
-            Slot("F5", XKeycode.KEY_F5),
-            Slot("F6", XKeycode.KEY_F6),
-            Slot("F7", XKeycode.KEY_F7),
-            Slot("F8", XKeycode.KEY_F8),
-            Slot("F9", XKeycode.KEY_F9),
-            Slot("F10", XKeycode.KEY_F10),
-            Slot("F11", XKeycode.KEY_F11),
-            Slot("F12", XKeycode.KEY_F12),
+        private class Page(val id: String, val title: String, val slots: List<Slot>)
+
+        // WoW's default bindings. A page holds at most 12 buttons.
+        private val PAGES = listOf(
+            Page(
+                "interface", "Interface",
+                listOf(
+                    page("Character", XKeycode.KEY_C),
+                    page("Spellbook", XKeycode.KEY_P),
+                    page("Talents", XKeycode.KEY_N),
+                    page("Quest Log", XKeycode.KEY_L),
+                    page("Map", XKeycode.KEY_M),
+                    page("Social", XKeycode.KEY_O),
+                    page("Guild", XKeycode.KEY_J),
+                    page("Group Finder", XKeycode.KEY_I),
+                    page("Achievements", XKeycode.KEY_Y),
+                    page("Professions", XKeycode.KEY_K),
+                    page("Bags", XKeycode.KEY_B),
+                    // Escape opens the game menu ("System") when nothing else is open.
+                    page("System", XKeycode.KEY_ESC),
+                ),
+            ),
+            Page(
+                "target", "Target",
+                listOf(
+                    page("Self", XKeycode.KEY_F1),
+                    page("Party 1", XKeycode.KEY_F2),
+                    page("Party 2", XKeycode.KEY_F3),
+                    page("Party 3", XKeycode.KEY_F4),
+                    page("Party 4", XKeycode.KEY_F5),
+                    page("Next enemy", XKeycode.KEY_TAB),
+                    page("Previous enemy", XKeycode.KEY_TAB, XKeycode.KEY_SHIFT_L),
+                ),
+            ),
+            Page(
+                "utility", "Utility",
+                listOf(
+                    page("Sheathe weapons", XKeycode.KEY_Z),
+                    page("Auto-run", XKeycode.KEY_NUM_LOCK),
+                    page("Walk / run", XKeycode.KEY_KP_DIVIDE),
+                    page("Sit / stand", XKeycode.KEY_X),
+                    page("Hide UI", XKeycode.KEY_Z, XKeycode.KEY_ALT_L),
+                    page("Enemy nameplates", XKeycode.KEY_V),
+                    page("Friendly nameplates", XKeycode.KEY_V, XKeycode.KEY_SHIFT_L),
+                    page("Chat page up", XKeycode.KEY_PRIOR),
+                    page("Chat page down", XKeycode.KEY_NEXT),
+                    page("Screenshot", XKeycode.KEY_PRTSCN),
+                ),
+            ),
         )
 
         // WoW's default bindings for Action Bar 1, slots 1 to 12.
