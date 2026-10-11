@@ -101,6 +101,8 @@ class ExternalActionBarView(
         // The optional Extra Buttons panel: up to five buttons in one row.
         val extraGroup: LinearLayout? = if (PadSettings.bool(PadSettings.EXTRA_ON)) {
             val slots = orderedSlots(GROUP_EXTRAS, EXTRA_SLOTS).take(PadSettings.int(PadSettings.EXTRA_N).coerceIn(1, 5))
+                // Isolated buttons ignore armed modifiers; with the option on, the extras take them like the numbers do.
+                .map { it.copy(isolated = !PadSettings.bool(PadSettings.EXTRA_MODS)) }
             group(vertical = true, strong = false).apply {
                 layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 0, 0.7f * PadSettings.int(PadSettings.EXTRA_HEIGHT) / 100f).apply { setMargins(0, dp(3), 0, dp(3)) }
                 addView(keyRow(slots, textSp = 14f, weight = 1f, muted = true, wrap = true))

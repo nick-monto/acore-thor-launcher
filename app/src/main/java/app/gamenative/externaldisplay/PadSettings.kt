@@ -43,6 +43,8 @@ object PadSettings {
     const val EXTRA_ON = "extra_on"
     /** How many extra buttons it shows, 1 to 5. */
     const val EXTRA_N = "extra_n"
+    /** Lets an armed Shift, Ctrl or Alt apply to the Extra Buttons, as it does to the number buttons. */
+    const val EXTRA_MODS = "extra_mods"
     /** Height of the Extra Buttons panel, in percent of its default. */
     const val EXTRA_HEIGHT = "extra_height"
     /** 0 = tab bar at the top, 1 = at the bottom. */
@@ -90,6 +92,7 @@ object PadSettings {
         MOD_ON to true,
         EXTRA_ON to false,
         EXTRA_N to 3,
+        EXTRA_MODS to false,
         EXTRA_HEIGHT to 100,
         TAB_POS to 0,
         MUTED to 55,
