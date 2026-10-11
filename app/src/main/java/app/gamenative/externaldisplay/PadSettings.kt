@@ -99,7 +99,7 @@ object PadSettings {
         COL_ORDER to 0,
         MOD_ON to true,
         MOD_GLOW to true,
-        MOD_GLOW_LEVEL to 50,
+        MOD_GLOW_LEVEL to 25,
         MOD_GLOW_SHIFT to 0,
         MOD_GLOW_CTRL to 0,
         MOD_GLOW_ALT to 0,
