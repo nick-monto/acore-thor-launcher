@@ -11,7 +11,7 @@ This uses Blizzard's own **Windows ARM64** WoW clients, so the game itself runs 
 
 - **Five clients in one app:** Forever (beta), Retail, Classic Era, TBC Anniversary and MoP Classic, each with its own game folder, in-app updates and Play button. Tap **Classic** and a second row opens with the three Classic clients. The ARM64 clients for TBC Anniversary and MoP Classic download from Blizzard's CDN and run fine.
 - **Per-game switches on the main screen:** the Thor button pad, forcing WoW's gamepad UI, and R3 mouse/camera toggling can each be set separately for every client.
-- **Thor second-screen button pad:** a touch pad on the bottom screen with a trackpad, keyboard, hotbar-style buttons, window shortcuts (Map, Character, Spellbook, Bags, Group Finder and more), modifier and F-keys, a scroll area, a Gboard-style keyboard, and a full settings page. Every button can be remapped and renamed. See [The Thor button pad](#the-thor-button-pad).
+- **Thor second-screen button pad:** a touch pad on the bottom screen with a trackpad, keyboard, hotbar-style buttons, three switchable pages of common shortcuts (Interface, Target and Utility), modifier keys, optional Extra Buttons, a scroll area, a Gboard-style keyboard, and a full settings page. Every button can be remapped (including to a key with Shift, Ctrl or Alt), renamed, recolored, reordered and hidden. See [The Thor button pad](#the-thor-button-pad).
 - **Controller mouse mode:** the right stick becomes a cursor on R3, with A/B as clicks, Y/X as scroll up/down and an adjustable speed ramp. R3 toggling can be switched off per game, and then R3 stays a normal button press.
 - **App updates you control:** the app updates from this repo's releases, with an opt-in for beta builds and an option to skip automatic app updates.
 - **World of Warcraft look:** a stone-and-gold launcher and in-game quick menu, with the chosen client named on the Play button and boot screen.
@@ -100,17 +100,24 @@ Pick your game at the top of the screen (**Classic** opens Classic Era, TBC Anni
 
 ## The Thor button pad
 
-On the AYN Thor the bottom screen shows a touch pad while you play. The header has three buttons: **trackpad**, **settings (gear)** and **keyboard**. The pad can be switched on or off per client with the **Action button pad** switch on the main screen.
+On the AYN Thor the bottom screen shows a touch pad while you play. The tab bar has three page tabs (**Interface**, **Target**, **Utility**) and three buttons: **settings (gear)**, **trackpad** and **keyboard**. It can sit at the top or bottom of the screen, and the page tabs and the three buttons can swap sides. The pad can be switched on or off per client with the **Action button pad** switch on the main screen.
 
 - **Trackpad:** a touch mouse with Shift, Ctrl and Alt always available, left and right click buttons, and a **scroll area** along one edge: slide a finger up or down to scroll. Its side, speed and direction are adjustable and it can be turned off.
-- **Buttons:** hotbar numbers, F-keys, modifiers and window shortcuts (Map, Character, Spellbook, Talents, Skills, Quest Log, Social, System, Bags, Group Finder, Achievements, Guild). Every window button shows on every client, including ones a client doesn't have, because any button can be renamed and remapped. When more than eight window buttons are shown, they split into two columns.
+- **Buttons:** the number block (1-9, 0, -, =) and the modifier keys stay on one side, while the tabs change the buttons on the other:
+  - **Interface:** Character, Spellbook, Talents, Quest Log, Map, Social, Guild, Group Finder, Achievements, Professions, Bags and System.
+  - **Target:** Self, Party 1 to 4, and next and previous enemy.
+  - **Utility:** chat page up and down, sheathe weapons, auto-run, walk/run, sit/stand, hide UI, nameplates and screenshot.
+  
+  Every button shows on every client, including ones a client doesn't have, because any button can be renamed and remapped. Pages with more than eight buttons split into two columns, and long names wrap onto two lines.
+- **Extra Buttons:** an optional panel of one to five buttons (off by default, starting on F8 to F12) that can go above, below or between the other panels.
 - **Keyboard:** a Gboard-style on-screen keyboard with a number row, shift and caps, and a `?123` symbols page with arrow keys.
 - **Settings page** (the gear) lets you change:
-  - which modifier keys, window buttons and pad sections are shown (the rest resize to fill the space)
-  - how many F-keys show (any number from F1-F3 up to F1-F12), swap left/right sides, label size, haptics and double-tap lock time
+  - **pad layout:** tab bar position, swapping the page area and number block, swapping the tabs and buttons, the top-to-bottom order of the numbers, modifier keys and Extra Buttons, and the width and height of each section
+  - which number block, modifier keys and Extra Buttons are shown, and per-button show, hide and reorder controls
+  - label size, number emphasis, haptics and double-tap lock time
   - trackpad speed, acceleration, tap-to-click and the scroll area
   - right-stick cursor speed, ramp, deadzone, A/B click mode and Y/X scroll (shown only when R3 toggling is on)
-  - **remap and rename:** tap any window, number or F-key button to choose the key it sends, or give it a new name (up to 12 characters) typed on the on-screen keyboard. Shift, Ctrl, Alt and the trackpad click buttons are fixed. Use **Reset all remaps** or **Reset all names** to undo.
+  - **remap, rename and recolor:** tap any page, number or Extra button to choose the key it sends (optionally with Shift, Ctrl or Alt), give it a new name (up to 12 characters) typed on the on-screen keyboard, or change its trim color. Shift, Ctrl, Alt and the trackpad click buttons are fixed. Use the reset buttons in that screen to undo. A button layout can also be exported to a file and imported back.
   - three saved profiles (with Save / Overwrite), backup to the clipboard, and reset
   - which client launches next, and a helper for `Config.wtf`
 
@@ -184,7 +191,7 @@ Full third-party license details are in [`THIRD_PARTY_NOTICES`](THIRD_PARTY_NOTI
 - Forever, Retail, Classic Era, TBC Anniversary and MoP Classic selectable from the launcher, each with its own game folder and in-app updates.
 - Per-client switches for the button pad, forcing the gamepad UI and R3 mouse/camera toggling.
 - A stone-and-gold launcher theme and quick menu, and the selected client named on the Play button and boot screen.
-- Second-screen button pad with a settings page: grouped buttons, window shortcuts, modifier and F-key options, remapping and renaming of every button, profiles, a trackpad scroll area, a Gboard-style keyboard, and trackpad and stick tuning.
+- Second-screen button pad with a settings page: switchable button pages, Extra Buttons, layout options, remapping, renaming, recoloring and reordering of every button, profiles, a trackpad scroll area, a Gboard-style keyboard, and trackpad and stick tuning.
 - Right-stick cursor mode on R3 with A/B clicks, Y/X scrolling and a speed ramp.
 - An updater with beta opt-in and a skip-automatic-updates option.
 - Its own package name (`app.aynthorwow`) and an updater that follows this repo's releases.
