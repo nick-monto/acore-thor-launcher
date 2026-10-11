@@ -225,7 +225,7 @@ class ExternalPadSettingsView(
                         *chunk.map { (label, default) ->
                             val mapped = PadSettings.remapped(label)
                             val shown = PadSettings.displayName(label)
-                            button(if (mapped == null) shown else "$shown → ${keyName(mapped)}", active = mapped != null || PadSettings.renamed(label) != null || PadSettings.colorOf(label) != null) {
+                            button(if (mapped == null) shown else "$shown → ${comboLabel(mapped)}", active = mapped != null || PadSettings.renamed(label) != null || PadSettings.colorOf(label) != null) {
                                 showKeyPicker(label, default)
                             }
                         }.toTypedArray(),
@@ -236,7 +236,14 @@ class ExternalPadSettingsView(
         }
     }
 
-    private fun showKeyPicker(label: String, default: XKeycode) {
+    /** Shift, Ctrl and Alt picked for the key about to be chosen; starts from the button's current remap. */
+    private val pickerMods = mutableSetOf<String>()
+
+    private fun showKeyPicker(label: String, default: XKeycode, keepMods: Boolean = false) {
+        if (!keepMods) {
+            pickerMods.clear()
+            pickerMods.addAll(KeyCombo.modNames(PadSettings.remapped(label)))
+        }
         content.removeAllViews()
         scrollTo(0, 0)
         section("Key for \"${PadSettings.displayName(label)}\"") {
@@ -308,12 +315,25 @@ class ExternalPadSettingsView(
             }
         }
         section("Keys") {
+            addView(note("Optional: hold Shift, Ctrl or Alt with the key. Pick them first, then the key."))
+            addView(
+                rowOf(
+                    *KeyCombo.MODIFIERS.map { (name, _) ->
+                        button(name.lowercase().replaceFirstChar { it.uppercase() }, active = name in pickerMods) {
+                            if (!pickerMods.add(name)) pickerMods.remove(name)
+                            showKeyPicker(label, default, keepMods = true)
+                        }
+                    }.toTypedArray(),
+                    filler = 3,
+                ),
+            )
+            val current = PadSettings.remapped(label)
             PICKER_KEYS.chunked(6).forEach { chunk ->
                 addView(
                     rowOf(
                         *chunk.map { key ->
-                            button(keyName(key.name), active = PadSettings.remapped(label) == key.name) {
-                                PadSettings.setRemap(label, key.name)
+                            button(keyName(key.name), active = current != null && KeyCombo.keyName(current) == key.name) {
+                                PadSettings.setRemap(label, KeyCombo.encode(key.name, pickerMods))
                                 showRemap()
                             }
                         }.toTypedArray(),
@@ -537,6 +557,11 @@ class ExternalPadSettingsView(
     // Helpers
 
     private fun tenths(value: Int) = "${value / 10}.${value % 10}"
+
+    /** A saved key or combo as shown on a button, e.g. "Shift+V". */
+    private fun comboLabel(value: String): String =
+        (KeyCombo.modNames(value).toList().sortedBy { n -> KeyCombo.MODIFIERS.indexOfFirst { it.first == n } }
+            .map { it.lowercase().replaceFirstChar { c -> c.uppercase() } } + keyName(KeyCombo.keyName(value))).joinToString("+")
 
     private fun keyName(enumName: String): String = when (val n = enumName.removePrefix("KEY_")) {
         "PRIOR" -> "PgUp"

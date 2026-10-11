@@ -74,7 +74,12 @@ class ExternalActionPad(
         releaseMouseButtons.clear()
         settingsOpen = false
 
-        padView = ExternalActionBarView(context, xServer, theme, onKeyTapped = { releaseModifiers() }).apply {
+        padView = ExternalActionBarView(
+            context, xServer, theme,
+            onKeyTapped = { releaseModifiers() },
+            onSuspendModifiers = { suspendModifiers() },
+            onResumeModifiers = { resumeModifiers(it) },
+        ).apply {
             layoutParams = FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         }
         trackpadView = TouchpadView(context, xServer, false).apply {
@@ -482,6 +487,27 @@ class ExternalActionPad(
         }
     }
 
+    /** Lets go of the held modifiers for one button press (they stay armed on the pad). Returns the ones released. */
+    private fun suspendModifiers(): List<XKeycode> =
+        heldModifiers.toList().also { keys -> keys.forEach { xServer.injectKeyRelease(it) } }
+
+    /** Presses back the suspended modifiers the user is still holding (locked ones; one-shots are used up). */
+    private fun resumeModifiers(keys: List<XKeycode>) {
+        keys.filter { it in heldModifiers }.forEach { xServer.injectKeyPress(it) }
+    }
+
+    /** Lets go of every modifier, locked ones too, and shows them off. Used when switching tabs. */
+    private fun releaseAllModifiers() {
+        if (heldModifiers.isEmpty()) return
+        val keys = heldModifiers.toList()
+        heldModifiers.clear()
+        lockedModifiers.clear()
+        keys.forEach { key ->
+            xServer.injectKeyRelease(key)
+            modifierStyles[key]?.forEach { it(false) }
+        }
+    }
+
     /** Lets go of every armed modifier. Locked ones stay down. */
     private fun releaseModifiers() {
         heldModifiers.toList().filter { it !in lockedModifiers }.forEach { key ->
@@ -503,6 +529,7 @@ class ExternalActionPad(
 
     /** Trackpad and keyboard are mutually exclusive: opening one closes the other. */
     private fun setTrackpad(on: Boolean) {
+        if (on != (trackpadPanel.visibility == View.VISIBLE)) releaseAllModifiers()
         if (on) {
             setKeyboard(false)
             setSettings(false)
@@ -516,6 +543,7 @@ class ExternalActionPad(
     }
 
     private fun setKeyboard(on: Boolean) {
+        if (on != (keyboardView.visibility == View.VISIBLE)) releaseAllModifiers()
         if (on) {
             finishTextEntry(false)
             setTrackpad(false)
@@ -533,6 +561,7 @@ class ExternalActionPad(
      */
     private fun setSettings(on: Boolean) {
         if (on == settingsOpen) return
+        releaseAllModifiers()
         if (!on) finishTextEntry(false)
         if (on) {
             setTrackpad(false)

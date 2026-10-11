@@ -31,11 +31,23 @@ class ExternalActionBarView(
     private val theme: PadTheme,
     /** Called after a button's key has been released, e.g. so one-shot modifiers can let go. */
     private val onKeyTapped: () -> Unit = {},
+    /** Lets go of the Shift, Ctrl and Alt the user is holding on the pad, and returns which ones were down. */
+    private val onSuspendModifiers: () -> List<XKeycode> = { emptyList() },
+    /** Presses back the modifiers [onSuspendModifiers] returned, those the user is still holding. */
+    private val onResumeModifiers: (List<XKeycode>) -> Unit = {},
 ) : LinearLayout(context) {
 
-    private data class Slot(val label: String, val key: XKeycode)
+    /**
+     * [mods] are held around [key] (Shift+Tab). An [isolated] button ignores any modifier the user is
+     * holding on the pad, so only its own modifiers reach the game.
+     */
+    private data class Slot(val label: String, val key: XKeycode, val mods: List<XKeycode> = emptyList(), val isolated: Boolean = false)
 
-    private val downKeys = mutableSetOf<XKeycode>()
+    private class Down(val combo: KeyCombo, val isolated: Boolean)
+
+    private val downKeys = mutableMapOf<XKeycode, Down>()
+    private var isolatedDown = 0
+    private var suspendedModifiers: List<XKeycode> = emptyList()
     private val rightColumn: LinearLayout
     private val modifierGroup: LinearLayout
 
@@ -186,11 +198,11 @@ class ExternalActionBarView(
                     MotionEvent.ACTION_DOWN -> {
                         view.isPressed = true
                         PadSettings.haptic(view)
-                        pressKey(keyFor(slot))
+                        pressKey(comboFor(slot), isolated = slot.isolated)
                     }
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                         view.isPressed = false
-                        releaseKey(keyFor(slot))
+                        releaseKey(comboFor(slot).key)
                     }
                 }
                 true
@@ -198,19 +210,29 @@ class ExternalActionBarView(
         }
     }
 
-    /** The key a button sends: the user's remap if there is one, otherwise the default. */
-    private fun keyFor(slot: Slot): XKeycode =
-        PadSettings.remapped(slot.label)?.let { name -> runCatching { XKeycode.valueOf(name) }.getOrNull() } ?: slot.key
+    /** What a button sends: the user's remap if there is one, otherwise the default. */
+    private fun comboFor(slot: Slot): KeyCombo =
+        PadSettings.remapped(slot.label)?.let { KeyCombo.parse(it) } ?: KeyCombo(slot.key, slot.mods)
 
-    private fun pressKey(key: XKeycode) {
-        if (!downKeys.add(key)) return
-        xServer.injectKeyPress(key)
+    private fun pressKey(combo: KeyCombo, isolated: Boolean = false) {
+        if (downKeys.containsKey(combo.key)) return
+        // A button with its own modifiers, or an isolated one, must not pick up Shift, Ctrl or Alt held on the pad.
+        val isolate = isolated || combo.mods.isNotEmpty()
+        downKeys[combo.key] = Down(combo, isolate)
+        if (isolate && isolatedDown++ == 0) suspendedModifiers = onSuspendModifiers()
+        combo.mods.forEach { xServer.injectKeyPress(it) }
+        xServer.injectKeyPress(combo.key)
     }
 
     private fun releaseKey(key: XKeycode) {
-        if (!downKeys.remove(key)) return
+        val down = downKeys.remove(key) ?: return
         xServer.injectKeyRelease(key)
+        down.combo.mods.asReversed().forEach { xServer.injectKeyRelease(it) }
         onKeyTapped()
+        if (down.isolated && --isolatedDown == 0) {
+            onResumeModifiers(suspendedModifiers)
+            suspendedModifiers = emptyList()
+        }
     }
 
     private fun createKeyBackground(muted: Boolean, raised: Boolean, accent: Int? = null) =
@@ -220,8 +242,13 @@ class ExternalActionBarView(
 
     /** Never leave a key stuck down if the display goes away or the game closes mid-press. */
     override fun onDetachedFromWindow() {
-        downKeys.toList().forEach { xServer.injectKeyRelease(it) }
+        downKeys.values.toList().forEach { d ->
+            xServer.injectKeyRelease(d.combo.key)
+            d.combo.mods.forEach { xServer.injectKeyRelease(it) }
+        }
         downKeys.clear()
+        isolatedDown = 0
+        suspendedModifiers = emptyList()
         super.onDetachedFromWindow()
     }
 
