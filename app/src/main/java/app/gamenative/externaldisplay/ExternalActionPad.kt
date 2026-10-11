@@ -105,7 +105,8 @@ class ExternalActionPad(
                 FrameLayout(context).apply {
                     layoutParams = LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f).apply {
                         val m = (10 * density).toInt()
-                        setMargins(m, 0, m, m)
+                        // Only a thin gap here; the modifier row below keeps its own gap above the click buttons.
+                        setMargins(m, 0, m, (4 * density).toInt())
                     }
                     addView(trackpadView)
                     if (PadSettings.bool(PadSettings.SCROLLBAR_ON)) {
@@ -191,7 +192,8 @@ class ExternalActionPad(
             orientation = HORIZONTAL
             val m = (10 * density).toInt()
             layoutParams = LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (44 * density).toInt()).apply {
-                setMargins(m, 0, m, 0)
+                // A gap below, so the modifier keys do not touch the click buttons.
+                setMargins(m, 0, m, m)
             }
             addView(modifierButton("Shift", XKeycode.KEY_SHIFT_L))
             addView(modifierButton("Ctrl", XKeycode.KEY_CTRL_L))
