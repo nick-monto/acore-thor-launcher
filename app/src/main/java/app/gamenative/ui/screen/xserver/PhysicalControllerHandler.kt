@@ -1,5 +1,6 @@
 package app.gamenative.ui.screen.xserver
 
+import app.gamenative.externaldisplay.PadBridge
 import app.gamenative.externaldisplay.PadSettings
 import android.graphics.PointF
 import android.os.Handler
@@ -262,6 +263,7 @@ class PhysicalControllerHandler(
                             heldClicks[keyCode] = click
                         } else {
                             click.pointerButton?.let { xServer?.injectPointerButtonRelease(it) }
+                            PadBridge.clickFinished()
                         }
                         return true
                     }
@@ -287,6 +289,7 @@ class PhysicalControllerHandler(
                         heldClicks.remove(keyCode)?.let { held ->
                             // Pressing a held button again lets go of it.
                             held.pointerButton?.let { xServer?.injectPointerButtonRelease(it) }
+                            PadBridge.clickFinished()
                             swallowUp.add(keyCode)
                             lastClickDownAt.remove(keyCode)
                             return true
@@ -317,6 +320,7 @@ class PhysicalControllerHandler(
                                                 // Finger already up: finish the click.
                                                 cursorClickBindings.remove(keyCode)
                                                 click.pointerButton?.let { xServer?.injectPointerButtonRelease(it) }
+                                                PadBridge.clickFinished()
                                             }
                                         }
                                         pendingPress[keyCode] = run

@@ -577,7 +577,14 @@ class ExternalActionPad(
     }
 
     /** Never leave a modifier stuck down if the display goes away. */
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        // Lets the controller's A / B cursor clicks release armed modifiers too.
+        PadBridge.releaseModifiers = { releaseModifiers() }
+    }
+
     override fun onDetachedFromWindow() {
+        PadBridge.releaseModifiers = null
         heldModifiers.toList().forEach { xServer.injectKeyRelease(it) }
         heldModifiers.clear()
         lockedModifiers.clear()
