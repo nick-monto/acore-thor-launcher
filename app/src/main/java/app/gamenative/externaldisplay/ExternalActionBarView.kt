@@ -67,6 +67,8 @@ class ExternalActionBarView(
     }
 
     private val pageHost: LinearLayout
+    /** Buttons an armed Shift, Ctrl or Alt applies to: they glow while one is armed. */
+    private val modifierAffected = mutableListOf<TextView>()
     private var pageIndex = initialPage.coerceIn(PAGES.indices)
 
     init {
@@ -156,6 +158,12 @@ class ExternalActionBarView(
 
     private fun pageWidthScale() = PadSettings.int(PadSettings.PAGE_WIDTH) / 100f
 
+    /** Makes the buttons armed modifiers apply to glow in [color] ([intensity] 10 to 100), or stop glowing when null. */
+    fun setModifierGlow(color: Int?, intensity: Int) {
+        val density = resources.displayMetrics.density
+        modifierAffected.forEach { view -> applyGlow(view, color, intensity, density) }
+    }
+
     /** Puts the modifier buttons above the action buttons. */
     fun setModifierRow(row: View) {
         (row.parent as? android.view.ViewGroup)?.removeView(row)
@@ -225,6 +233,8 @@ class ExternalActionBarView(
                 val margin = dp(3)
                 setMargins(margin, margin, margin, margin)
             }
+            // Only buttons that take an armed modifier glow: not the page buttons, nor ones remapped to a combo.
+            if (!slot.isolated && comboFor(slot).mods.isEmpty()) modifierAffected.add(this)
             setOnTouchListener { view, event ->
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {

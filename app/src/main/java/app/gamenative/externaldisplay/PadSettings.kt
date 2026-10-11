@@ -37,6 +37,14 @@ object PadSettings {
     const val MOD_HEIGHT = "mod_height"
     /** Top-to-bottom order of the number block, modifier row and Extra Buttons: an index into the six orders. */
     const val COL_ORDER = "col_order"
+    /** Armed modifiers make the buttons they affect glow behind the text. Separate from the button recolor settings. */
+    const val MOD_GLOW = "mod_glow"
+    /** How strong that glow is, 10 to 100. */
+    const val MOD_GLOW_LEVEL = "mod_glow_level"
+    /** Glow color per modifier key (ARGB). 0 = the default glow, and the modifier button keeps its normal trim. */
+    const val MOD_GLOW_SHIFT = "mod_glow_shift"
+    const val MOD_GLOW_CTRL = "mod_glow_ctrl"
+    const val MOD_GLOW_ALT = "mod_glow_alt"
     /** Shows the modifier row on the pad. The trackpad keeps its own. */
     const val MOD_ON = "mod_on"
     /** The optional "Extra Buttons" panel next to the number block. */
@@ -90,6 +98,11 @@ object PadSettings {
         MOD_HEIGHT to 100,
         COL_ORDER to 0,
         MOD_ON to true,
+        MOD_GLOW to true,
+        MOD_GLOW_LEVEL to 50,
+        MOD_GLOW_SHIFT to 0,
+        MOD_GLOW_CTRL to 0,
+        MOD_GLOW_ALT to 0,
         EXTRA_ON to false,
         EXTRA_N to 3,
         EXTRA_MODS to false,
@@ -152,6 +165,9 @@ object PadSettings {
         prefs?.edit()?.putInt(key, value)?.apply()
         version++
     }
+
+    /** The chosen glow color for a modifier setting key, or null for the default. */
+    fun glowColor(key: String): Int? = int(key).takeIf { it != 0 }
 
     // Convenient typed reads.
     val mutedAmount: Float get() = int(MUTED) / 100f

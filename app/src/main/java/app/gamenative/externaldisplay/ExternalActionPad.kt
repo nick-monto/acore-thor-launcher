@@ -55,6 +55,8 @@ class ExternalActionPad(
     private lateinit var padModifierRow: LinearLayout
     private lateinit var trackpadModifierRow: LinearLayout
     private val releaseMouseButtons = mutableListOf<() -> Unit>()
+    // The trackpad click buttons, which an armed modifier also applies to.
+    private val glowViews = mutableListOf<TextView>()
     private val lockedMouseButtons = mutableSetOf<String>()
 
     init {
@@ -74,6 +76,7 @@ class ExternalActionPad(
         lockedModifiers.clear()
         modifierStyles.clear()
         releaseMouseButtons.clear()
+        glowViews.clear()
         settingsOpen = false
 
         padView = ExternalActionBarView(
@@ -367,8 +370,11 @@ class ExternalActionPad(
             }
             fun style(active: Boolean) {
                 val locked = key in lockedModifiers
-                background = theme.buttonBackground(density, 12f, active, emphasized = locked, muted = true)
-                setTextColor(if (active) theme.textPressed else theme.text)
+                // A glow color chosen for this modifier also becomes the color of its button.
+                val accent = glowSettingFor(key)?.let { PadSettings.glowColor(it) }
+                background = theme.buttonBackground(density, 12f, active, emphasized = locked, muted = true, accent = accent)
+                setTextColor(if (active) theme.textPressed else accent ?: theme.text)
+                refreshGlow()
             }
             style(key in heldModifiers)
             modifierStyles.getOrPut(key) { mutableListOf() }.add { active -> style(active) }
@@ -432,6 +438,7 @@ class ExternalActionPad(
                 val m = (4 * density).toInt()
                 setMargins(m, 0, m, 0)
             }
+            glowViews.add(this)
             var pressed = false
             var locked = false
             var lockOnRelease = false
@@ -547,6 +554,24 @@ class ExternalActionPad(
     }
 
     /** Lets go of the held modifiers for one button press (they stay armed on the pad). Returns the ones released. */
+    private fun glowSettingFor(key: XKeycode): String? = when (key) {
+        XKeycode.KEY_SHIFT_L -> PadSettings.MOD_GLOW_SHIFT
+        XKeycode.KEY_CTRL_L -> PadSettings.MOD_GLOW_CTRL
+        XKeycode.KEY_ALT_L -> PadSettings.MOD_GLOW_ALT
+        else -> null
+    }
+
+    /** Lights up the buttons armed modifiers apply to: the number block, Extra Buttons (if allowed) and the click buttons. */
+    private fun refreshGlow() {
+        if (!::padView.isInitialized) return
+        val armed = heldModifiers.toList()
+        val color = if (armed.isEmpty() || !PadSettings.bool(PadSettings.MOD_GLOW)) null
+        else mixGlow(armed.map { key -> glowSettingFor(key)?.let { PadSettings.glowColor(it) } ?: DEFAULT_GLOW })
+        val level = PadSettings.int(PadSettings.MOD_GLOW_LEVEL)
+        padView.setModifierGlow(color, level)
+        glowViews.forEach { applyGlow(it, color, level, density) }
+    }
+
     private fun suspendModifiers(): List<XKeycode> =
         heldModifiers.toList().also { keys -> keys.forEach { xServer.injectKeyRelease(it) } }
 

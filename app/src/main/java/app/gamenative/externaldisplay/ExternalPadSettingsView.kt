@@ -69,6 +69,11 @@ class ExternalPadSettingsView(
             addView(note("Keys shown in the row (the trackpad always has all three):"))
             addView(toggleRow(listOf("Shift" to PadSettings.MOD_SHIFT, "Ctrl" to PadSettings.MOD_CTRL, "Alt" to PadSettings.MOD_ALT)))
             addView(sliderRow("Row height", PadSettings.MOD_HEIGHT, 50, 200) { "$it%" })
+            addView(toggleRow(listOf("Glow on buttons a modifier affects" to PadSettings.MOD_GLOW)))
+            addView(sliderRow("Glow intensity", PadSettings.MOD_GLOW_LEVEL, 10, 100) { "$it%" })
+            addView(note("Glow color for each modifier. A color also becomes that modifier button's color. Default keeps the usual look."))
+            listOf("Shift" to PadSettings.MOD_GLOW_SHIFT, "Ctrl" to PadSettings.MOD_GLOW_CTRL, "Alt" to PadSettings.MOD_GLOW_ALT)
+                .forEach { (name, key) -> addView(glowColorRow(name, key)) }
             addView(sliderRow("Double-tap lock", PadSettings.DOUBLE_TAP_MS, 200, 600) { "$it ms" })
         }
         section("Extra Buttons", collapsible = true) {
@@ -186,6 +191,21 @@ class ExternalPadSettingsView(
                 ),
             )
         }
+    }
+
+    /** A modifier's name and a row of glow color choices. Default keeps the standard glow and button color. */
+    private fun glowColorRow(name: String, key: String): LinearLayout {
+        val row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        fun fill() {
+            row.removeAllViews()
+            row.addView(label(name, 44))
+            COLOR_CHOICES.forEach { (_, color) ->
+                row.addView(swatch(color, selected = PadSettings.glowColor(key) == color) { PadSettings.set(key, color); fill() })
+            }
+            row.addView(swatch(null, selected = PadSettings.glowColor(key) == null) { PadSettings.set(key, 0); fill() })
+        }
+        fill()
+        return row
     }
 
     /** One row per button of [group], in its current order: a show/hide toggle and Up / Down arrows. Rebuilds itself on a move. */
