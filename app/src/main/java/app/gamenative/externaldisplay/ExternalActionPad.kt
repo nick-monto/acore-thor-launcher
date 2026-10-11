@@ -193,7 +193,7 @@ class ExternalActionPad(
             val m = (10 * density).toInt()
             layoutParams = LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (44 * density).toInt()).apply {
                 // A small gap below, so the modifier keys do not touch the click buttons.
-                setMargins(m, 0, m, (5 * density).toInt())
+                setMargins(m, 0, m, (3 * density).toInt())
             }
             addView(modifierButton("Shift", XKeycode.KEY_SHIFT_L))
             addView(modifierButton("Ctrl", XKeycode.KEY_CTRL_L))
