@@ -101,6 +101,7 @@ class ExternalPadSettingsView(
         }
         section("Look and feel", collapsible = true) {
             addView(sliderRow("Muted borders", PadSettings.MUTED, 0, 100) { "$it" })
+            addView(sliderRow("Backing panels", PadSettings.PANEL_LEVEL, 0, 200) { "$it%" })
             addView(sliderRow("Label size", PadSettings.LABEL_SCALE, 80, 140) { "$it%" })
             addView(cycleRow("Haptics", PadSettings.HAPTICS, listOf("Off", "Light", "Normal", "Strong")))
         }

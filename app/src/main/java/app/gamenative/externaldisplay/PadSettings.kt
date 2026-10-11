@@ -51,6 +51,8 @@ object PadSettings {
     const val NUM_OUTLINE = "num_outline"
     /** How raised the number buttons' face is: 0 matches the other buttons, 100 is the standard number look. */
     const val NUM_FACE = "num_face"
+    /** Strength of every backing panel (the faint gold areas behind groups of buttons), in percent. */
+    const val PANEL_LEVEL = "panel_level"
     /** The optional "Extra Buttons" panel next to the number block. */
     const val EXTRA_ON = "extra_on"
     /** How many extra buttons it shows, 1 to 5. */
@@ -107,6 +109,7 @@ object PadSettings {
         MOD_GLOW_SHIFT to 0,
         MOD_GLOW_CTRL to 0,
         MOD_GLOW_ALT to 0,
+        PANEL_LEVEL to 100,
         NUM_OUTLINE to 100,
         NUM_FACE to 100,
         EXTRA_ON to false,

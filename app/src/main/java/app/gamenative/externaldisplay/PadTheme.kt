@@ -36,7 +36,9 @@ data class PadTheme(
         // The number block's backing follows the "number emphasis" setting: 0% matches the other panels,
         // 100% is the standard stronger look, and above that it keeps getting stronger.
         val t = if (strong) PadSettings.emphasis else 0f
-        fun mix(plain: Int, bold: Int) = (plain + (bold - plain) * t).toInt().coerceIn(0, 0xFF)
+        // The "backing panels" setting then scales every panel's fill and edge together.
+        val all = PadSettings.int(PadSettings.PANEL_LEVEL) / 100f
+        fun mix(plain: Int, bold: Int) = ((plain + (bold - plain) * t) * all).toInt().coerceIn(0, 0xFF)
         setColor(withAlpha(border, mix(0x0F, 0x21)))
         setStroke(density.toInt().coerceAtLeast(1), withAlpha(border, mix(0x2E, 0x59)))
     }
