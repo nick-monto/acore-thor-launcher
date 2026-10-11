@@ -19,6 +19,7 @@ object PadSettings {
     private const val RENAME = "rename"
     private const val COLOR = "color"
     private const val ORDER = "order"
+    private const val HIDDEN = "hidden"
     private const val PROFILE_PREFIX = "profile_"
     const val PROFILE_SLOTS = 3
 
@@ -26,16 +27,8 @@ object PadSettings {
     const val MOD_SHIFT = "mod_shift"
     const val MOD_CTRL = "mod_ctrl"
     const val MOD_ALT = "mod_alt"
-    const val SEC_WINDOWS = "sec_windows"
     const val SEC_NUMBERS = "sec_numbers"
-    const val SEC_FKEYS = "sec_fkeys"
     const val SWAP_SIDES = "swap_sides"
-    /** Puts the modifier keys above the number block and the F-keys below it (the old order). */
-    const val SWAP_FKEYS_MODS = "swap_fkeys_mods"
-    /** Old two-way F-key choice (0 = F1-F12, 1 = F1-F6). Only read to carry it over into [FKEY_N]. */
-    const val FKEY_COUNT = "fkey_count"
-    /** How many function keys the pad shows, F1 up to F12 (3 to 12). */
-    const val FKEY_N = "fkey_n"
     const val MUTED = "muted_borders"
     const val EMPHASIS = "number_emphasis"
     const val LABEL_SCALE = "label_scale"
@@ -65,25 +58,13 @@ object PadSettings {
     const val SCROLL_INVERT = "scroll_invert"
     const val MODE_MESSAGE = "mode_message"
 
-    /** Every window button the pad can show. Each has an on/off setting, on by default. */
-    val WINDOW_LABELS = listOf(
-        "Map", "Character", "Spellbook", "Talents", "Skills", "Quest Log", "Social", "System",
-        "Bags", "Group Finder", "Achievements", "Guild",
-    )
-
-    fun windowKey(label: String) = "win_$label"
-
     /** Defaults. Decimals are stored as tenths (speeds) or percent (ramp, deadzone, emphasis). */
     private val DEFAULTS: Map<String, Any> = linkedMapOf<String, Any>(
         MOD_SHIFT to true,
         MOD_CTRL to true,
         MOD_ALT to true,
-        SEC_WINDOWS to true,
         SEC_NUMBERS to true,
-        SEC_FKEYS to true,
         SWAP_SIDES to false,
-        SWAP_FKEYS_MODS to false,
-        FKEY_N to 12,
         MUTED to 55,
         EMPHASIS to 100,
         LABEL_SCALE to 100,
@@ -110,7 +91,6 @@ object PadSettings {
         SCROLL_INVERT to false,
         MODE_MESSAGE to true,
     )
-        .apply { WINDOW_LABELS.forEach { put(windowKey(it), true) } }
 
     private var prefs: SharedPreferences? = null
 
@@ -121,12 +101,6 @@ object PadSettings {
 
     fun init(context: Context) {
         if (prefs == null) prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        // Carry over the old F1-F12 / F1-F6 choice.
-        prefs?.let { p ->
-            if (p.contains(FKEY_COUNT) && !p.contains(FKEY_N)) {
-                p.edit().putInt(FKEY_N, if (p.getInt(FKEY_COUNT, 0) == 1) 6 else 12).apply()
-            }
-        }
     }
 
     fun bool(key: String): Boolean {
@@ -230,6 +204,20 @@ object PadSettings {
         version++
     }
 
+    // Hidden buttons: label -> true. A hidden button is left off the pad.
+
+    private fun hiddenJson(): JSONObject =
+        runCatching { JSONObject(prefs?.getString(HIDDEN, null) ?: "{}") }.getOrDefault(JSONObject())
+
+    fun isHidden(label: String): Boolean = hiddenJson().optBoolean(label, false)
+
+    fun setHidden(label: String, hidden: Boolean) {
+        val json = hiddenJson()
+        if (hidden) json.put(label, true) else json.remove(label)
+        prefs?.edit()?.putString(HIDDEN, json.toString())?.apply()
+        version++
+    }
+
     // Button order inside a group: group name -> labels in the order shown.
 
     private fun orderJson(): JSONObject =
@@ -267,11 +255,12 @@ object PadSettings {
         put(RENAME, renameJson())
         put(COLOR, colorJson())
         put(ORDER, orderJson())
+        put(HIDDEN, hiddenJson())
     }
 
     /** Applies a [layout]. Returns false if it has none of the layout sections. */
     fun applyLayout(json: JSONObject): Boolean {
-        val keys = listOf(REMAP, RENAME, COLOR, ORDER)
+        val keys = listOf(REMAP, RENAME, COLOR, ORDER, HIDDEN)
         if (keys.none { json.optJSONObject(it) != null }) return false
         val editor = prefs?.edit() ?: return false
         keys.forEach { k -> editor.putString(k, (json.optJSONObject(k) ?: JSONObject()).toString()) }
@@ -292,6 +281,7 @@ object PadSettings {
             remove(RENAME)
             remove(COLOR)
             remove(ORDER)
+            remove(HIDDEN)
         }?.apply()
         version++
     }
@@ -305,6 +295,7 @@ object PadSettings {
         put(RENAME, renameJson())
         put(COLOR, colorJson())
         put(ORDER, orderJson())
+        put(HIDDEN, hiddenJson())
     }
 
     /** Applies a [snapshot]. Unknown or mistyped entries are ignored. */
@@ -315,11 +306,11 @@ object PadSettings {
             if (def is Boolean) editor.putBoolean(key, json.optBoolean(key, def))
             else editor.putInt(key, json.optInt(key, def as Int))
         }
-        if (json.has(FKEY_COUNT) && !json.has(FKEY_N)) editor.putInt(FKEY_N, if (json.optInt(FKEY_COUNT) == 1) 6 else 12)
         json.optJSONObject(REMAP)?.let { editor.putString(REMAP, it.toString()) }
         json.optJSONObject(RENAME)?.let { editor.putString(RENAME, it.toString()) }
         json.optJSONObject(COLOR)?.let { editor.putString(COLOR, it.toString()) }
         json.optJSONObject(ORDER)?.let { editor.putString(ORDER, it.toString()) }
+        json.optJSONObject(HIDDEN)?.let { editor.putString(HIDDEN, it.toString()) }
         editor.apply()
         version++
     }

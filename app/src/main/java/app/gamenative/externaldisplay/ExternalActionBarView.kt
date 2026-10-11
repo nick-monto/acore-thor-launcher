@@ -90,6 +90,7 @@ class ExternalActionBarView(
         }
         val numberGroup = group(vertical = true, strong = true).apply {
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 0, 4f).apply { setMargins(0, dp(3), 0, dp(3)) }
+            // A hidden number keeps its place as a gap, so the others stay where the thumb expects them.
             orderedSlots(GROUP_NUMBERS, ACTION_SLOTS).chunked(3).forEach {
                 addView(keyRow(it, textSp = 26f, weight = 1f, raised = PadSettings.emphasis > 0f))
             }
@@ -121,7 +122,7 @@ class ExternalActionBarView(
     private fun populatePage() {
         pageHost.removeAllViews()
         val page = PAGES[pageIndex]
-        val slots = orderedSlots(page.id, page.slots)
+        val slots = orderedSlots(page.id, page.slots).filter { !PadSettings.isHidden(it.label) }
         val columns = if (slots.size > SINGLE_COLUMN_MAX) slots.chunked((slots.size + 1) / 2) else listOf(slots)
         val split = columns.size > 1
         columns.forEach { column ->
@@ -169,7 +170,15 @@ class ExternalActionBarView(
             isMotionEventSplittingEnabled = true
             // Rows share the column's height by weight, so everything always fits.
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 0, weight)
-            slots.forEach { addView(createButton(it, textSp, muted, raised)) }
+            slots.forEach { slot ->
+                val button = createButton(slot, textSp, muted, raised)
+                if (PadSettings.isHidden(slot.label)) {
+                    button.visibility = INVISIBLE
+                    button.isEnabled = false
+                    button.setOnTouchListener(null)
+                }
+                addView(button)
+            }
         }
     }
 

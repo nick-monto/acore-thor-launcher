@@ -55,6 +55,26 @@ class ExternalPadSettingsView(
         section("Modifier keys shown", collapsible = true) {
             addView(toggleRow(listOf("Shift" to PadSettings.MOD_SHIFT, "Ctrl" to PadSettings.MOD_CTRL, "Alt" to PadSettings.MOD_ALT)))
         }
+        section("Buttons shown", collapsible = true) {
+            addView(note("Tap a button to hide or show it. Hidden numbers leave a gap."))
+            (ExternalActionBarView.PAGE_IDS + ExternalActionBarView.GROUP_NUMBERS).forEach { group ->
+                addView(note(ExternalActionBarView.groupTitle(group).replaceFirstChar { it.uppercase() }))
+                ExternalActionBarView.defaultLabels(group).chunked(3).forEach { chunk ->
+                    addView(
+                        rowOf(
+                            *chunk.map { label ->
+                                button(PadSettings.displayName(label), active = !PadSettings.isHidden(label)) { b ->
+                                    val show = PadSettings.isHidden(label)
+                                    PadSettings.setHidden(label, !show)
+                                    style(b, show)
+                                }
+                            }.toTypedArray(),
+                            filler = 3 - chunk.size,
+                        ),
+                    )
+                }
+            }
+        }
         section("Pad sections shown", collapsible = true) {
             addView(
                 toggleRow(
