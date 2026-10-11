@@ -181,7 +181,7 @@ class ExternalActionPad(
             if (PadSettings.bool(PadSettings.MOD_CTRL)) addView(modifierButton("Ctrl", XKeycode.KEY_CTRL_L))
             if (PadSettings.bool(PadSettings.MOD_ALT)) addView(modifierButton("Alt", XKeycode.KEY_ALT_L))
         }
-        if (padModifierRow.childCount > 0) padView.setModifierRow(padModifierRow)
+        if (PadSettings.bool(PadSettings.MOD_ON) && padModifierRow.childCount > 0) padView.setModifierRow(padModifierRow)
         // The trackpad always has all three, above the click buttons, whatever the setting says.
         trackpadModifierRow = LinearLayout(context).apply {
             orientation = HORIZONTAL

@@ -96,15 +96,22 @@ class ExternalActionBarView(
             }
             if (!PadSettings.bool(PadSettings.SEC_NUMBERS)) visibility = GONE
         }
-        // Numbers on top and modifier keys below them, unless the setting flips that.
-        rightColumn = column(RIGHT_WEIGHT).apply {
-            if (PadSettings.int(PadSettings.MOD_POS) == 1) {
-                addView(modifierGroup)
-                addView(numberGroup)
-            } else {
-                addView(numberGroup)
-                addView(modifierGroup)
+        // The optional Extra Buttons panel: up to three buttons in one row.
+        val extraGroup: LinearLayout? = if (PadSettings.bool(PadSettings.EXTRA_ON)) {
+            val slots = orderedSlots(GROUP_EXTRAS, EXTRA_SLOTS).take(PadSettings.int(PadSettings.EXTRA_N).coerceIn(1, 3))
+            group(vertical = true, strong = false).apply {
+                layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 0, 0.7f * PadSettings.int(PadSettings.EXTRA_HEIGHT) / 100f).apply { setMargins(0, dp(3), 0, dp(3)) }
+                addView(keyRow(slots, textSp = 14f, weight = 1f, muted = true, wrap = true))
             }
+        } else null
+        // Top to bottom: modifiers (if above), extra buttons (if above), numbers, extra buttons (if below), modifiers (if below).
+        rightColumn = column(RIGHT_WEIGHT).apply {
+            val extraAbove = PadSettings.int(PadSettings.EXTRA_POS) == 0
+            if (PadSettings.int(PadSettings.MOD_POS) == 1) addView(modifierGroup)
+            if (extraAbove) extraGroup?.let { addView(it) }
+            addView(numberGroup)
+            if (!extraAbove) extraGroup?.let { addView(it) }
+            if (PadSettings.int(PadSettings.MOD_POS) != 1) addView(modifierGroup)
         }
         // "Swap sides" puts the page area on the right.
         if (PadSettings.bool(PadSettings.SWAP_SIDES)) {
@@ -285,6 +292,7 @@ class ExternalActionBarView(
 
     companion object {
         const val GROUP_NUMBERS = "numbers"
+        const val GROUP_EXTRAS = "extras"
 
         /** The page ids, in tab order: "interface", "target", "utility". */
         val PAGE_IDS: List<String> get() = PAGES.map { it.id }
@@ -293,20 +301,21 @@ class ExternalActionBarView(
         val PAGE_TITLES: List<String> get() = PAGES.map { it.title }
 
         /** A group's name for the settings: a page's title, or the number block. */
-        fun groupTitle(group: String): String = PAGES.firstOrNull { it.id == group }?.title?.let { "the $it page" } ?: "the number block"
+        fun groupTitle(group: String): String = PAGES.firstOrNull { it.id == group }?.title?.let { "the $it page" } ?: if (group == GROUP_EXTRAS) "the extra buttons" else "the number block"
 
         /** The group a pad button belongs to (a page id or the number block), or null for a label that is not a pad button. */
         fun groupOf(label: String): String? =
             PAGES.firstOrNull { page -> page.slots.any { it.label == label } }?.id
                 ?: GROUP_NUMBERS.takeIf { ACTION_SLOTS.any { it.label == label } }
+                ?: GROUP_EXTRAS.takeIf { EXTRA_SLOTS.any { it.label == label } }
 
         /** A group's button labels in the default order. */
         fun defaultLabels(group: String): List<String> =
-            (PAGES.firstOrNull { it.id == group }?.slots ?: ACTION_SLOTS).map { it.label }
+            (PAGES.firstOrNull { it.id == group }?.slots ?: if (group == GROUP_EXTRAS) EXTRA_SLOTS else ACTION_SLOTS).map { it.label }
 
         /** Every remappable pad button: its label and what it sends by default. */
         fun remappableButtons(): List<Pair<String, KeyCombo>> =
-            (PAGES.flatMap { it.slots } + ACTION_SLOTS).map { it.label to KeyCombo(it.key, it.mods) }
+            (PAGES.flatMap { it.slots } + ACTION_SLOTS + EXTRA_SLOTS).map { it.label to KeyCombo(it.key, it.mods) }
 
         // Width split between the page area and the number/modifier block.
         // A smaller RIGHT_WEIGHT squeezes that block toward the right edge, within reach of a right thumb.
@@ -368,6 +377,13 @@ class ExternalActionBarView(
                     page("Screenshot", XKeycode.KEY_PRTSCN),
                 ),
             ),
+        )
+
+        // The Extra Buttons panel. They start on F9 to F11; remap them to whatever is needed.
+        private val EXTRA_SLOTS = listOf(
+            Slot("Extra 1", XKeycode.KEY_F9),
+            Slot("Extra 2", XKeycode.KEY_F10),
+            Slot("Extra 3", XKeycode.KEY_F11),
         )
 
         // WoW's default bindings for Action Bar 1, slots 1 to 12.
