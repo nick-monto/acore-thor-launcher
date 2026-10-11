@@ -201,7 +201,7 @@ class ExternalActionBarView(
     @SuppressLint("ClickableViewAccessibility")
     private fun createButton(slot: Slot, textSp: Float, muted: Boolean, raised: Boolean, wrap: Boolean = false): View {
         return TextView(context).apply {
-            text = PadSettings.displayName(slot.label)
+            text = if (wrap) wrapLabel(PadSettings.displayName(slot.label)) else PadSettings.displayName(slot.label)
             contentDescription = slot.label
             gravity = Gravity.CENTER
             setTextColor(theme.text)
@@ -236,6 +236,15 @@ class ExternalActionBarView(
                 true
             }
         }
+    }
+
+    /**
+     * In the narrow two-column pages a long, multi-word label drops its last word onto a second line,
+     * so "Chat page up" and "Chat page down" break the same way. Short labels and ones with a "/" stay as they are.
+     */
+    private fun wrapLabel(name: String): String {
+        val cut = name.lastIndexOf(' ')
+        return if (name.length > 8 && cut > 0 && '/' !in name) name.substring(0, cut) + "\n" + name.substring(cut + 1) else name
     }
 
     /** What a button sends: the user's remap if there is one, otherwise the default. */
