@@ -75,7 +75,11 @@ class ExternalPadSettingsView(
                 }
             }
         }
-        section("Pad sections shown", collapsible = true) {
+        section("Pad layout", collapsible = true) {
+            addView(cycleRow("Tab bar", PadSettings.TAB_POS, listOf("Top", "Bottom")))
+            addView(cycleRow("Modifier keys", PadSettings.MOD_POS, listOf("Below the numbers", "Above the numbers")))
+            addView(sliderRow("Page area width", PadSettings.PAGE_WIDTH, 60, 160) { "$it%" })
+            addView(sliderRow("Modifier row height", PadSettings.MOD_HEIGHT, 50, 200) { "$it%" })
             addView(
                 toggleRow(
                     listOf(

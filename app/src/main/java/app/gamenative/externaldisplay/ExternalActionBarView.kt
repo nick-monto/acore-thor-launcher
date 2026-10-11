@@ -81,11 +81,11 @@ class ExternalActionBarView(
         pageHost = LinearLayout(context).apply {
             orientation = HORIZONTAL
             isMotionEventSplittingEnabled = true
-            layoutParams = LayoutParams(0, LayoutParams.MATCH_PARENT, LEFT_WEIGHT)
+            layoutParams = LayoutParams(0, LayoutParams.MATCH_PARENT, LEFT_WEIGHT * pageWidthScale())
         }
         populatePage()
         modifierGroup = group(vertical = false, strong = false).apply {
-            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 0, 0.7f).apply { setMargins(0, dp(3), 0, dp(3)) }
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 0, 0.7f * PadSettings.int(PadSettings.MOD_HEIGHT) / 100f).apply { setMargins(0, dp(3), 0, dp(3)) }
             visibility = GONE
         }
         val numberGroup = group(vertical = true, strong = true).apply {
@@ -96,10 +96,15 @@ class ExternalActionBarView(
             }
             if (!PadSettings.bool(PadSettings.SEC_NUMBERS)) visibility = GONE
         }
-        // Numbers on top, modifier keys below them.
+        // Numbers on top and modifier keys below them, unless the setting flips that.
         rightColumn = column(RIGHT_WEIGHT).apply {
-            addView(numberGroup)
-            addView(modifierGroup)
+            if (PadSettings.int(PadSettings.MOD_POS) == 1) {
+                addView(modifierGroup)
+                addView(numberGroup)
+            } else {
+                addView(numberGroup)
+                addView(modifierGroup)
+            }
         }
         // "Swap sides" puts the page area on the right.
         if (PadSettings.bool(PadSettings.SWAP_SIDES)) {
@@ -133,9 +138,11 @@ class ExternalActionBarView(
                 },
             )
         }
-        (pageHost.layoutParams as LayoutParams).weight = if (split) SPLIT_LEFT_WEIGHT else LEFT_WEIGHT
+        (pageHost.layoutParams as LayoutParams).weight = (if (split) SPLIT_LEFT_WEIGHT else LEFT_WEIGHT) * pageWidthScale()
         pageHost.requestLayout()
     }
+
+    private fun pageWidthScale() = PadSettings.int(PadSettings.PAGE_WIDTH) / 100f
 
     /** Puts the modifier buttons above the action buttons. */
     fun setModifierRow(row: View) {

@@ -153,8 +153,9 @@ class ExternalActionPad(
             // The two header buttons sit on a faint gold backing, like the button groups below.
             background = theme.groupBackground(density, strong = false)
             val side = (8 * density).toInt()
+            val bottom = PadSettings.int(PadSettings.TAB_POS) == 1
             layoutParams = LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-                setMargins(side, side / 2, side, 0)
+                if (bottom) setMargins(side, 0, side, side / 2) else setMargins(side, side / 2, side, 0)
             }
             val inset = (4 * density).toInt()
             setPadding(inset, inset, inset, inset)
@@ -203,8 +204,13 @@ class ExternalActionPad(
             addView(settingsView)
             addView(textEntryPanel)
         }
-        addView(header)
-        addView(body)
+        if (PadSettings.int(PadSettings.TAB_POS) == 1) {
+            addView(body)
+            addView(header)
+        } else {
+            addView(header)
+            addView(body)
+        }
         refreshTabs()
     }
 

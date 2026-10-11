@@ -29,6 +29,14 @@ object PadSettings {
     const val MOD_ALT = "mod_alt"
     const val SEC_NUMBERS = "sec_numbers"
     const val SWAP_SIDES = "swap_sides"
+    /** Width of the page area against the number block, in percent of the default split. */
+    const val PAGE_WIDTH = "page_width"
+    /** Height of the modifier row, in percent of its default. */
+    const val MOD_HEIGHT = "mod_height"
+    /** 0 = modifier keys below the number block, 1 = above it. */
+    const val MOD_POS = "mod_pos"
+    /** 0 = tab bar at the top, 1 = at the bottom. */
+    const val TAB_POS = "tab_pos"
     const val MUTED = "muted_borders"
     const val EMPHASIS = "number_emphasis"
     const val LABEL_SCALE = "label_scale"
@@ -65,6 +73,10 @@ object PadSettings {
         MOD_ALT to true,
         SEC_NUMBERS to true,
         SWAP_SIDES to false,
+        PAGE_WIDTH to 100,
+        MOD_HEIGHT to 100,
+        MOD_POS to 0,
+        TAB_POS to 0,
         MUTED to 55,
         EMPHASIS to 100,
         LABEL_SCALE to 100,
