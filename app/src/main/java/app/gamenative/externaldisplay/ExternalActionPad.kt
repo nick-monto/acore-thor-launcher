@@ -187,9 +187,9 @@ class ExternalActionPad(
             orientation = HORIZONTAL
             val m = (3 * density).toInt()
             setPadding(0, m, 0, 0)
-            if (PadSettings.bool(PadSettings.MOD_SHIFT)) addView(modifierButton("Shift", XKeycode.KEY_SHIFT_L))
-            if (PadSettings.bool(PadSettings.MOD_CTRL)) addView(modifierButton("Ctrl", XKeycode.KEY_CTRL_L))
-            if (PadSettings.bool(PadSettings.MOD_ALT)) addView(modifierButton("Alt", XKeycode.KEY_ALT_L))
+            modifierOrder().forEach { (name, key, setting) ->
+                if (PadSettings.bool(setting)) addView(modifierButton(name, key))
+            }
         }
         if (PadSettings.bool(PadSettings.MOD_ON) && padModifierRow.childCount > 0) padView.setModifierRow(padModifierRow)
         // The trackpad always has all three, above the click buttons, whatever the setting says.
@@ -200,9 +200,7 @@ class ExternalActionPad(
                 // A small gap below, so the modifier keys do not touch the click buttons.
                 setMargins(m, 0, m, (3 * density).toInt())
             }
-            addView(modifierButton("Shift", XKeycode.KEY_SHIFT_L))
-            addView(modifierButton("Ctrl", XKeycode.KEY_CTRL_L))
-            addView(modifierButton("Alt", XKeycode.KEY_ALT_L))
+            modifierOrder().forEach { (name, key, _) -> addView(modifierButton(name, key)) }
         }
         trackpadPanel.addView(trackpadModifierRow, 1)
         textEntryPanel = buildTextEntryPanel()
@@ -407,6 +405,9 @@ class ExternalActionPad(
     private companion object {
         /** One wheel notch, as Windows counts it (the same value the X input layer uses). */
         const val WHEEL_DELTA = 120
+
+        /** Every left-to-right order of Shift (S), Ctrl (C) and Alt (A). */
+        val MODIFIER_ORDERS = listOf("SCA", "SAC", "CSA", "CAS", "ASC", "ACS")
     }
 
     /** One mouse wheel tick from the scroll strip: +1 scrolls down, -1 scrolls up. Same two paths as the buttons. */
@@ -554,6 +555,17 @@ class ExternalActionPad(
     }
 
     /** Lets go of the held modifiers for one button press (they stay armed on the pad). Returns the ones released. */
+    /** Shift, Ctrl and Alt in the order chosen in settings, each with the setting that shows or hides it on the pad. */
+    private fun modifierOrder(): List<Triple<String, XKeycode, String>> {
+        val all = mapOf(
+            'S' to Triple("Shift", XKeycode.KEY_SHIFT_L, PadSettings.MOD_SHIFT),
+            'C' to Triple("Ctrl", XKeycode.KEY_CTRL_L, PadSettings.MOD_CTRL),
+            'A' to Triple("Alt", XKeycode.KEY_ALT_L, PadSettings.MOD_ALT),
+        )
+        val order = MODIFIER_ORDERS[PadSettings.int(PadSettings.MOD_ORDER).coerceIn(0, MODIFIER_ORDERS.lastIndex)]
+        return order.map { all.getValue(it) }
+    }
+
     private fun glowSettingFor(key: XKeycode): String? = when (key) {
         XKeycode.KEY_SHIFT_L -> PadSettings.MOD_GLOW_SHIFT
         XKeycode.KEY_CTRL_L -> PadSettings.MOD_GLOW_CTRL

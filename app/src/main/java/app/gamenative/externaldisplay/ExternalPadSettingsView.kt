@@ -69,6 +69,13 @@ class ExternalPadSettingsView(
         }
         section("Modifier keys", collapsible = true) {
             addView(toggleRow(listOf("Show modifier row on the pad" to PadSettings.MOD_ON)))
+            addView(
+                cycleRow(
+                    "Order",
+                    PadSettings.MOD_ORDER,
+                    listOf("Shift, Ctrl, Alt", "Shift, Alt, Ctrl", "Ctrl, Shift, Alt", "Ctrl, Alt, Shift", "Alt, Shift, Ctrl", "Alt, Ctrl, Shift"),
+                ),
+            )
             addView(note("Keys shown in the row (the trackpad always has all three):"))
             addView(toggleRow(listOf("Shift" to PadSettings.MOD_SHIFT, "Ctrl" to PadSettings.MOD_CTRL, "Alt" to PadSettings.MOD_ALT)))
             addView(sliderRow("Row height", PadSettings.MOD_HEIGHT, 50, 200) { "$it%" })
