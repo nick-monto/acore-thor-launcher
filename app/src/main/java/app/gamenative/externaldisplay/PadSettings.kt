@@ -37,8 +37,10 @@ object PadSettings {
     const val MOD_HEIGHT = "mod_height"
     /** Top-to-bottom order of the number block, modifier row and Extra Buttons: an index into the six orders. */
     const val COL_ORDER = "col_order"
-    /** Left-to-right order of Shift, Ctrl and Alt on the pad and trackpad: an index into the six orders. */
+    /** Left-to-right order of Shift, Ctrl and Alt on the main pad: an index into the six orders. */
     const val MOD_ORDER = "mod_order"
+    /** The same for the modifier row on the trackpad screen. */
+    const val MOD_ORDER_TP = "mod_order_tp"
     /** Armed modifiers make the buttons they affect glow behind the text. Separate from the button recolor settings. */
     const val MOD_GLOW = "mod_glow"
     /** How strong that glow is, 10 to 100. */
@@ -107,6 +109,7 @@ object PadSettings {
         COL_ORDER to 0,
         MOD_ON to true,
         MOD_ORDER to 0,
+        MOD_ORDER_TP to 0,
         MOD_GLOW to true,
         MOD_GLOW_LEVEL to 25,
         MOD_GLOW_SHIFT to 0,

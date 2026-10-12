@@ -187,7 +187,7 @@ class ExternalActionPad(
             orientation = HORIZONTAL
             val m = (3 * density).toInt()
             setPadding(0, m, 0, 0)
-            modifierOrder().forEach { (name, key, setting) ->
+            modifierOrder(PadSettings.MOD_ORDER).forEach { (name, key, setting) ->
                 if (PadSettings.bool(setting)) addView(modifierButton(name, key))
             }
         }
@@ -200,7 +200,7 @@ class ExternalActionPad(
                 // A small gap below, so the modifier keys do not touch the click buttons.
                 setMargins(m, 0, m, (3 * density).toInt())
             }
-            modifierOrder().forEach { (name, key, _) -> addView(modifierButton(name, key)) }
+            modifierOrder(PadSettings.MOD_ORDER_TP).forEach { (name, key, _) -> addView(modifierButton(name, key)) }
         }
         trackpadPanel.addView(trackpadModifierRow, 1)
         textEntryPanel = buildTextEntryPanel()
@@ -555,14 +555,14 @@ class ExternalActionPad(
     }
 
     /** Lets go of the held modifiers for one button press (they stay armed on the pad). Returns the ones released. */
-    /** Shift, Ctrl and Alt in the order chosen in settings, each with the setting that shows or hides it on the pad. */
-    private fun modifierOrder(): List<Triple<String, XKeycode, String>> {
+    /** Shift, Ctrl and Alt in the order chosen by [orderSetting], each with the setting that shows or hides it on the pad. */
+    private fun modifierOrder(orderSetting: String): List<Triple<String, XKeycode, String>> {
         val all = mapOf(
             'S' to Triple("Shift", XKeycode.KEY_SHIFT_L, PadSettings.MOD_SHIFT),
             'C' to Triple("Ctrl", XKeycode.KEY_CTRL_L, PadSettings.MOD_CTRL),
             'A' to Triple("Alt", XKeycode.KEY_ALT_L, PadSettings.MOD_ALT),
         )
-        val order = MODIFIER_ORDERS[PadSettings.int(PadSettings.MOD_ORDER).coerceIn(0, MODIFIER_ORDERS.lastIndex)]
+        val order = MODIFIER_ORDERS[PadSettings.int(orderSetting).coerceIn(0, MODIFIER_ORDERS.lastIndex)]
         return order.map { all.getValue(it) }
     }
 
