@@ -129,6 +129,10 @@ class ExternalPadSettingsView(
                 addView(sliderRow("Double-click speed", PadSettings.CLICK_HOLD_MS, 150, 600) { "$it ms" })
                 addView(toggleRow(listOf("Y / X scroll in cursor mode" to PadSettings.SCROLL_KEYS, "Invert Y / X scroll" to PadSettings.SCROLL_INVERT)))
                 addView(sliderRow("Scroll speed", PadSettings.SCROLL_SPEED, 1, 10) { "$it" })
+                addView(toggleRow(listOf("D-pad moves the cursor too" to PadSettings.DPAD_CURSOR)))
+                addView(sliderRow("D-pad base speed", PadSettings.DPAD_BASE, 5, 30) { tenths(it) })
+                addView(sliderRow("D-pad max speed", PadSettings.DPAD_MAX, 10, 50) { tenths(it) })
+                addView(sliderRow("D-pad ramp time", PadSettings.DPAD_RAMP, 1, 20) { tenths(it) + " s" })
                 addView(toggleRow(listOf("Show mode message" to PadSettings.MODE_MESSAGE)))
             }
         }

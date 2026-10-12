@@ -97,6 +97,64 @@ class PhysicalControllerHandler(
     private val pendingPress = mutableMapOf<Int, Runnable>()
     private val tapLifted = mutableSetOf<Int>()
 
+    // D-pad as cursor (cursor mode + setting): hat and key presses, speed ramping with the time held.
+    private val dpadHandler = Handler(Looper.getMainLooper())
+    private var dpadHatX = 0
+    private var dpadHatY = 0
+    private var dpadKeyX = 0
+    private var dpadKeyY = 0
+    private var dpadDeviceId = UNKNOWN_DEVICE_ID
+    private var dpadSinceX = 0L
+    private var dpadSinceY = 0L
+    private var dpadEffX = 0
+    private var dpadEffY = 0
+    private var dpadTickPosted = false
+    private val dpadTick = object : Runnable {
+        override fun run() {
+            dpadTickPosted = false
+            refreshDpadCursor()
+        }
+    }
+
+    private fun dpadCursorActive() = rightStickMouseMode && PadSettings.bool(PadSettings.DPAD_CURSOR)
+
+    private fun dpadSpeed(since: Long): Float {
+        val ramp = PadSettings.dpadRampMs.coerceAtLeast(1L)
+        val t = ((System.currentTimeMillis() - since).toFloat() / ramp).coerceIn(0f, 1f)
+        return PadSettings.dpadBaseSpeed + (PadSettings.dpadMaxSpeed - PadSettings.dpadBaseSpeed) * t
+    }
+
+    private fun refreshDpadCursor() {
+        val now = System.currentTimeMillis()
+        val x = if (dpadHatX != 0) dpadHatX else dpadKeyX
+        val y = if (dpadHatY != 0) dpadHatY else dpadKeyY
+        if (x != dpadEffX) { dpadEffX = x; dpadSinceX = now }
+        if (y != dpadEffY) { dpadEffY = y; dpadSinceY = now }
+        val dev = dpadDeviceId
+        val l = KeyEvent.KEYCODE_DPAD_LEFT
+        val r = KeyEvent.KEYCODE_DPAD_RIGHT
+        val u = KeyEvent.KEYCODE_DPAD_UP
+        val d = KeyEvent.KEYCODE_DPAD_DOWN
+        updateMouseMoveContribution(Binding.MOUSE_MOVE_LEFT, x < 0, -dpadSpeed(dpadSinceX), l, dev)
+        updateMouseMoveContribution(Binding.MOUSE_MOVE_RIGHT, x > 0, dpadSpeed(dpadSinceX), r, dev)
+        updateMouseMoveContribution(Binding.MOUSE_MOVE_UP, y < 0, -dpadSpeed(dpadSinceY), u, dev)
+        updateMouseMoveContribution(Binding.MOUSE_MOVE_DOWN, y > 0, dpadSpeed(dpadSinceY), d, dev)
+        if ((x != 0 || y != 0) && !dpadTickPosted) {
+            dpadTickPosted = true
+            dpadHandler.postDelayed(dpadTick, 33L)
+        }
+    }
+
+    private fun clearDpadCursor() {
+        dpadHandler.removeCallbacks(dpadTick)
+        dpadTickPosted = false
+        dpadHatX = 0; dpadHatY = 0; dpadKeyX = 0; dpadKeyY = 0
+        if (dpadEffX != 0 || dpadEffY != 0) {
+            dpadEffX = 0; dpadEffY = 0
+            refreshDpadCursor()
+        }
+    }
+
     private fun releaseHeldClicks() {
         for (click in heldClicks.values) {
             click.pointerButton?.let { xServer?.injectPointerButtonRelease(it) }
@@ -196,6 +254,7 @@ class PhysicalControllerHandler(
         releaseGyroModifierSources()
         releaseActiveAxes()
         cancelActiveSequences()
+        clearDpadCursor()
         clearMouseMoveContributions()
         clearScrollRepeats()
         activeSequenceTriggerBindings.clear()
@@ -242,6 +301,21 @@ class PhysicalControllerHandler(
                 if (event.action == KeyEvent.ACTION_DOWN) {
                     setRightStickMouseMode(!rightStickMouseMode, event.deviceId)
                 }
+                return true
+            }
+            if (controller != null && !radialMenuPressed && dpadCursorActive() &&
+                (keyCode == KeyEvent.KEYCODE_DPAD_UP || keyCode == KeyEvent.KEYCODE_DPAD_DOWN ||
+                    keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)
+            ) {
+                val down = if (event.action == KeyEvent.ACTION_DOWN) 1 else 0
+                when (keyCode) {
+                    KeyEvent.KEYCODE_DPAD_LEFT -> dpadKeyX = -down
+                    KeyEvent.KEYCODE_DPAD_RIGHT -> dpadKeyX = down
+                    KeyEvent.KEYCODE_DPAD_UP -> dpadKeyY = -down
+                    else -> dpadKeyY = down
+                }
+                dpadDeviceId = event.deviceId
+                refreshDpadCursor()
                 return true
             }
             if (controller != null && !radialMenuPressed) {
@@ -511,6 +585,7 @@ class PhysicalControllerHandler(
     private fun setRightStickMouseMode(enabled: Boolean, deviceId: Int) {
         if (rightStickMouseMode == enabled) return
         rightStickMouseMode = enabled
+        clearDpadCursor()
         val stickKeys = rightStickKeyCodes()
         if (enabled) {
             // Center the gamepad right stick: release any active right-stick axis bindings.
@@ -729,9 +804,29 @@ class PhysicalControllerHandler(
             controller.state.dPadY.toFloat()
         )
 
+        if (!dpadCursorActive() && (dpadEffX != 0 || dpadEffY != 0)) clearDpadCursor()
         for (i in axes.indices) {
             if (rightStickMouseMode && (axes[i] == MotionEvent.AXIS_Z || axes[i] == MotionEvent.AXIS_RZ)) {
                 applyRightStickAsMouse(axes[i], values[i], deviceId)
+                continue
+            }
+            val isHat = axes[i] == MotionEvent.AXIS_HAT_X || axes[i] == MotionEvent.AXIS_HAT_Y
+            if (isHat && dpadCursorActive()) {
+                // Cursor mode: the d-pad moves the pointer instead of reaching the game.
+                val hatPos = ExternalControllerBinding.getKeyCodeForAxis(axes[i], 1.toByte())
+                val hatNeg = ExternalControllerBinding.getKeyCodeForAxis(axes[i], (-1).toByte())
+                for (k in intArrayOf(hatPos, hatNeg)) {
+                    if (activeAxisBindings.remove(PhysicalInputSource(deviceId, k))) {
+                        controller.getControllerBinding(k)?.let {
+                            handleInputEvent(it.bindingCombo, false, 0f, fromMotion = true,
+                                sourceKeyCode = k, sourceDeviceId = deviceId, sourceController = controller)
+                        }
+                    }
+                }
+                val dir = Math.round(values[i])
+                if (axes[i] == MotionEvent.AXIS_HAT_X) dpadHatX = dir else dpadHatY = dir
+                dpadDeviceId = deviceId
+                if (i == axes.size - 1) refreshDpadCursor()
                 continue
             }
             val posKeyCode = ExternalControllerBinding.getKeyCodeForAxis(axes[i], 1.toByte())

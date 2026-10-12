@@ -85,6 +85,10 @@ object PadSettings {
     const val STICK_DEADZONE = "stick_deadzone"
     const val AB_MODE = "ab_mode"
     const val R3_TOGGLE = "r3_toggle"
+    const val DPAD_CURSOR = "dpad_cursor"
+    const val DPAD_BASE = "dpad_base"
+    const val DPAD_MAX = "dpad_max"
+    const val DPAD_RAMP = "dpad_ramp"
     const val SCROLL_KEYS = "scroll_keys"
     /** In cursor mode, double-tapping A or B holds that click until the button is pressed again. */
     const val CLICK_HOLD = "click_hold"
@@ -141,6 +145,10 @@ object PadSettings {
         STICK_DEADZONE to 15,
         AB_MODE to 1,
         R3_TOGGLE to true,
+        DPAD_CURSOR to false,
+        DPAD_BASE to 10,
+        DPAD_MAX to 25,
+        DPAD_RAMP to 8,
         SCROLL_KEYS to true,
         CLICK_HOLD to true,
         CLICK_HOLD_MS to 350,
@@ -195,6 +203,9 @@ object PadSettings {
     val stickMaxSpeed: Float get() = int(STICK_MAX) / 10f
     val stickRampStart: Float get() = int(STICK_RAMP) / 100f
     val stickDeadzone: Float get() = int(STICK_DEADZONE) / 100f
+    val dpadBaseSpeed: Float get() = int(DPAD_BASE) / 10f
+    val dpadMaxSpeed: Float get() = int(DPAD_MAX) / 10f
+    val dpadRampMs: Long get() = int(DPAD_RAMP) * 100L
 
     /** Haptics level: 0 off, 1 light, 2 normal, 3 strong. */
     fun haptic(view: View) {
