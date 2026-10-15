@@ -388,13 +388,24 @@ class ExternalOnScreenKeyboardView(
         }
     }
 
+    private var lastShiftTapAt = 0L
+    private var shiftBeforeTap = ShiftState.OFF
+
+    /** One tap steps Shift, Ctrl, Alt, off. A quick second tap turns Caps on (or off, if it was on). */
     private fun cycleShift() {
-        shiftState = when (shiftState) {
-            ShiftState.OFF -> ShiftState.ON
-            ShiftState.ON -> ShiftState.CTRL
-            ShiftState.CTRL -> ShiftState.ALT
-            ShiftState.ALT -> ShiftState.CAPS
-            ShiftState.CAPS -> ShiftState.OFF
+        val now = android.os.SystemClock.uptimeMillis()
+        if (lastShiftTapAt != 0L && now - lastShiftTapAt < 350L) {
+            shiftState = if (shiftBeforeTap == ShiftState.CAPS) ShiftState.OFF else ShiftState.CAPS
+            lastShiftTapAt = 0L
+        } else {
+            shiftBeforeTap = shiftState
+            lastShiftTapAt = now
+            shiftState = when (shiftState) {
+                ShiftState.OFF -> ShiftState.ON
+                ShiftState.ON -> ShiftState.CTRL
+                ShiftState.CTRL -> ShiftState.ALT
+                ShiftState.ALT, ShiftState.CAPS -> ShiftState.OFF
+            }
         }
         refreshLabels()
     }
