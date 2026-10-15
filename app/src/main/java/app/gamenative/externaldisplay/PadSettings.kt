@@ -169,8 +169,24 @@ object PadSettings {
     var version = 0
         private set
 
+    /** Extra buttons were called "Extra 1" to "Extra 5"; they are "Ex1" to "Ex5" now. Carries saved remaps, names, colors, order and hidden over. */
+    private fun migrateExtraLabels() {
+        val p = prefs ?: return
+        val editor = p.edit()
+        var changed = false
+        for (key in listOf(REMAP, RENAME, COLOR, ORDER, HIDDEN)) {
+            val text = p.getString(key, null) ?: continue
+            if (!text.contains("Extra ")) continue
+            var out = text
+            for (n in 1..5) out = out.replace("\"Extra $n\"", "\"Ex$n\"")
+            if (out != text) { editor.putString(key, out); changed = true }
+        }
+        if (changed) editor.apply()
+    }
+
     fun init(context: Context) {
         if (prefs == null) prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        migrateExtraLabels()
     }
 
     fun bool(key: String): Boolean {

@@ -87,7 +87,7 @@ class ExternalPadSettingsView(
             addView(toggleRow(listOf("Modifier keys affect Extra Buttons" to PadSettings.EXTRA_MODS)))
             addView(sliderRow("Buttons shown", PadSettings.EXTRA_N, 1, 5) { "$it" })
             addView(sliderRow("Panel height", PadSettings.EXTRA_HEIGHT, 50, 250) { "$it%" })
-            addView(note("Extra 1 to 5 start on F8 to F12. Remap them under \"Remap, rename, and recolor buttons\"."))
+            addView(note("Ex1 to Ex5 start on F8 to F12. Remap them under \"Remap, rename, and recolor buttons\"."))
         }
         section("Buttons shown", collapsible = true) {
             addView(note("Tap a name to hide or show that button. Use the arrows to move it up or down inside its group. Hidden numbers leave a gap."))
