@@ -615,24 +615,41 @@ class PhysicalControllerHandler(
         onRightStickMouseModeChanged?.invoke(enabled)
     }
 
-    /** Drive the X pointer from one right-stick axis while mouse mode is on. */
-    private fun applyRightStickAsMouse(axis: Int, value: Float, deviceId: Int) {
+    /**
+     * Drive the X pointer from the whole right stick while mouse mode is on. The deadzone and the speed ramp
+     * use the stick's overall tilt (not each axis alone), so diagonals move and ramp like any other direction.
+     */
+    private fun applyRightStickAsMouse(x: Float, y: Float, deviceId: Int) {
+        val mag = Math.sqrt((x * x + y * y).toDouble()).toFloat()
+        var vx = 0f
+        var vy = 0f
+        if (mag > PadSettings.stickDeadzone) {
+            // Speed stays at the base speed until the ramp start (a setting), then ramps up to the max speed
+            // at full tilt, slowly at first and faster near the end (squared curve).
+            val rampStart = PadSettings.stickRampStart
+            val tilt = ((mag.coerceAtMost(1f) - rampStart) / (1f - rampStart)).coerceIn(0f, 1f)
+            val base = PadSettings.stickBaseSpeed
+            val factor = base + (PadSettings.stickMaxSpeed - base) * tilt * tilt
+            // A square gate reports up to 1.41 on a diagonal; keep the direction but cap the length at 1.
+            val scale = if (mag > 1f) factor / mag else factor
+            vx = x * scale
+            vy = y * scale
+        }
+        applyRightStickMouseAxis(MotionEvent.AXIS_Z, vx, deviceId)
+        applyRightStickMouseAxis(MotionEvent.AXIS_RZ, vy, deviceId)
+    }
+
+    private fun applyRightStickMouseAxis(axis: Int, value: Float, deviceId: Int) {
         val posKey = ExternalControllerBinding.getKeyCodeForAxis(axis, 1.toByte())
         val negKey = ExternalControllerBinding.getKeyCodeForAxis(axis, (-1).toByte())
         val horizontal = axis == MotionEvent.AXIS_Z
         val positiveBinding = if (horizontal) Binding.MOUSE_MOVE_RIGHT else Binding.MOUSE_MOVE_DOWN
         val negativeBinding = if (horizontal) Binding.MOUSE_MOVE_LEFT else Binding.MOUSE_MOVE_UP
-        if (Math.abs(value) > PadSettings.stickDeadzone) {
+        if (value != 0f) {
             val active = if (value > 0f) positiveBinding else negativeBinding
             val inactive = if (value > 0f) negativeBinding else positiveBinding
-            // Speed stays at the base speed until the ramp start (a setting), then ramps up to the max speed
-            // at full tilt, slowly at first and faster near the end (squared curve).
-            val rampStart = PadSettings.stickRampStart
-            val tilt = ((Math.abs(value) - rampStart) / (1f - rampStart)).coerceIn(0f, 1f)
-            val base = PadSettings.stickBaseSpeed
-            val scaled = value * (base + (PadSettings.stickMaxSpeed - base) * tilt * tilt)
             updateMouseMoveContribution(inactive, false, 0f, if (value > 0f) negKey else posKey, deviceId)
-            updateMouseMoveContribution(active, true, scaled, if (value > 0f) posKey else negKey, deviceId)
+            updateMouseMoveContribution(active, true, value, if (value > 0f) posKey else negKey, deviceId)
         } else {
             updateMouseMoveContribution(positiveBinding, false, 0f, posKey, deviceId)
             updateMouseMoveContribution(negativeBinding, false, 0f, negKey, deviceId)
@@ -807,7 +824,8 @@ class PhysicalControllerHandler(
         if (!dpadCursorActive() && (dpadEffX != 0 || dpadEffY != 0)) clearDpadCursor()
         for (i in axes.indices) {
             if (rightStickMouseMode && (axes[i] == MotionEvent.AXIS_Z || axes[i] == MotionEvent.AXIS_RZ)) {
-                applyRightStickAsMouse(axes[i], values[i], deviceId)
+                // Both axes are handled together, once, when the horizontal one comes up.
+                if (axes[i] == MotionEvent.AXIS_Z) applyRightStickAsMouse(values[i], values[i + 1], deviceId)
                 continue
             }
             val isHat = axes[i] == MotionEvent.AXIS_HAT_X || axes[i] == MotionEvent.AXIS_HAT_Y
