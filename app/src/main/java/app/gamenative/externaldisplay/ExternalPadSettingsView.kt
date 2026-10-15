@@ -176,34 +176,14 @@ class ExternalPadSettingsView(
             )
             addView(
                 rowOf(
-                    button("Export layout to file") {
-                        status.text = runCatching {
-                            val file = layoutFile()
-                            file.writeText(PadSettings.layout().toString(2))
-                            "Saved ${file.name} in your WoW folder"
-                        }.getOrElse { "Could not save the layout file" }
-                    },
-                    button("Import layout from file") {
-                        val file = layoutFile()
-                        val json = runCatching { JSONObject(file.readText()) }.getOrNull()
-                        if (json == null || !PadSettings.applyLayout(json)) {
-                            status.text = "No layout file found. Looking for ${file.name} in your WoW folder"
-                        } else {
-                            showMain()
-                        }
-                    },
-                ),
-            )
-            addView(
-                rowOf(
-                    button("Export everything") {
+                    button("Export to file") {
                         status.text = runCatching {
                             val file = backupFile()
                             file.writeText(PadSettings.fullBackup().toString(2))
                             "Saved ${file.name} (settings and all profiles) in your WoW folder"
                         }.getOrElse { "Could not save the backup: ${it.message}" }
                     },
-                    button("Import everything") {
+                    button("Import from file") {
                         val file = backupFile()
                         val json = runCatching { JSONObject(file.readText()) }.getOrNull()
                         if (json == null || !PadSettings.restoreFullBackup(json)) {
@@ -214,8 +194,7 @@ class ExternalPadSettingsView(
                     },
                 ),
             )
-            addView(note("Everything saves the current settings, the button layout and all profile slots to one file in your WoW folder. Keep that folder outside the app's own storage so it survives a reinstall."))
-            addView(note("A layout is only the buttons: keys, names, colors and order."))
+            addView(note("Export saves the current settings, the button layout and all profile slots to one file in your WoW folder. Keep that folder outside the app's own storage so it survives a reinstall."))
             addView(status)
         }
         section("Reset", collapsible = true) {
@@ -610,8 +589,6 @@ class ExternalPadSettingsView(
 
     /** The layout file sits next to the game data, so it survives reinstalling the app. */
     private fun backupFile() = File(File(GamePath.load(context)), "WoWPad-backup.json")
-
-    private fun layoutFile() = File(File(GamePath.load(context)), "WoWPad-layout.json")
 
     // Helpers
 

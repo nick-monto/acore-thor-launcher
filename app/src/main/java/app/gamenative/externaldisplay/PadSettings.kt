@@ -324,27 +324,6 @@ object PadSettings {
         version++
     }
 
-    // Layout export / import: just the button arrangement (keys, names, colors, order).
-
-    fun layout(): JSONObject = JSONObject().apply {
-        put(REMAP, remapJson())
-        put(RENAME, renameJson())
-        put(COLOR, colorJson())
-        put(ORDER, orderJson())
-        put(HIDDEN, hiddenJson())
-    }
-
-    /** Applies a [layout]. Returns false if it has none of the layout sections. */
-    fun applyLayout(json: JSONObject): Boolean {
-        val keys = listOf(REMAP, RENAME, COLOR, ORDER, HIDDEN)
-        if (keys.none { json.optJSONObject(it) != null }) return false
-        val editor = prefs?.edit() ?: return false
-        keys.forEach { k -> editor.putString(k, (json.optJSONObject(k) ?: JSONObject()).toString()) }
-        editor.apply()
-        version++
-        return true
-    }
-
     // Reset, profiles, export and import.
 
     /** Settings the launcher sets per game at launch. Profiles and resets leave them alone during play. */
