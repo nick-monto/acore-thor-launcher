@@ -216,7 +216,7 @@ class ExternalOnScreenKeyboardView(
         }
 
         val margin = dp(3)
-        val height = dp(48)
+        val height = dp(56)
 
         fun gap() = row.addView(View(context), LayoutParams(0, height, indent))
         if (indent > 0f) gap()
