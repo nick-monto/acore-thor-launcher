@@ -88,6 +88,7 @@ object PadSettings {
     const val STICK_RAMP = "stick_ramp"
     const val STICK_DEADZONE = "stick_deadzone"
     const val AB_MODE = "ab_mode"
+    const val AB_SWAP = "ab_swap"
     const val R3_TOGGLE = "r3_toggle"
     const val DPAD_CURSOR = "dpad_cursor"
     const val CURSOR_CLICK_WAIT_MS = "cursor_click_wait_ms"
@@ -98,7 +99,7 @@ object PadSettings {
     const val SCROLL_KEYS = "scroll_keys"
     /** In cursor mode, double-tapping A or B holds that click until the button is pressed again. */
     const val CLICK_HOLD = "click_hold"
-    /** How quickly the second A / B tap must follow the first to count as a double tap, in ms. */
+    /** How quickly the second tap on a click button must follow the first to count as a double tap, in ms. */
     const val CLICK_HOLD_MS = "click_hold_ms"
     /** Short wait before a single click is sent, so a double tap can start a hold without a click first. 0 = off. */
     const val CLICK_WAIT_MS = "click_wait_ms"
@@ -154,6 +155,7 @@ object PadSettings {
         STICK_RAMP to 90,
         STICK_DEADZONE to 15,
         AB_MODE to 1,
+        AB_SWAP to false,
         R3_TOGGLE to true,
         DPAD_CURSOR to false,
         CURSOR_CLICK_WAIT_MS to 120,
@@ -177,6 +179,15 @@ object PadSettings {
     var version = 0
         private set
 
+    /** Click buttons: mode 2 used to mean "A right, B left"; it now means L1 / R1, and swapping is its own setting. */
+    private fun migrateClickButtons() {
+        val p = prefs ?: return
+        if (p.getBoolean("ab_migrated", false)) return
+        val editor = p.edit().putBoolean("ab_migrated", true)
+        if (p.getInt(AB_MODE, 1) == 2) editor.putInt(AB_MODE, 1).putBoolean(AB_SWAP, true)
+        editor.apply()
+    }
+
     /** Extra buttons were called "Extra 1" to "Extra 5"; they are "Ex1" to "Ex5" now. Carries saved remaps, names, colors, order and hidden over. */
     private fun migrateExtraLabels() {
         val p = prefs ?: return
@@ -195,6 +206,7 @@ object PadSettings {
     fun init(context: Context) {
         if (prefs == null) prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         migrateExtraLabels()
+        migrateClickButtons()
     }
 
     fun bool(key: String): Boolean {
@@ -380,6 +392,11 @@ object PadSettings {
     /** Applies a [snapshot]. Unknown or mistyped entries are ignored. */
     fun applySnapshot(json: JSONObject) {
         val editor = prefs?.edit() ?: return
+        if (json.has(AB_MODE) && !json.has(AB_SWAP) && json.optInt(AB_MODE, 1) == 2) {
+            // Older snapshots: mode 2 was "A right, B left". It is now A / B with Swap turned on.
+            json.put(AB_MODE, 1)
+            json.put(AB_SWAP, true)
+        }
         DEFAULTS.forEach { (key, def) ->
             if (key in LAUNCH_ONLY || !json.has(key)) return@forEach
             if (def is Boolean) editor.putBoolean(key, json.optBoolean(key, def))

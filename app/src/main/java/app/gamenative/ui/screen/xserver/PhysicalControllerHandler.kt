@@ -394,13 +394,16 @@ class PhysicalControllerHandler(
                     handleScrollBinding(scroll, true)
                     return true
                 } else if (event.action == KeyEvent.ACTION_DOWN && rightStickMouseMode && PadSettings.int(PadSettings.AB_MODE) != 0) {
-                    // Cursor mode: the pad's A / B buttons act as left / right click (or swapped, per the setting).
-                    val swapped = PadSettings.int(PadSettings.AB_MODE) == 2
+                    // Cursor mode: A / B (or L1 / R1, per the setting) act as left / right click, optionally swapped.
+                    val swapped = PadSettings.bool(PadSettings.AB_SWAP)
+                    val useShoulders = PadSettings.int(PadSettings.AB_MODE) == 2
+                    val firstButton = if (useShoulders) Binding.GAMEPAD_BUTTON_L1 else Binding.GAMEPAD_BUTTON_A
+                    val secondButton = if (useShoulders) Binding.GAMEPAD_BUTTON_R1 else Binding.GAMEPAD_BUTTON_B
                     val bindings = controller.getControllerBinding(keyCode)?.bindingCombo?.bindings
                     val click = when {
                         bindings == null -> null
-                        Binding.GAMEPAD_BUTTON_A in bindings -> if (swapped) Binding.MOUSE_RIGHT_BUTTON else Binding.MOUSE_LEFT_BUTTON
-                        Binding.GAMEPAD_BUTTON_B in bindings -> if (swapped) Binding.MOUSE_LEFT_BUTTON else Binding.MOUSE_RIGHT_BUTTON
+                        firstButton in bindings -> if (swapped) Binding.MOUSE_RIGHT_BUTTON else Binding.MOUSE_LEFT_BUTTON
+                        secondButton in bindings -> if (swapped) Binding.MOUSE_LEFT_BUTTON else Binding.MOUSE_RIGHT_BUTTON
                         else -> null
                     }
                     if (click != null) {

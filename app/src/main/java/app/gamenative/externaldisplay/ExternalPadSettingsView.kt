@@ -75,12 +75,14 @@ class ExternalPadSettingsView(
             addView(note("Keys shown in the pad row (the trackpad always has all three):"))
             addView(toggleRow(listOf("Shift" to PadSettings.MOD_SHIFT, "Ctrl" to PadSettings.MOD_CTRL, "Alt" to PadSettings.MOD_ALT)))
             addView(sliderRow("Row height", PadSettings.MOD_HEIGHT, 50, 200) { "$it%" })
+            addView(sliderRow("Double-tap lock", PadSettings.DOUBLE_TAP_MS, 200, 600) { "$it ms" })
+        }
+        section("Modifier glow", collapsible = true) {
             addView(toggleRow(listOf("Glow on buttons a modifier affects" to PadSettings.MOD_GLOW)))
             addView(sliderRow("Glow intensity", PadSettings.MOD_GLOW_LEVEL, 10, 100) { "$it%" })
             addView(note("Glow color for each modifier. A color also becomes that modifier button's color. Default keeps the usual look."))
             listOf("Shift" to PadSettings.MOD_GLOW_SHIFT, "Ctrl" to PadSettings.MOD_GLOW_CTRL, "Alt" to PadSettings.MOD_GLOW_ALT)
                 .forEach { (name, key) -> addView(glowColorRow(name, key)) }
-            addView(sliderRow("Double-tap lock", PadSettings.DOUBLE_TAP_MS, 200, 600) { "$it ms" })
         }
         section("Extra Buttons", collapsible = true) {
             addView(toggleRow(listOf("Show Extra Buttons panel" to PadSettings.EXTRA_ON)))
@@ -127,21 +129,27 @@ class ExternalPadSettingsView(
         // Only shown when R3 mouse/camera toggling was switched on at launch (main screen).
         if (PadSettings.bool(PadSettings.R3_TOGGLE)) {
             section("Right-stick cursor (R3)", collapsible = true) {
+                addView(note("Stick"))
                 addView(sliderRow("Base speed", PadSettings.STICK_BASE, 5, 30) { tenths(it) })
                 addView(sliderRow("Max speed", PadSettings.STICK_MAX, 10, 50) { tenths(it) })
                 addView(sliderRow("Ramp starts at", PadSettings.STICK_RAMP, 50, 99) { "$it%" })
                 addView(sliderRow("Stick deadzone", PadSettings.STICK_DEADZONE, 5, 40) { "$it%" })
-                addView(cycleRow("A / B in cursor mode", PadSettings.AB_MODE, listOf("Off", "A left, B right", "A right, B left")))
-                addView(toggleRow(listOf("Double-tap A / B holds the click" to PadSettings.CLICK_HOLD)))
-                addView(sliderRow("Click wait for double tap", PadSettings.CURSOR_CLICK_WAIT_MS, 0, 300) { if (it == 0) "Off" else "$it ms" })
-                addView(sliderRow("Double-click speed", PadSettings.CLICK_HOLD_MS, 150, 600) { "$it ms" })
-                addView(toggleRow(listOf("Y / X scroll in cursor mode" to PadSettings.SCROLL_KEYS, "Invert Y / X scroll" to PadSettings.SCROLL_INVERT)))
-                addView(sliderRow("Scroll speed", PadSettings.SCROLL_SPEED, 1, 10) { "$it" })
+                addView(note("D-pad"))
                 addView(toggleRow(listOf("D-pad moves the cursor too" to PadSettings.DPAD_CURSOR)))
                 addView(sliderRow("D-pad base speed", PadSettings.DPAD_BASE, 5, 30) { tenths(it) })
                 addView(sliderRow("D-pad max speed", PadSettings.DPAD_MAX, 10, 50) { tenths(it) })
                 addView(sliderRow("D-pad ramp time", PadSettings.DPAD_RAMP, 1, 20) { tenths(it) + " s" })
-                addView(toggleRow(listOf("Show mode message" to PadSettings.MODE_MESSAGE)))
+                addView(note("Clicking. In cursor mode the chosen buttons click instead of reaching the game."))
+                addView(cycleRow("Click buttons", PadSettings.AB_MODE, listOf("Off", "A / B", "L1 / R1")))
+                addView(toggleRow(listOf("Swap left and right click" to PadSettings.AB_SWAP)))
+                addView(toggleRow(listOf("Double-tap a click button holds the click" to PadSettings.CLICK_HOLD)))
+                addView(sliderRow("Double-tap speed", PadSettings.CLICK_HOLD_MS, 150, 600) { "$it ms" })
+                addView(sliderRow("Click wait for double tap", PadSettings.CURSOR_CLICK_WAIT_MS, 0, 300) { if (it == 0) "Off" else "$it ms" })
+                addView(note("Scrolling"))
+                addView(toggleRow(listOf("Y / X scroll in cursor mode" to PadSettings.SCROLL_KEYS, "Invert Y / X scroll" to PadSettings.SCROLL_INVERT)))
+                addView(sliderRow("Scroll speed", PadSettings.SCROLL_SPEED, 1, 10) { "$it" })
+                addView(note("Other"))
+                addView(toggleRow(listOf("Show message when the mode changes" to PadSettings.MODE_MESSAGE)))
             }
         }
         section("Triggers (L2 / R2)", collapsible = true) {
