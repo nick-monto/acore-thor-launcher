@@ -365,10 +365,10 @@ class ExternalOnScreenKeyboardView(
             Action.BACKSPACE -> pressRepeating(XKeycode.KEY_BKSP, heldMods())
             Action.ENTER -> pressKey(XKeycode.KEY_ENTER, heldMods())
             Action.SPACE -> pressKey(XKeycode.KEY_SPACE, heldMods())
-            Action.ARROW_LEFT -> pressRepeating(XKeycode.KEY_LEFT, heldMods())
-            Action.ARROW_DOWN -> pressRepeating(XKeycode.KEY_DOWN, heldMods())
-            Action.ARROW_RIGHT -> pressRepeating(XKeycode.KEY_RIGHT, heldMods())
-            Action.ARROW_UP -> pressRepeating(XKeycode.KEY_UP, heldMods())
+            Action.ARROW_LEFT -> pressRepeating(XKeycode.KEY_LEFT, arrowMods())
+            Action.ARROW_DOWN -> pressRepeating(XKeycode.KEY_DOWN, arrowMods())
+            Action.ARROW_RIGHT -> pressRepeating(XKeycode.KEY_RIGHT, arrowMods())
+            Action.ARROW_UP -> pressRepeating(XKeycode.KEY_UP, arrowMods())
             Action.INPUT -> {
                 val keycode = spec.keycode ?: return
                 val useShift = spec.sendShifted || when (shiftState) {
@@ -389,6 +389,9 @@ class ExternalOnScreenKeyboardView(
         if (shiftState == ShiftState.CTRL) add(XKeycode.KEY_CTRL_L)
         if (shiftState == ShiftState.ALT) add(XKeycode.KEY_ALT_L)
     }
+
+    /** The on-screen arrows always carry Alt: the WoW chat box only moves its cursor / history on Alt+arrow. */
+    private fun arrowMods(): List<XKeycode> = (heldMods() + XKeycode.KEY_ALT_L).distinct()
 
     /** Shift, Ctrl and Alt apply to one key press only; Caps stays on. */
     private fun consumeOneShot() {
