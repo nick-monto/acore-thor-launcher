@@ -57,6 +57,7 @@ class ExternalOnScreenKeyboardView(
     // These must be declared before init: building the layout uses them.
     // Gboard-style pop-up above a pressed character key. Not for Shift, Space, Backspace or the symbols key.
     private val previews = mutableMapOf<KeySpec, PopupWindow>()
+    private val previewHides = mutableMapOf<KeySpec, Runnable>()
     private val repeatHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private val repeatTasks = mutableMapOf<XKeycode, Runnable>()
     private val pressedAt = mutableMapOf<XKeycode, Long>()
@@ -278,7 +279,7 @@ class ExternalOnScreenKeyboardView(
 
 
     private fun showPreview(spec: KeySpec, button: Button) {
-        hidePreview(spec)
+        dropPreview(spec)
         try {
             val label = button.text?.toString().orEmpty()
             if (label.isEmpty()) return
@@ -308,11 +309,31 @@ class ExternalOnScreenKeyboardView(
         }
     }
 
+    /** Lets go of the pop-up after a short hold, so a quick tap is still readable. */
     private fun hidePreview(spec: KeySpec) {
+        val popup = previews[spec] ?: return
+        val hold = PadSettings.int(PadSettings.KB_POPUP_MS).toLong()
+        val hide = Runnable {
+            previewHides.remove(spec)
+            if (previews[spec] === popup) previews.remove(spec)
+            try { popup.dismiss() } catch (_: Throwable) {}
+        }
+        previewHides.remove(spec)?.let { repeatHandler.removeCallbacks(it) }
+        if (hold <= 0L) hide.run() else {
+            previewHides[spec] = hide
+            repeatHandler.postDelayed(hide, hold)
+        }
+    }
+
+    /** Drops the pop-up for a key at once (used when the same key is pressed again). */
+    private fun dropPreview(spec: KeySpec) {
+        previewHides.remove(spec)?.let { repeatHandler.removeCallbacks(it) }
         previews.remove(spec)?.let { try { it.dismiss() } catch (_: Throwable) {} }
     }
 
     private fun hideAllPreviews() {
+        previewHides.values.forEach { repeatHandler.removeCallbacks(it) }
+        previewHides.clear()
         previews.values.forEach { try { it.dismiss() } catch (_: Throwable) {} }
         previews.clear()
     }
