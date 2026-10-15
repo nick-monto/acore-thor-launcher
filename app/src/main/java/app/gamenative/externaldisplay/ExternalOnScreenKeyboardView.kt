@@ -335,13 +335,13 @@ class ExternalOnScreenKeyboardView(
         }
         when (spec.action) {
             Action.SHIFT, Action.SYMBOLS -> Unit
-            Action.BACKSPACE -> pressKey(XKeycode.KEY_BKSP)
+            Action.BACKSPACE -> pressRepeating(XKeycode.KEY_BKSP)
             Action.ENTER -> pressKey(XKeycode.KEY_ENTER)
             Action.SPACE -> pressKey(XKeycode.KEY_SPACE)
-            Action.ARROW_LEFT -> pressKey(XKeycode.KEY_LEFT)
-            Action.ARROW_DOWN -> pressKey(XKeycode.KEY_DOWN)
-            Action.ARROW_RIGHT -> pressKey(XKeycode.KEY_RIGHT)
-            Action.ARROW_UP -> pressKey(XKeycode.KEY_UP)
+            Action.ARROW_LEFT -> pressRepeating(XKeycode.KEY_LEFT)
+            Action.ARROW_DOWN -> pressRepeating(XKeycode.KEY_DOWN)
+            Action.ARROW_RIGHT -> pressRepeating(XKeycode.KEY_RIGHT)
+            Action.ARROW_UP -> pressRepeating(XKeycode.KEY_UP)
             Action.INPUT -> {
                 val keycode = spec.keycode ?: return
                 val useShift = spec.sendShifted || when (shiftState) {
@@ -367,13 +367,13 @@ class ExternalOnScreenKeyboardView(
                 buildLayout()
                 refreshLabels()
             }
-            Action.BACKSPACE -> releaseKey(XKeycode.KEY_BKSP)
+            Action.BACKSPACE -> releaseRepeating(XKeycode.KEY_BKSP)
             Action.ENTER -> releaseKey(XKeycode.KEY_ENTER)
             Action.SPACE -> releaseKey(XKeycode.KEY_SPACE)
-            Action.ARROW_LEFT -> releaseKey(XKeycode.KEY_LEFT)
-            Action.ARROW_DOWN -> releaseKey(XKeycode.KEY_DOWN)
-            Action.ARROW_RIGHT -> releaseKey(XKeycode.KEY_RIGHT)
-            Action.ARROW_UP -> releaseKey(XKeycode.KEY_UP)
+            Action.ARROW_LEFT -> releaseRepeating(XKeycode.KEY_LEFT)
+            Action.ARROW_DOWN -> releaseRepeating(XKeycode.KEY_DOWN)
+            Action.ARROW_RIGHT -> releaseRepeating(XKeycode.KEY_RIGHT)
+            Action.ARROW_UP -> releaseRepeating(XKeycode.KEY_UP)
             Action.INPUT -> spec.keycode?.let { releaseKey(it) }
         }
     }
@@ -416,6 +416,34 @@ class ExternalOnScreenKeyboardView(
         }
     }
 
+    // Backspace and the arrows: a tap lasts at least MIN_HOLD_MS (so the game sees it), and holding repeats.
+    private val repeatHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val repeatTasks = mutableMapOf<XKeycode, Runnable>()
+    private val pressedAt = mutableMapOf<XKeycode, Long>()
+
+    private fun pressRepeating(key: XKeycode) {
+        repeatTasks.remove(key)?.let { repeatHandler.removeCallbacks(it) }
+        pressedAt[key] = android.os.SystemClock.uptimeMillis()
+        pressKey(key)
+        val task = object : Runnable {
+            override fun run() {
+                releaseKey(key)
+                pressKey(key)
+                pressedAt[key] = android.os.SystemClock.uptimeMillis()
+                repeatHandler.postDelayed(this, 55L)
+            }
+        }
+        repeatTasks[key] = task
+        repeatHandler.postDelayed(task, 400L)
+    }
+
+    private fun releaseRepeating(key: XKeycode) {
+        repeatTasks.remove(key)?.let { repeatHandler.removeCallbacks(it) }
+        val held = android.os.SystemClock.uptimeMillis() - (pressedAt.remove(key) ?: 0L)
+        val wait = (40L - held).coerceAtLeast(0L)
+        if (wait == 0L) releaseKey(key) else repeatHandler.postDelayed({ releaseKey(key) }, wait)
+    }
+
     private fun pressKey(key: XKeycode, withShift: Boolean = false) {
         if (!downKeys.add(key)) return
         val shiftWasDown = xServer.keyboard.modifiersMask.isSet(1)
@@ -433,6 +461,8 @@ class ExternalOnScreenKeyboardView(
 
     override fun onDetachedFromWindow() {
         hideAllPreviews()
+        repeatTasks.values.forEach { repeatHandler.removeCallbacks(it) }
+        repeatTasks.clear()
         downKeys.toList().forEach { key ->
             xServer.injectKeyRelease(key)
         }
