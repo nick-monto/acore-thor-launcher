@@ -391,6 +391,38 @@ object PadSettings {
         version++
     }
 
+    /** Everything worth keeping across a reinstall: current settings, every profile slot and the per-game launch profile choices. */
+    fun fullBackup(): JSONObject = JSONObject().apply {
+        put("format", 1)
+        put("settings", snapshot())
+        val profiles = JSONObject()
+        for (slot in 1..PROFILE_SLOTS) {
+            val text = prefs?.getString(PROFILE_PREFIX + slot, null) ?: continue
+            runCatching { profiles.put(slot.toString(), JSONObject(text)) }
+        }
+        put("profiles", profiles)
+        val launch = JSONObject()
+        prefs?.all?.forEach { (k, v) -> if (k.startsWith("launch_profile_") && v is Int) launch.put(k, v) }
+        put("launch", launch)
+    }
+
+    /** Restores a [fullBackup]. Returns false if the file isn't one. */
+    fun restoreFullBackup(json: JSONObject): Boolean {
+        val settings = json.optJSONObject("settings") ?: return false
+        val editor = prefs?.edit() ?: return false
+        json.optJSONObject("profiles")?.let { profiles ->
+            for (slot in 1..PROFILE_SLOTS) {
+                profiles.optJSONObject(slot.toString())?.let { editor.putString(PROFILE_PREFIX + slot, it.toString()) }
+            }
+        }
+        json.optJSONObject("launch")?.let { launch ->
+            launch.keys().forEach { k -> if (k.startsWith("launch_profile_")) editor.putInt(k, launch.optInt(k, 0)) }
+        }
+        editor.apply()
+        applySnapshot(settings)
+        return true
+    }
+
     fun saveProfile(slot: Int) {
         prefs?.edit()?.putString(PROFILE_PREFIX + slot, snapshot().toString())?.apply()
     }
