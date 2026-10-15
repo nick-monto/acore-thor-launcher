@@ -54,6 +54,16 @@ class ExternalOnScreenKeyboardView(
     private var shiftState: ShiftState = ShiftState.OFF
     private var showSymbols = false
 
+    // These must be declared before init: building the layout uses them.
+    // Gboard-style pop-up above a pressed character key. Not for Shift, Space, Backspace or the symbols key.
+    private val previews = mutableMapOf<KeySpec, PopupWindow>()
+    private val repeatHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val repeatTasks = mutableMapOf<XKeycode, Runnable>()
+    private val pressedAt = mutableMapOf<XKeycode, Long>()
+    private var lastShiftTapAt = 0L
+    private var shiftBeforeTap = ShiftState.OFF
+    private var built = false
+
     init {
         orientation = VERTICAL
         setMotionEventSplittingEnabled(true)
@@ -62,6 +72,7 @@ class ExternalOnScreenKeyboardView(
         setBackgroundColor(theme.background)
         buildLayout()
         refreshLabels()
+        built = true
     }
 
     private fun buildLayout() {
@@ -265,8 +276,6 @@ class ExternalOnScreenKeyboardView(
         }
     }
 
-    // Gboard-style pop-up above a pressed character key. Not for Shift, Space, Backspace or the symbols key.
-    private val previews = mutableMapOf<KeySpec, PopupWindow>()
 
     private fun showPreview(spec: KeySpec, button: Button) {
         hidePreview(spec)
@@ -388,8 +397,6 @@ class ExternalOnScreenKeyboardView(
         }
     }
 
-    private var lastShiftTapAt = 0L
-    private var shiftBeforeTap = ShiftState.OFF
 
     /** One tap steps Shift, Ctrl, Alt, off. A quick second tap turns Caps on (or off, if it was on). */
     private fun cycleShift() {
@@ -442,9 +449,6 @@ class ExternalOnScreenKeyboardView(
     }
 
     // Backspace and the arrows: a tap lasts at least MIN_HOLD_MS (so the game sees it), and holding repeats.
-    private val repeatHandler = android.os.Handler(android.os.Looper.getMainLooper())
-    private val repeatTasks = mutableMapOf<XKeycode, Runnable>()
-    private val pressedAt = mutableMapOf<XKeycode, Long>()
 
     private fun pressRepeating(key: XKeycode, mods: List<XKeycode> = emptyList()) {
         repeatTasks.remove(key)?.let { repeatHandler.removeCallbacks(it) }
@@ -488,7 +492,7 @@ class ExternalOnScreenKeyboardView(
     /** Picks up keyboard setting changes (height) each time the keyboard is shown. */
     override fun onVisibilityChanged(changedView: View, visibility: Int) {
         super.onVisibilityChanged(changedView, visibility)
-        if (changedView === this && visibility == VISIBLE && keyButtons.isNotEmpty()) {
+        if (changedView === this && visibility == VISIBLE && built) {
             buildLayout()
             refreshLabels()
         }
