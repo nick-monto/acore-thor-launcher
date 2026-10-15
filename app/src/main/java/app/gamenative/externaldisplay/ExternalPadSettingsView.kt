@@ -111,7 +111,8 @@ class ExternalPadSettingsView(
         section("Keyboard", collapsible = true) {
             addView(toggleRow(listOf("Pop-up when a key is pressed" to PadSettings.KB_POPUP)))
             addView(sliderRow("Key height", PadSettings.KB_HEIGHT, 70, 110) { "$it%" })
-            addView(note("100% is the standard key height. The keyboard takes effect the next time it opens."))
+            addView(sliderRow("Caps double-tap time", PadSettings.KB_CAPS_MS, 150, 600) { "$it ms" })
+            addView(note("100% is the standard key height, applied the next time the keyboard opens. Double-tap the Shift key within the double-tap time to switch Caps on or off."))
         }
         section("Trackpad", collapsible = true) {
             addView(sliderRow("Speed", PadSettings.TP_SPEED, 1, 20) { tenths(it) })

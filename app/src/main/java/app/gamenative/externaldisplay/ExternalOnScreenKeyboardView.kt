@@ -394,7 +394,7 @@ class ExternalOnScreenKeyboardView(
     /** One tap steps Shift, Ctrl, Alt, off. A quick second tap turns Caps on (or off, if it was on). */
     private fun cycleShift() {
         val now = android.os.SystemClock.uptimeMillis()
-        if (lastShiftTapAt != 0L && now - lastShiftTapAt < 350L) {
+        if (lastShiftTapAt != 0L && now - lastShiftTapAt < PadSettings.int(PadSettings.KB_CAPS_MS)) {
             shiftState = if (shiftBeforeTap == ShiftState.CAPS) ShiftState.OFF else ShiftState.CAPS
             lastShiftTapAt = 0L
         } else {
