@@ -143,6 +143,10 @@ class ExternalPadSettingsView(
                 addView(toggleRow(listOf("Show mode message" to PadSettings.MODE_MESSAGE)))
             }
         }
+        section("Triggers (L2 / R2)", collapsible = true) {
+            addView(toggleRow(listOf("L2 / R2 act as modifier keys" to PadSettings.TRIGGER_MODS)))
+            addView(note("L2 holds Shift and R2 holds Ctrl. Hold both for Alt. While on, the triggers no longer reach the game as gamepad triggers."))
+        }
         section("Remap, rename, and recolor buttons", collapsible = true) {
             addView(rowOf(button("Choose a button to rename, remap, or recolor") { showRemap() }))
         }

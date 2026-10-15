@@ -90,6 +90,7 @@ object PadSettings {
     const val AB_MODE = "ab_mode"
     const val R3_TOGGLE = "r3_toggle"
     const val DPAD_CURSOR = "dpad_cursor"
+    const val TRIGGER_MODS = "trigger_mods"
     const val DPAD_BASE = "dpad_base"
     const val DPAD_MAX = "dpad_max"
     const val DPAD_RAMP = "dpad_ramp"
@@ -154,6 +155,7 @@ object PadSettings {
         AB_MODE to 1,
         R3_TOGGLE to true,
         DPAD_CURSOR to false,
+        TRIGGER_MODS to false,
         DPAD_BASE to 10,
         DPAD_MAX to 25,
         DPAD_RAMP to 8,

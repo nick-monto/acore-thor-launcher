@@ -155,6 +155,40 @@ class PhysicalControllerHandler(
         }
     }
 
+    // L2 / R2 as modifiers (setting): L2 holds Shift, R2 holds Ctrl, both together hold Alt.
+    private var trigDigitalL = false
+    private var trigDigitalR = false
+    private var trigAnalogL = false
+    private var trigAnalogR = false
+    private val trigHeldKeys = mutableSetOf<com.winlator.xserver.XKeycode>()
+
+    private fun triggerModsActive() = PadSettings.bool(PadSettings.TRIGGER_MODS)
+
+    private fun updateTriggerMods() {
+        val l = trigDigitalL || trigAnalogL
+        val r = trigDigitalR || trigAnalogR
+        val wanted = when {
+            l && r -> setOf(com.winlator.xserver.XKeycode.KEY_ALT_L)
+            l -> setOf(com.winlator.xserver.XKeycode.KEY_SHIFT_L)
+            r -> setOf(com.winlator.xserver.XKeycode.KEY_CTRL_L)
+            else -> emptySet()
+        }
+        for (key in trigHeldKeys.toList()) {
+            if (key !in wanted) {
+                xServer?.injectKeyRelease(key)
+                trigHeldKeys.remove(key)
+            }
+        }
+        for (key in wanted) {
+            if (trigHeldKeys.add(key)) xServer?.injectKeyPress(key)
+        }
+    }
+
+    private fun clearTriggerMods() {
+        trigDigitalL = false; trigDigitalR = false; trigAnalogL = false; trigAnalogR = false
+        updateTriggerMods()
+    }
+
     private fun releaseHeldClicks() {
         for (click in heldClicks.values) {
             click.pointerButton?.let { xServer?.injectPointerButtonRelease(it) }
@@ -231,6 +265,7 @@ class PhysicalControllerHandler(
     }
 
     fun setProfile(profile: ControlsProfile?) {
+        clearTriggerMods()
         releaseActiveBindings(activeButtonBindings)
         releaseActiveBindings(activeTriggerBindings, fromMotion = true)
         releaseGyroModifierSources()
@@ -249,6 +284,7 @@ class PhysicalControllerHandler(
      * Clean up resources when handler is destroyed
      */
     fun cleanup() {
+        clearTriggerMods()
         releaseActiveBindings(activeButtonBindings)
         releaseActiveBindings(activeTriggerBindings, fromMotion = true)
         releaseGyroModifierSources()
@@ -301,6 +337,14 @@ class PhysicalControllerHandler(
                 if (event.action == KeyEvent.ACTION_DOWN) {
                     setRightStickMouseMode(!rightStickMouseMode, event.deviceId)
                 }
+                return true
+            }
+            if (controller != null && !radialMenuPressed && triggerModsActive() &&
+                (keyCode == KeyEvent.KEYCODE_BUTTON_L2 || keyCode == KeyEvent.KEYCODE_BUTTON_R2)
+            ) {
+                val down = event.action == KeyEvent.ACTION_DOWN
+                if (keyCode == KeyEvent.KEYCODE_BUTTON_L2) trigDigitalL = down else trigDigitalR = down
+                updateTriggerMods()
                 return true
             }
             if (controller != null && !radialMenuPressed && dpadCursorActive() &&
@@ -518,43 +562,53 @@ class PhysicalControllerHandler(
                     return true
                 }
 
-                // Process trigger buttons (L2/R2)
-                var controllerBinding = controller.getControllerBinding(KeyEvent.KEYCODE_BUTTON_L2)
-                if (controllerBinding != null) {
-                    handleTriggerBinding(
-                        KeyEvent.KEYCODE_BUTTON_L2,
-                        controllerBinding.binding,
-                        controllerBinding.bindingCombo,
-                        controller.state.triggerL > 0f,
-                        controller.state.triggerL,
-                        fromMotion = true,
-                        sourceKeyCode = KeyEvent.KEYCODE_BUTTON_L2,
-                        sourceDeviceId = event.deviceId,
-                        sourceController = controller,
-                    )
-                    if (radialMenuPressed) {
-                        sendGamepadState()
-                        return true
+                if (triggerModsActive()) {
+                    // L2 / R2 act as Shift / Ctrl (both: Alt) instead of reaching the game as triggers.
+                    releaseActiveBindings(activeTriggerBindings, fromMotion = true)
+                    trigAnalogL = controller.state.triggerL > 0.3f
+                    trigAnalogR = controller.state.triggerR > 0.3f
+                    updateTriggerMods()
+                } else {
+                    if (trigHeldKeys.isNotEmpty() || trigDigitalL || trigDigitalR || trigAnalogL || trigAnalogR) clearTriggerMods()
+                    // Process trigger buttons (L2/R2)
+                    var controllerBinding = controller.getControllerBinding(KeyEvent.KEYCODE_BUTTON_L2)
+                    if (controllerBinding != null) {
+                        handleTriggerBinding(
+                            KeyEvent.KEYCODE_BUTTON_L2,
+                            controllerBinding.binding,
+                            controllerBinding.bindingCombo,
+                            controller.state.triggerL > 0f,
+                            controller.state.triggerL,
+                            fromMotion = true,
+                            sourceKeyCode = KeyEvent.KEYCODE_BUTTON_L2,
+                            sourceDeviceId = event.deviceId,
+                            sourceController = controller,
+                        )
+                        if (radialMenuPressed) {
+                            sendGamepadState()
+                            return true
+                        }
                     }
-                }
 
-                controllerBinding = controller.getControllerBinding(KeyEvent.KEYCODE_BUTTON_R2)
-                if (controllerBinding != null) {
-                    handleTriggerBinding(
-                        KeyEvent.KEYCODE_BUTTON_R2,
-                        controllerBinding.binding,
-                        controllerBinding.bindingCombo,
-                        controller.state.triggerR > 0f,
-                        controller.state.triggerR,
-                        fromMotion = true,
-                        sourceKeyCode = KeyEvent.KEYCODE_BUTTON_R2,
-                        sourceDeviceId = event.deviceId,
-                        sourceController = controller,
-                    )
-                    if (radialMenuPressed) {
-                        sendGamepadState()
-                        return true
+                    controllerBinding = controller.getControllerBinding(KeyEvent.KEYCODE_BUTTON_R2)
+                    if (controllerBinding != null) {
+                        handleTriggerBinding(
+                            KeyEvent.KEYCODE_BUTTON_R2,
+                            controllerBinding.binding,
+                            controllerBinding.bindingCombo,
+                            controller.state.triggerR > 0f,
+                            controller.state.triggerR,
+                            fromMotion = true,
+                            sourceKeyCode = KeyEvent.KEYCODE_BUTTON_R2,
+                            sourceDeviceId = event.deviceId,
+                            sourceController = controller,
+                        )
+                        if (radialMenuPressed) {
+                            sendGamepadState()
+                            return true
+                        }
                     }
+
                 }
 
                 // Process analog stick input
