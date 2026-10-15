@@ -21,7 +21,7 @@ class ExternalOnScreenKeyboardView(
     private val theme: PadTheme = PadTheme.DEFAULT,
 ) : LinearLayout(context) {
 
-    private enum class ShiftState { OFF, ON, CAPS }
+    private enum class ShiftState { OFF, ON, CTRL, ALT, CAPS }
 
     private data class KeySpec(
         val normalLabel: String,
@@ -317,17 +317,14 @@ class ExternalOnScreenKeyboardView(
                 Action.SPACE -> cap.onText(" ")
                 Action.INPUT -> {
                     val useShift = spec.sendShifted || when (shiftState) {
-                        ShiftState.OFF -> false
+                        ShiftState.OFF, ShiftState.CTRL, ShiftState.ALT -> false
                         ShiftState.ON -> true
                         ShiftState.CAPS -> spec.isLetter
                     }
                     // Symbol-page keys already show the character they type.
                     val text = if (useShift && !spec.sendShifted) spec.shiftedLabel ?: spec.normalLabel else spec.normalLabel
                     cap.onText(text)
-                    if (shiftState == ShiftState.ON) {
-                        shiftState = ShiftState.OFF
-                        refreshLabels()
-                    }
+                    consumeOneShot()
                 }
                 else -> Unit
             }
@@ -335,26 +332,39 @@ class ExternalOnScreenKeyboardView(
         }
         when (spec.action) {
             Action.SHIFT, Action.SYMBOLS -> Unit
-            Action.BACKSPACE -> pressRepeating(XKeycode.KEY_BKSP)
-            Action.ENTER -> pressKey(XKeycode.KEY_ENTER)
-            Action.SPACE -> pressKey(XKeycode.KEY_SPACE)
-            Action.ARROW_LEFT -> pressRepeating(XKeycode.KEY_LEFT)
-            Action.ARROW_DOWN -> pressRepeating(XKeycode.KEY_DOWN)
-            Action.ARROW_RIGHT -> pressRepeating(XKeycode.KEY_RIGHT)
-            Action.ARROW_UP -> pressRepeating(XKeycode.KEY_UP)
+            Action.BACKSPACE -> pressRepeating(XKeycode.KEY_BKSP, heldMods())
+            Action.ENTER -> pressKey(XKeycode.KEY_ENTER, heldMods())
+            Action.SPACE -> pressKey(XKeycode.KEY_SPACE, heldMods())
+            Action.ARROW_LEFT -> pressRepeating(XKeycode.KEY_LEFT, heldMods())
+            Action.ARROW_DOWN -> pressRepeating(XKeycode.KEY_DOWN, heldMods())
+            Action.ARROW_RIGHT -> pressRepeating(XKeycode.KEY_RIGHT, heldMods())
+            Action.ARROW_UP -> pressRepeating(XKeycode.KEY_UP, heldMods())
             Action.INPUT -> {
                 val keycode = spec.keycode ?: return
                 val useShift = spec.sendShifted || when (shiftState) {
-                    ShiftState.OFF -> false
+                    ShiftState.OFF, ShiftState.CTRL, ShiftState.ALT -> false
                     ShiftState.ON -> true
                     ShiftState.CAPS -> spec.isLetter
                 }
-                pressKey(keycode, withShift = useShift)
-                if (shiftState == ShiftState.ON) {
-                    shiftState = ShiftState.OFF
-                    refreshLabels()
-                }
+                val mods = heldMods(useShift)
+                pressKey(keycode, mods)
             }
+        }
+        if (spec.action != Action.SHIFT && spec.action != Action.SYMBOLS) consumeOneShot()
+    }
+
+    /** Modifier keys to hold around the next key: Ctrl or Alt when chosen on the Shift key, plus Shift when asked. */
+    private fun heldMods(shift: Boolean = shiftState == ShiftState.ON): List<XKeycode> = buildList {
+        if (shift) add(XKeycode.KEY_SHIFT_L)
+        if (shiftState == ShiftState.CTRL) add(XKeycode.KEY_CTRL_L)
+        if (shiftState == ShiftState.ALT) add(XKeycode.KEY_ALT_L)
+    }
+
+    /** Shift, Ctrl and Alt apply to one key press only; Caps stays on. */
+    private fun consumeOneShot() {
+        if (shiftState == ShiftState.ON || shiftState == ShiftState.CTRL || shiftState == ShiftState.ALT) {
+            shiftState = ShiftState.OFF
+            refreshLabels()
         }
     }
 
@@ -381,25 +391,29 @@ class ExternalOnScreenKeyboardView(
     private fun cycleShift() {
         shiftState = when (shiftState) {
             ShiftState.OFF -> ShiftState.ON
-            ShiftState.ON -> ShiftState.CAPS
+            ShiftState.ON -> ShiftState.CTRL
+            ShiftState.CTRL -> ShiftState.ALT
+            ShiftState.ALT -> ShiftState.CAPS
             ShiftState.CAPS -> ShiftState.OFF
         }
         refreshLabels()
     }
 
     private fun refreshLabels() {
-        val shiftForLetters = shiftState != ShiftState.OFF
+        val shiftForLetters = shiftState == ShiftState.ON || shiftState == ShiftState.CAPS
         keyButtons.forEach { (spec, button) ->
             if (spec.action == Action.SHIFT) {
                 val label = when (shiftState) {
                     ShiftState.OFF -> "Shift"
                     ShiftState.ON -> "Shift"
+                    ShiftState.CTRL -> "Ctrl"
+                    ShiftState.ALT -> "Alt"
                     ShiftState.CAPS -> "Caps"
                 }
                 button.text = label
                 button.background = when (shiftState) {
                     ShiftState.OFF -> createKeyBackground(normal = true)
-                    ShiftState.ON -> createKeyBackground(highlight = true)
+                    ShiftState.ON, ShiftState.CTRL, ShiftState.ALT -> createKeyBackground(highlight = true)
                     ShiftState.CAPS -> createKeyBackground(highlight = true, strong = true)
                 }
                 return@forEach
@@ -421,14 +435,14 @@ class ExternalOnScreenKeyboardView(
     private val repeatTasks = mutableMapOf<XKeycode, Runnable>()
     private val pressedAt = mutableMapOf<XKeycode, Long>()
 
-    private fun pressRepeating(key: XKeycode) {
+    private fun pressRepeating(key: XKeycode, mods: List<XKeycode> = emptyList()) {
         repeatTasks.remove(key)?.let { repeatHandler.removeCallbacks(it) }
         pressedAt[key] = android.os.SystemClock.uptimeMillis()
-        pressKey(key)
+        pressKey(key, mods)
         val task = object : Runnable {
             override fun run() {
                 releaseKey(key)
-                pressKey(key)
+                pressKey(key, mods)
                 pressedAt[key] = android.os.SystemClock.uptimeMillis()
                 repeatHandler.postDelayed(this, 55L)
             }
@@ -444,12 +458,13 @@ class ExternalOnScreenKeyboardView(
         if (wait == 0L) releaseKey(key) else repeatHandler.postDelayed({ releaseKey(key) }, wait)
     }
 
-    private fun pressKey(key: XKeycode, withShift: Boolean = false) {
+    private fun pressKey(key: XKeycode, mods: List<XKeycode> = emptyList()) {
         if (!downKeys.add(key)) return
-        val shiftWasDown = xServer.keyboard.modifiersMask.isSet(1)
-        if (withShift && !shiftWasDown) xServer.injectKeyPress(XKeycode.KEY_SHIFT_L)
+        // Shift is skipped if it is already held, so it is not released out from under something else.
+        val toHold = mods.filter { it != XKeycode.KEY_SHIFT_L || !xServer.keyboard.modifiersMask.isSet(1) }
+        toHold.forEach { xServer.injectKeyPress(it) }
         xServer.injectKeyPress(key)
-        if (withShift && !shiftWasDown) xServer.injectKeyRelease(XKeycode.KEY_SHIFT_L)
+        toHold.reversed().forEach { xServer.injectKeyRelease(it) }
     }
 
     private fun releaseKey(key: XKeycode) {
