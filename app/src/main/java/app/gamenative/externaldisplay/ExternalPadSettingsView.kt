@@ -133,6 +133,7 @@ class ExternalPadSettingsView(
                 addView(sliderRow("Stick deadzone", PadSettings.STICK_DEADZONE, 5, 40) { "$it%" })
                 addView(cycleRow("A / B in cursor mode", PadSettings.AB_MODE, listOf("Off", "A left, B right", "A right, B left")))
                 addView(toggleRow(listOf("Double-tap A / B holds the click" to PadSettings.CLICK_HOLD)))
+                addView(sliderRow("Click wait for double tap", PadSettings.CURSOR_CLICK_WAIT_MS, 0, 300) { if (it == 0) "Off" else "$it ms" })
                 addView(sliderRow("Double-click speed", PadSettings.CLICK_HOLD_MS, 150, 600) { "$it ms" })
                 addView(toggleRow(listOf("Y / X scroll in cursor mode" to PadSettings.SCROLL_KEYS, "Invert Y / X scroll" to PadSettings.SCROLL_INVERT)))
                 addView(sliderRow("Scroll speed", PadSettings.SCROLL_SPEED, 1, 10) { "$it" })

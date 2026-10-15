@@ -428,7 +428,7 @@ class PhysicalControllerHandler(
                                     lastClickDownAt.remove(keyCode)
                                 } else {
                                     lastClickDownAt[keyCode] = now
-                                    val wait = PadSettings.int(PadSettings.CLICK_WAIT_MS)
+                                    val wait = PadSettings.int(PadSettings.CURSOR_CLICK_WAIT_MS)
                                     if (wait > 0) {
                                         cursorClickBindings[keyCode] = click
                                         val run = Runnable {
