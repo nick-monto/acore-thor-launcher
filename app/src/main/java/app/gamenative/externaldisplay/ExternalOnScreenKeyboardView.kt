@@ -9,6 +9,8 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.LinearLayout
+import android.widget.PopupWindow
+import android.widget.TextView
 import app.gamenative.R
 import com.winlator.xserver.XKeycode
 import com.winlator.xserver.XServer
@@ -63,6 +65,7 @@ class ExternalOnScreenKeyboardView(
     }
 
     private fun buildLayout() {
+        hideAllPreviews()
         keyButtons.clear()
         removeAllViews()
         if (showSymbols) buildSymbolsPage() else buildMainPage()
@@ -237,7 +240,7 @@ class ExternalOnScreenKeyboardView(
                         // Same tap feedback as the pad buttons.
                         view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                     }
-                    handleKeyTouch(spec, event)
+                    handleKeyTouch(spec, event, this)
                     false
                 }
             }
@@ -249,11 +252,60 @@ class ExternalOnScreenKeyboardView(
         addView(row)
     }
 
-    private fun handleKeyTouch(spec: KeySpec, event: MotionEvent) {
+    private fun handleKeyTouch(spec: KeySpec, event: MotionEvent, button: Button) {
         when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> onKeyDown(spec)
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> onKeyUp(spec, cancel = event.actionMasked == MotionEvent.ACTION_CANCEL)
+            MotionEvent.ACTION_DOWN -> {
+                if (spec.action == Action.INPUT) showPreview(spec, button)
+                onKeyDown(spec)
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                hidePreview(spec)
+                onKeyUp(spec, cancel = event.actionMasked == MotionEvent.ACTION_CANCEL)
+            }
         }
+    }
+
+    // Gboard-style pop-up above a pressed character key. Not for Shift, Space, Backspace or the symbols key.
+    private val previews = mutableMapOf<KeySpec, PopupWindow>()
+
+    private fun showPreview(spec: KeySpec, button: Button) {
+        hidePreview(spec)
+        try {
+            val label = button.text?.toString().orEmpty()
+            if (label.isEmpty()) return
+            val density = resources.displayMetrics.density
+            val w = (button.width + 12 * density).toInt()
+            val h = (button.height + 4 * density).toInt()
+            val text = TextView(context).apply {
+                this.text = label
+                gravity = Gravity.CENTER
+                setTextColor(theme.text)
+                setTextSize(26f)
+                typeface = theme.typeface
+                background = theme.buttonBackground(density, 10f, active = true)
+            }
+            val popup = PopupWindow(text, w, h, false).apply {
+                isTouchable = false
+                isClippingEnabled = false
+            }
+            val loc = IntArray(2)
+            button.getLocationOnScreen(loc)
+            val x = loc[0] - (w - button.width) / 2
+            val y = loc[1] - h - (4 * density).toInt()
+            popup.showAtLocation(button, Gravity.NO_GRAVITY, x, y)
+            previews[spec] = popup
+        } catch (_: Throwable) {
+            // A missing preview must never stop the key from typing.
+        }
+    }
+
+    private fun hidePreview(spec: KeySpec) {
+        previews.remove(spec)?.let { try { it.dismiss() } catch (_: Throwable) {} }
+    }
+
+    private fun hideAllPreviews() {
+        previews.values.forEach { try { it.dismiss() } catch (_: Throwable) {} }
+        previews.clear()
     }
 
     private fun onKeyDown(spec: KeySpec) {
@@ -380,6 +432,7 @@ class ExternalOnScreenKeyboardView(
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     override fun onDetachedFromWindow() {
+        hideAllPreviews()
         downKeys.toList().forEach { key ->
             xServer.injectKeyRelease(key)
         }
