@@ -219,7 +219,7 @@ class ExternalOnScreenKeyboardView(
         }
 
         val margin = dp(3)
-        val height = dp(56)
+        val height = dp(56 * PadSettings.int(PadSettings.KB_HEIGHT) / 100)
 
         fun gap() = row.addView(View(context), LayoutParams(0, height, indent))
         if (indent > 0f) gap()
@@ -255,7 +255,7 @@ class ExternalOnScreenKeyboardView(
     private fun handleKeyTouch(spec: KeySpec, event: MotionEvent, button: Button) {
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
-                if (spec.action == Action.INPUT) showPreview(spec, button)
+                if (spec.action == Action.INPUT && PadSettings.bool(PadSettings.KB_POPUP)) showPreview(spec, button)
                 onKeyDown(spec)
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
@@ -458,6 +458,15 @@ class ExternalOnScreenKeyboardView(
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+
+    /** Picks up keyboard setting changes (height) each time the keyboard is shown. */
+    override fun onVisibilityChanged(changedView: View, visibility: Int) {
+        super.onVisibilityChanged(changedView, visibility)
+        if (changedView === this && visibility == VISIBLE && keyButtons.isNotEmpty()) {
+            buildLayout()
+            refreshLabels()
+        }
+    }
 
     override fun onDetachedFromWindow() {
         hideAllPreviews()

@@ -71,6 +71,8 @@ object PadSettings {
     const val EMPHASIS = "number_emphasis"
     const val LABEL_SCALE = "label_scale"
     const val HAPTICS = "haptics"
+    const val KB_POPUP = "kb_popup"
+    const val KB_HEIGHT = "kb_height"
     const val DOUBLE_TAP_MS = "double_tap_ms"
     const val TP_SPEED = "trackpad_speed"
     const val TP_ACCEL = "trackpad_accel"
@@ -131,6 +133,8 @@ object PadSettings {
         EMPHASIS to 100,
         LABEL_SCALE to 100,
         HAPTICS to 2,
+        KB_POPUP to true,
+        KB_HEIGHT to 100,
         DOUBLE_TAP_MS to 350,
         TP_SPEED to 7,
         TP_ACCEL to 10,

@@ -108,6 +108,11 @@ class ExternalPadSettingsView(
             addView(sliderRow("Label size", PadSettings.LABEL_SCALE, 80, 140) { "$it%" })
             addView(cycleRow("Haptics", PadSettings.HAPTICS, listOf("Off", "Light", "Normal", "Strong")))
         }
+        section("Keyboard", collapsible = true) {
+            addView(toggleRow(listOf("Pop-up when a key is pressed" to PadSettings.KB_POPUP)))
+            addView(sliderRow("Key height", PadSettings.KB_HEIGHT, 70, 110) { "$it%" })
+            addView(note("100% is the standard key height. The keyboard takes effect the next time it opens."))
+        }
         section("Trackpad", collapsible = true) {
             addView(sliderRow("Speed", PadSettings.TP_SPEED, 1, 20) { tenths(it) })
             addView(sliderRow("Acceleration", PadSettings.TP_ACCEL, 10, 30) { tenths(it) })
