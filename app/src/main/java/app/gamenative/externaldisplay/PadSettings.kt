@@ -35,8 +35,6 @@ object PadSettings {
     const val PAGE_WIDTH = "page_width"
     /** Height of the modifier row, in percent of its default. */
     const val MOD_HEIGHT = "mod_height"
-    /** Top-to-bottom order of the number block, modifier row and Extra Buttons: an index into the six orders. */
-    const val COL_ORDER = "col_order"
     /** Left-to-right order of Shift, Ctrl and Alt on the main pad and the trackpad screen: an index into the six orders. */
     const val MOD_ORDER = "mod_order"
     /** Armed modifiers make the buttons they affect glow behind the text. Separate from the button recolor settings. */
@@ -53,6 +51,10 @@ object PadSettings {
     const val NUM_FACE = "num_face"
     /** Strength of every backing panel (the faint gold areas behind groups of buttons), in percent. */
     const val PANEL_LEVEL = "panel_level"
+    /** The optional "Chat Buttons" panel: Chat, Slash, Reply and Close in one row. Off by default. */
+    const val CHAT_ON = "chat_on"
+    /** Height of the Chat Buttons panel, in percent of its default. */
+    const val CHAT_HEIGHT = "chat_height"
     /** The optional "Extra Buttons" panel next to the number block. */
     const val EXTRA_ON = "extra_on"
     /** How many extra buttons it shows, 1 to 5. */
@@ -118,7 +120,6 @@ object PadSettings {
         SWAP_TABS to false,
         PAGE_WIDTH to 100,
         MOD_HEIGHT to 100,
-        COL_ORDER to 0,
         MOD_ORDER to 0,
         MOD_GLOW to true,
         MOD_GLOW_LEVEL to 25,
@@ -128,6 +129,8 @@ object PadSettings {
         PANEL_LEVEL to 100,
         NUM_OUTLINE to 100,
         NUM_FACE to 100,
+        CHAT_ON to false,
+        CHAT_HEIGHT to 100,
         EXTRA_ON to false,
         EXTRA_N to 3,
         EXTRA_MODS to false,
@@ -188,6 +191,25 @@ object PadSettings {
         editor.remove("mod_on").remove("mod_order_tp").remove("number_emphasis").apply()
     }
 
+    /** Old top-to-bottom orders of the right column (N numbers, M modifiers, E extras), as panel names, Chat last. */
+    private fun legacyPanelOrder(index: Int): org.json.JSONArray {
+        val orders = listOf("NME", "NEM", "MNE", "ENM", "MEN", "EMN")
+        val names = mapOf('N' to "Numbers", 'M' to "Modifiers", 'E' to "Extras")
+        val arr = org.json.JSONArray()
+        orders[index.coerceIn(0, orders.lastIndex)].forEach { arr.put(names.getValue(it)) }
+        arr.put("Chat")
+        return arr
+    }
+
+    /** The right column's order is now a movable list (panel names) saved with the button orders. */
+    private fun migratePanelOrder() {
+        val p = prefs ?: return
+        if (!p.contains("col_order")) return
+        val order = orderJson()
+        if (!order.has("panels")) order.put("panels", legacyPanelOrder(p.getInt("col_order", 0)))
+        p.edit().putString(ORDER, order.toString()).remove("col_order").apply()
+    }
+
     /** One swap switch used to cover both pairs; L1 / R1 now has its own, starting from what the shared one was. */
     private fun migrateShoulderSwap() {
         val p = prefs ?: return
@@ -231,6 +253,7 @@ object PadSettings {
         migrateClickButtons()
         migrateShoulderSwap()
         migrateModifierRow()
+        migratePanelOrder()
     }
 
     fun bool(key: String): Boolean {
@@ -426,6 +449,12 @@ object PadSettings {
             json.put(CLICK_AB, mode == 1 || oldSwap)
             json.put(CLICK_SHOULDERS, mode == 2 && !oldSwap)
             if (oldSwap) json.put(AB_SWAP, true)
+        }
+        if (json.has("col_order")) {
+            // Older snapshots kept the column order as a number; it is now a list saved with the button orders.
+            val order = json.optJSONObject(ORDER) ?: JSONObject()
+            if (!order.has("panels")) order.put("panels", legacyPanelOrder(json.optInt("col_order", 0)))
+            json.put(ORDER, order)
         }
         if (json.has(AB_SWAP) && !json.has(SHOULDER_SWAP)) json.put(SHOULDER_SWAP, json.optBoolean(AB_SWAP, false))
         DEFAULTS.forEach { (key, def) ->

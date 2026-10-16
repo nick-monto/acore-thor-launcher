@@ -109,13 +109,21 @@ class ExternalActionBarView(
                 addView(keyRow(slots, textSp = 14f, weight = 1f, muted = true, wrap = true, canHide = false))
             }
         } else null
-        // The three panels stack in the order chosen in settings (see [COLUMN_ORDERS]).
+        // The optional Chat Buttons panel: Chat, Slash, Reply and Close in one row.
+        val chatGroup: LinearLayout? = if (PadSettings.bool(PadSettings.CHAT_ON)) {
+            group(vertical = true, strong = false).apply {
+                layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 0, 0.7f * PadSettings.int(PadSettings.CHAT_HEIGHT) / 100f).apply { setMargins(0, dp(3), 0, dp(3)) }
+                addView(keyRow(orderedSlots(GROUP_CHAT, CHAT_SLOTS), textSp = 14f, weight = 1f, muted = true, wrap = true, canHide = false))
+            }
+        } else null
+        // The panels stack in the order chosen in settings (a movable list, see [PANEL_LABELS]).
         rightColumn = column(RIGHT_WEIGHT).apply {
-            COLUMN_ORDERS[PadSettings.int(PadSettings.COL_ORDER).coerceIn(0, COLUMN_ORDERS.lastIndex)].forEach { panel ->
+            PadSettings.ordered(PANELS, PANEL_LABELS).forEach { panel ->
                 when (panel) {
-                    'N' -> addView(numberGroup)
-                    'M' -> addView(modifierGroup)
-                    else -> extraGroup?.let { addView(it) }
+                    "Numbers" -> addView(numberGroup)
+                    "Modifiers" -> addView(modifierGroup)
+                    "Extras" -> extraGroup?.let { addView(it) }
+                    "Chat" -> chatGroup?.let { addView(it) }
                 }
             }
         }
@@ -318,13 +326,10 @@ class ExternalActionBarView(
         const val GROUP_NUMBERS = "numbers"
         const val GROUP_EXTRAS = "extras"
 
-        /** Every top-to-bottom order of the right column: N = numbers, M = modifier keys, E = Extra Buttons. */
-        val COLUMN_ORDERS = listOf("NME", "NEM", "MNE", "ENM", "MEN", "EMN")
-
-        /** [COLUMN_ORDERS] worded for the settings button. */
-        val COLUMN_ORDER_NAMES: List<String> = COLUMN_ORDERS.map { order ->
-            order.map { when (it) { 'N' -> "Numbers"; 'M' -> "Modifiers"; else -> "Extras" } }.joinToString(", ")
-        }
+        /** The right column's panels, in their default top-to-bottom order. The order is saved under [PANELS]. */
+        val PANEL_LABELS = listOf("Numbers", "Modifiers", "Extras", "Chat")
+        const val PANELS = "panels"
+        const val GROUP_CHAT = "chat"
 
         /** The page ids, in tab order: "interface", "target", "utility". */
         val PAGE_IDS: List<String> get() = PAGES.map { it.id }
@@ -333,21 +338,22 @@ class ExternalActionBarView(
         val PAGE_TITLES: List<String> get() = PAGES.map { it.title }
 
         /** A group's name for the settings: a page's title, or the number block. */
-        fun groupTitle(group: String): String = PAGES.firstOrNull { it.id == group }?.title?.let { "the $it page" } ?: if (group == GROUP_EXTRAS) "the extra buttons" else "the number block"
+        fun groupTitle(group: String): String = PAGES.firstOrNull { it.id == group }?.title?.let { "the $it page" } ?: when (group) { GROUP_EXTRAS -> "the extra buttons"; GROUP_CHAT -> "the chat buttons"; else -> "the number block" }
 
         /** The group a pad button belongs to (a page id or the number block), or null for a label that is not a pad button. */
         fun groupOf(label: String): String? =
             PAGES.firstOrNull { page -> page.slots.any { it.label == label } }?.id
                 ?: GROUP_NUMBERS.takeIf { ACTION_SLOTS.any { it.label == label } }
                 ?: GROUP_EXTRAS.takeIf { EXTRA_SLOTS.any { it.label == label } }
+                ?: GROUP_CHAT.takeIf { CHAT_SLOTS.any { it.label == label } }
 
         /** A group's button labels in the default order. */
         fun defaultLabels(group: String): List<String> =
-            (PAGES.firstOrNull { it.id == group }?.slots ?: if (group == GROUP_EXTRAS) EXTRA_SLOTS else ACTION_SLOTS).map { it.label }
+            (PAGES.firstOrNull { it.id == group }?.slots ?: when (group) { GROUP_EXTRAS -> EXTRA_SLOTS; GROUP_CHAT -> CHAT_SLOTS; else -> ACTION_SLOTS }).map { it.label }
 
         /** Every remappable pad button: its label and what it sends by default. */
         fun remappableButtons(): List<Pair<String, KeyCombo>> =
-            (PAGES.flatMap { it.slots } + ACTION_SLOTS + EXTRA_SLOTS).map { it.label to KeyCombo(it.key, it.mods) }
+            (PAGES.flatMap { it.slots } + ACTION_SLOTS + EXTRA_SLOTS + CHAT_SLOTS).map { it.label to KeyCombo(it.key, it.mods) }
 
         // Width split between the page area and the number/modifier block.
         // A smaller RIGHT_WEIGHT squeezes that block toward the right edge, within reach of a right thumb.
@@ -409,6 +415,14 @@ class ExternalActionBarView(
                     page("Screenshot", XKeycode.KEY_PRTSCN),
                 ),
             ),
+        )
+
+        // The Chat Buttons panel: open chat, start a slash command, reply to the last whisper, close chat.
+        private val CHAT_SLOTS = listOf(
+            page("Chat", XKeycode.KEY_ENTER),
+            page("Slash", XKeycode.KEY_SLASH),
+            page("Reply", XKeycode.KEY_R),
+            page("Close", XKeycode.KEY_ESC),
         )
 
         // The Extra Buttons panel. They start on F8 to F12; remap them to whatever is needed.

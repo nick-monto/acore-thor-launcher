@@ -55,8 +55,10 @@ class ExternalPadSettingsView(
             addView(toggleRow(listOf("Swap sides (pages on the right)" to PadSettings.SWAP_SIDES)))
             addView(toggleRow(listOf("Swap sides (tabs on the right)" to PadSettings.SWAP_TABS)))
             addView(sliderRow("Page area width", PadSettings.PAGE_WIDTH, 60, 160) { "$it%" })
-            addView(note("Order of the right-hand column, top to bottom:"))
-            addView(cycleRow("Order", PadSettings.COL_ORDER, ExternalActionBarView.COLUMN_ORDER_NAMES))
+            addView(note("Order of the panels in the right-hand column, top to bottom. Panels that are switched off are skipped."))
+            val panelList = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+            addView(panelList)
+            fillPanelOrder(panelList)
         }
         section("Number block", collapsible = true) {
             addView(toggleRow(listOf("Show 1-9 0 - =" to PadSettings.SEC_NUMBERS)))
@@ -85,6 +87,11 @@ class ExternalPadSettingsView(
             addView(sliderRow("Buttons shown", PadSettings.EXTRA_N, 1, 5) { "$it" })
             addView(sliderRow("Panel height", PadSettings.EXTRA_HEIGHT, 50, 250) { "$it%" })
             addView(note("Ex1 to Ex5 start on F8 to F12. Remap them under \"Remap, rename, and recolor buttons\"."))
+        }
+        section("Chat Buttons", collapsible = true) {
+            addView(toggleRow(listOf("Show Chat Buttons panel" to PadSettings.CHAT_ON)))
+            addView(sliderRow("Panel height", PadSettings.CHAT_HEIGHT, 50, 250) { "$it%" })
+            addView(note("Chat opens the chat box, Slash starts a slash command, Reply answers the last whisper and Close backs out. Remap them under \"Remap, rename, and recolor buttons\"."))
         }
         section("Buttons shown", collapsible = true) {
             addView(note("Tap a name to hide or show that button. Use the arrows to move it up or down inside its page. The number block and Extra Buttons have their own settings above."))
@@ -212,6 +219,21 @@ class ExternalPadSettingsView(
         }
         fill()
         return row
+    }
+
+    /** The right column's panels in their current order, each with Up / Down arrows. Rebuilds itself on a move. */
+    private fun fillPanelOrder(list: LinearLayout) {
+        list.removeAllViews()
+        val defaults = ExternalActionBarView.PANEL_LABELS
+        val labels = PadSettings.ordered(ExternalActionBarView.PANELS, defaults)
+        fun arrow(text: String, panel: String, delta: Int) = button(text) {
+            PadSettings.move(ExternalActionBarView.PANELS, defaults, panel, delta)
+            fillPanelOrder(list)
+        }.apply { layoutParams = LinearLayout.LayoutParams(dp(48), ViewGroup.LayoutParams.WRAP_CONTENT).apply { setMargins(dp(3), dp(3), dp(3), dp(3)) } }
+        labels.forEach { panel ->
+            val name = label(panel, 140).apply { gravity = Gravity.CENTER_VERTICAL; minHeight = dp(36) }
+            list.addView(rowOf(name, arrow("\u25B2", panel, -1), arrow("\u25BC", panel, 1)))
+        }
     }
 
     /** One row per button of [group], in its current order: a show/hide toggle and Up / Down arrows. Rebuilds itself on a move. */
