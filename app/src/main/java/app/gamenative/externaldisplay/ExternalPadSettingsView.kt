@@ -1,7 +1,5 @@
 package app.gamenative.externaldisplay
 
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.drawable.GradientDrawable
@@ -62,17 +60,14 @@ class ExternalPadSettingsView(
         }
         section("Number block", collapsible = true) {
             addView(toggleRow(listOf("Show 1-9 0 - =" to PadSettings.SEC_NUMBERS)))
-            addView(sliderRow("Number emphasis", PadSettings.EMPHASIS, 0, 200) { "$it%" })
-            addView(note("Number buttons: 0% looks like the other buttons, 100% is the standard bold number look."))
+            addView(note("0% looks like the other buttons, 100% is the standard bold number look. The panel behind the numbers follows both sliders."))
             addView(sliderRow("Outline", PadSettings.NUM_OUTLINE, 0, 100) { "$it%" })
             addView(sliderRow("Face", PadSettings.NUM_FACE, 0, 100) { "$it%" })
         }
         section("Modifier keys", collapsible = true) {
-            addView(toggleRow(listOf("Show modifier row on the pad" to PadSettings.MOD_ON)))
             val orders = listOf("Shift, Ctrl, Alt", "Shift, Alt, Ctrl", "Ctrl, Shift, Alt", "Ctrl, Alt, Shift", "Alt, Shift, Ctrl", "Alt, Ctrl, Shift")
-            addView(cycleRow("Pad order", PadSettings.MOD_ORDER, orders))
-            addView(cycleRow("Trackpad order", PadSettings.MOD_ORDER_TP, orders))
-            addView(note("Keys shown in the pad row (the trackpad always has all three):"))
+            addView(cycleRow("Order", PadSettings.MOD_ORDER, orders))
+            addView(note("Keys shown in the pad row. With none on, the row is hidden. The trackpad always has all three."))
             addView(toggleRow(listOf("Shift" to PadSettings.MOD_SHIFT, "Ctrl" to PadSettings.MOD_CTRL, "Alt" to PadSettings.MOD_ALT)))
             addView(sliderRow("Row height", PadSettings.MOD_HEIGHT, 50, 200) { "$it%" })
             addView(sliderRow("Double-tap lock", PadSettings.DOUBLE_TAP_MS, 200, 600) { "$it ms" })
@@ -92,8 +87,8 @@ class ExternalPadSettingsView(
             addView(note("Ex1 to Ex5 start on F8 to F12. Remap them under \"Remap, rename, and recolor buttons\"."))
         }
         section("Buttons shown", collapsible = true) {
-            addView(note("Tap a name to hide or show that button. Use the arrows to move it up or down inside its group. Hidden numbers leave a gap."))
-            (ExternalActionBarView.PAGE_IDS + ExternalActionBarView.GROUP_EXTRAS + ExternalActionBarView.GROUP_NUMBERS).forEach { group ->
+            addView(note("Tap a name to hide or show that button. Use the arrows to move it up or down inside its page. The number block and Extra Buttons have their own settings above."))
+            ExternalActionBarView.PAGE_IDS.forEach { group ->
                 addView(note(ExternalActionBarView.groupTitle(group).replaceFirstChar { it.uppercase() }))
                 val list = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
                 addView(list)
@@ -169,26 +164,6 @@ class ExternalPadSettingsView(
         }
         section("Backup", collapsible = true) {
             val status = note("")
-            addView(
-                rowOf(
-                    button("Copy settings") {
-                        val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        cm.setPrimaryClip(ClipData.newPlainText("pad settings", PadSettings.snapshot().toString()))
-                        status.text = "Settings copied to the clipboard"
-                    },
-                    button("Paste settings") {
-                        val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        val text = cm.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.text?.toString()
-                        val json = text?.let { runCatching { JSONObject(it) }.getOrNull() }
-                        if (json == null) {
-                            status.text = "The clipboard has no copied settings"
-                        } else {
-                            PadSettings.applySnapshot(json)
-                            showMain()
-                        }
-                    },
-                ),
-            )
             addView(
                 rowOf(
                     button("Export to file") {

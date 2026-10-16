@@ -191,7 +191,7 @@ class ExternalActionPad(
                 if (PadSettings.bool(setting)) addView(modifierButton(name, key))
             }
         }
-        if (PadSettings.bool(PadSettings.MOD_ON) && padModifierRow.childCount > 0) padView.setModifierRow(padModifierRow)
+        if (padModifierRow.childCount > 0) padView.setModifierRow(padModifierRow)
         // The trackpad always has all three, above the click buttons, whatever the setting says.
         trackpadModifierRow = LinearLayout(context).apply {
             orientation = HORIZONTAL
@@ -200,7 +200,7 @@ class ExternalActionPad(
                 // A small gap below, so the modifier keys do not touch the click buttons.
                 setMargins(m, 0, m, (3 * density).toInt())
             }
-            modifierOrder(PadSettings.MOD_ORDER_TP).forEach { (name, key, _) -> addView(modifierButton(name, key)) }
+            modifierOrder(PadSettings.MOD_ORDER).forEach { (name, key, _) -> addView(modifierButton(name, key)) }
         }
         trackpadPanel.addView(trackpadModifierRow, 1)
         textEntryPanel = buildTextEntryPanel()

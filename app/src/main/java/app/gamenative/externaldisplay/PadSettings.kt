@@ -37,10 +37,8 @@ object PadSettings {
     const val MOD_HEIGHT = "mod_height"
     /** Top-to-bottom order of the number block, modifier row and Extra Buttons: an index into the six orders. */
     const val COL_ORDER = "col_order"
-    /** Left-to-right order of Shift, Ctrl and Alt on the main pad: an index into the six orders. */
+    /** Left-to-right order of Shift, Ctrl and Alt on the main pad and the trackpad screen: an index into the six orders. */
     const val MOD_ORDER = "mod_order"
-    /** The same for the modifier row on the trackpad screen. */
-    const val MOD_ORDER_TP = "mod_order_tp"
     /** Armed modifiers make the buttons they affect glow behind the text. Separate from the button recolor settings. */
     const val MOD_GLOW = "mod_glow"
     /** How strong that glow is, 10 to 100. */
@@ -49,8 +47,6 @@ object PadSettings {
     const val MOD_GLOW_SHIFT = "mod_glow_shift"
     const val MOD_GLOW_CTRL = "mod_glow_ctrl"
     const val MOD_GLOW_ALT = "mod_glow_alt"
-    /** Shows the modifier row on the pad. The trackpad keeps its own. */
-    const val MOD_ON = "mod_on"
     /** How bold the number buttons' outline is: 0 matches the other buttons, 100 is the standard number look. */
     const val NUM_OUTLINE = "num_outline"
     /** How raised the number buttons' face is: 0 matches the other buttons, 100 is the standard number look. */
@@ -68,7 +64,6 @@ object PadSettings {
     /** 0 = tab bar at the top, 1 = at the bottom. */
     const val TAB_POS = "tab_pos"
     const val MUTED = "muted_borders"
-    const val EMPHASIS = "number_emphasis"
     const val LABEL_SCALE = "label_scale"
     const val HAPTICS = "haptics"
     const val KB_POPUP = "kb_popup"
@@ -118,9 +113,7 @@ object PadSettings {
         PAGE_WIDTH to 100,
         MOD_HEIGHT to 100,
         COL_ORDER to 0,
-        MOD_ON to true,
         MOD_ORDER to 0,
-        MOD_ORDER_TP to 0,
         MOD_GLOW to true,
         MOD_GLOW_LEVEL to 25,
         MOD_GLOW_SHIFT to 0,
@@ -135,7 +128,6 @@ object PadSettings {
         EXTRA_HEIGHT to 100,
         TAB_POS to 0,
         MUTED to 55,
-        EMPHASIS to 100,
         LABEL_SCALE to 100,
         HAPTICS to 2,
         KB_POPUP to true,
@@ -179,6 +171,15 @@ object PadSettings {
     var version = 0
         private set
 
+    /** The "show modifier row" switch is gone: the row shows when any of Shift, Ctrl, Alt is on. An old "off" turns all three off. */
+    private fun migrateModifierRow() {
+        val p = prefs ?: return
+        if (!p.contains("mod_on")) return
+        val editor = p.edit()
+        if (!p.getBoolean("mod_on", true)) editor.putBoolean(MOD_SHIFT, false).putBoolean(MOD_CTRL, false).putBoolean(MOD_ALT, false)
+        editor.remove("mod_on").remove("mod_order_tp").remove("number_emphasis").apply()
+    }
+
     /** Click buttons: mode 2 used to mean "A right, B left"; it now means L1 / R1, and swapping is its own setting. */
     private fun migrateClickButtons() {
         val p = prefs ?: return
@@ -207,6 +208,7 @@ object PadSettings {
         if (prefs == null) prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         migrateExtraLabels()
         migrateClickButtons()
+        migrateModifierRow()
     }
 
     fun bool(key: String): Boolean {
@@ -234,7 +236,6 @@ object PadSettings {
 
     // Convenient typed reads.
     val mutedAmount: Float get() = int(MUTED) / 100f
-    val emphasis: Float get() = int(EMPHASIS) / 100f
     val labelScale: Float get() = int(LABEL_SCALE) / 100f
     val doubleTapMs: Long get() = int(DOUBLE_TAP_MS).toLong()
     val trackpadSensitivity: Float get() = int(TP_SPEED) / 10f
@@ -392,6 +393,10 @@ object PadSettings {
     /** Applies a [snapshot]. Unknown or mistyped entries are ignored. */
     fun applySnapshot(json: JSONObject) {
         val editor = prefs?.edit() ?: return
+        if (json.has("mod_on") && !json.optBoolean("mod_on", true)) {
+            // Older snapshots with the modifier row switched off: turn the three keys off instead.
+            json.put(MOD_SHIFT, false); json.put(MOD_CTRL, false); json.put(MOD_ALT, false)
+        }
         if (json.has(AB_MODE) && !json.has(AB_SWAP) && json.optInt(AB_MODE, 1) == 2) {
             // Older snapshots: mode 2 was "A right, B left". It is now A / B with Swap turned on.
             json.put(AB_MODE, 1)

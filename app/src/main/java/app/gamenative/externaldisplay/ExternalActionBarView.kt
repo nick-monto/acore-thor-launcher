@@ -94,9 +94,8 @@ class ExternalActionBarView(
         }
         val numberGroup = group(vertical = true, strong = true).apply {
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 0, 4f).apply { setMargins(0, dp(3), 0, dp(3)) }
-            // A hidden number keeps its place as a gap, so the others stay where the thumb expects them.
             orderedSlots(GROUP_NUMBERS, ACTION_SLOTS).chunked(3).forEach {
-                addView(keyRow(it, textSp = 26f, weight = 1f, numbers = true))
+                addView(keyRow(it, textSp = 26f, weight = 1f, numbers = true, canHide = false))
             }
             if (!PadSettings.bool(PadSettings.SEC_NUMBERS)) visibility = GONE
         }
@@ -107,7 +106,7 @@ class ExternalActionBarView(
                 .map { it.copy(isolated = !PadSettings.bool(PadSettings.EXTRA_MODS)) }
             group(vertical = true, strong = false).apply {
                 layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 0, 0.7f * PadSettings.int(PadSettings.EXTRA_HEIGHT) / 100f).apply { setMargins(0, dp(3), 0, dp(3)) }
-                addView(keyRow(slots, textSp = 14f, weight = 1f, muted = true, wrap = true))
+                addView(keyRow(slots, textSp = 14f, weight = 1f, muted = true, wrap = true, canHide = false))
             }
         } else null
         // The three panels stack in the order chosen in settings (see [COLUMN_ORDERS]).
@@ -192,6 +191,7 @@ class ExternalActionBarView(
         muted: Boolean = false,
         numbers: Boolean = false,
         wrap: Boolean = false,
+        canHide: Boolean = true,
     ): LinearLayout {
         return LinearLayout(context).apply {
             orientation = HORIZONTAL
@@ -200,7 +200,7 @@ class ExternalActionBarView(
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 0, weight)
             slots.forEach { slot ->
                 val button = createButton(slot, textSp, muted, numbers, wrap)
-                if (PadSettings.isHidden(slot.label)) {
+                if (canHide && PadSettings.isHidden(slot.label)) {
                     button.visibility = INVISIBLE
                     button.isEnabled = false
                     button.setOnTouchListener(null)

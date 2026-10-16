@@ -33,9 +33,9 @@ data class PadTheme(
     /** Faint gold panel behind a group of buttons. [strong] is for the main group. */
     fun groupBackground(density: Float, strong: Boolean): Drawable = GradientDrawable().apply {
         cornerRadius = 12 * density
-        // The number block's backing follows the "number emphasis" setting: 0% matches the other panels,
-        // 100% is the standard stronger look, and above that it keeps getting stronger.
-        val t = if (strong) PadSettings.emphasis else 0f
+        // The number block's backing follows its Outline and Face settings (their average): at 0% it matches
+        // the other panels, at 100% it is the standard stronger look.
+        val t = if (strong) (PadSettings.int(PadSettings.NUM_OUTLINE) + PadSettings.int(PadSettings.NUM_FACE)) / 200f else 0f
         // The "backing panels" setting then scales every panel's fill and edge together.
         val all = PadSettings.int(PadSettings.PANEL_LEVEL) / 100f
         fun mix(plain: Int, bold: Int) = ((plain + (bold - plain) * t) * all).toInt().coerceIn(0, 0xFF)
