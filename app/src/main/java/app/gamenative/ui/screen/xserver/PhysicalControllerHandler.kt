@@ -182,6 +182,7 @@ class PhysicalControllerHandler(
         for (key in wanted) {
             if (trigHeldKeys.add(key)) xServer?.injectKeyPress(key)
         }
+        PadBridge.setTriggerModifiers(trigHeldKeys.toSet())
     }
 
     private fun clearTriggerMods() {

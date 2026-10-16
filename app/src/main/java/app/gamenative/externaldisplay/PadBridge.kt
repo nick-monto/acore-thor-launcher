@@ -10,6 +10,21 @@ object PadBridge {
     @Volatile
     var releaseModifiers: (() -> Unit)? = null
 
+    /** Modifiers held by the L2 / R2 triggers (when they act as modifier keys). Set by the controller code. */
+    @Volatile
+    var triggerModifiers: Set<com.winlator.xserver.XKeycode> = emptySet()
+        private set
+
+    /** Set by the pad: lights the modifier buttons and the glow when [triggerModifiers] changes. */
+    @Volatile
+    var triggerModifiersChanged: (() -> Unit)? = null
+
+    fun setTriggerModifiers(keys: Set<com.winlator.xserver.XKeycode>) {
+        if (keys == triggerModifiers) return
+        triggerModifiers = keys.toSet()
+        triggerModifiersChanged?.invoke()
+    }
+
     fun clickFinished() {
         releaseModifiers?.invoke()
     }

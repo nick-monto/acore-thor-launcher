@@ -374,7 +374,7 @@ class ExternalActionPad(
                 setTextColor(if (active) theme.textPressed else accent ?: theme.text)
                 refreshGlow()
             }
-            style(key in heldModifiers)
+            style(isArmed(key))
             modifierStyles.getOrPut(key) { mutableListOf() }.add { active -> style(active) }
             var lastArmedAt = 0L
             setOnClickListener {
@@ -573,10 +573,19 @@ class ExternalActionPad(
         else -> null
     }
 
+    private fun isArmed(key: XKeycode) = key in heldModifiers || key in PadBridge.triggerModifiers
+
+    /** The triggers took or let go of a modifier: show it on the modifier buttons and the glow. */
+    private fun triggerModifiersChanged() {
+        modifierStyles.forEach { (key, styles) -> styles.forEach { it(isArmed(key)) } }
+        refreshGlow()
+    }
+
     /** Lights up the buttons armed modifiers apply to: the number block, Extra Buttons (if allowed) and the click buttons. */
     private fun refreshGlow() {
         if (!::padView.isInitialized) return
-        val armed = heldModifiers.toList()
+        // Modifiers held by the L2 / R2 triggers count too.
+        val armed = (heldModifiers + PadBridge.triggerModifiers).toList()
         val color = if (armed.isEmpty() || !PadSettings.bool(PadSettings.MOD_GLOW)) null
         else mixGlow(armed.map { key -> glowSettingFor(key)?.let { PadSettings.glowColor(it) } ?: DEFAULT_GLOW })
         val level = PadSettings.int(PadSettings.MOD_GLOW_LEVEL)
@@ -618,10 +627,13 @@ class ExternalActionPad(
         super.onAttachedToWindow()
         // Lets the controller's A / B cursor clicks release armed modifiers too.
         PadBridge.releaseModifiers = { releaseModifiers() }
+        PadBridge.triggerModifiersChanged = { triggerModifiersChanged() }
+        triggerModifiersChanged()
     }
 
     override fun onDetachedFromWindow() {
         PadBridge.releaseModifiers = null
+        PadBridge.triggerModifiersChanged = null
         heldModifiers.toList().forEach { xServer.injectKeyRelease(it) }
         heldModifiers.clear()
         lockedModifiers.clear()
@@ -641,7 +653,7 @@ class ExternalActionPad(
         if (!on) releaseMouseButtons.forEach { it() }
         padView.visibility = if (on) View.GONE else View.VISIBLE
         // A modifier armed on one view shows as armed on the other too.
-        modifierStyles.forEach { (key, styles) -> styles.forEach { it(key in heldModifiers) } }
+        modifierStyles.forEach { (key, styles) -> styles.forEach { it(isArmed(key)) } }
         styleButton(trackpadButton, on)
         refreshTabs()
     }
