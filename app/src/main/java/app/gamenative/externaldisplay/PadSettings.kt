@@ -95,6 +95,8 @@ object PadSettings {
     const val R3_TOGGLE = "r3_toggle"
     /** What the d-pad does in R3 cursor mode: 0 = reaches the game, 1 = moves the cursor, 2 = scrolls. */
     const val DPAD_MODE = "dpad_mode"
+    /** Draws a ring around the pointer while the right stick is the cursor. */
+    const val CURSOR_RING = "cursor_ring"
     const val CURSOR_CLICK_WAIT_MS = "cursor_click_wait_ms"
     const val TRIGGER_MODS = "trigger_mods"
     const val DPAD_BASE = "dpad_base"
@@ -162,6 +164,7 @@ object PadSettings {
         SHOULDER_SWAP to false,
         R3_TOGGLE to true,
         DPAD_MODE to 0,
+        CURSOR_RING to true,
         CURSOR_CLICK_WAIT_MS to 120,
         TRIGGER_MODS to false,
         DPAD_BASE to 10,

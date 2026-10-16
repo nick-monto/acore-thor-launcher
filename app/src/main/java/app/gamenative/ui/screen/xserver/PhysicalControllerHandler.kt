@@ -352,6 +352,7 @@ class PhysicalControllerHandler(
         activeSequenceTriggerBindings.clear()
         releaseCursorClicks()
         rightStickMouseMode = false
+        app.gamenative.externaldisplay.PadBridge.setCursorMode(false)
         showKeyboardPressed = false
         closeRadialMenuIfOpen(commit = false)
         sendGamepadState()
@@ -705,6 +706,7 @@ class PhysicalControllerHandler(
     private fun setRightStickMouseMode(enabled: Boolean, deviceId: Int) {
         if (rightStickMouseMode == enabled) return
         rightStickMouseMode = enabled
+        app.gamenative.externaldisplay.PadBridge.setCursorMode(enabled)
         clearDpadCursor()
         val stickKeys = rightStickKeyCodes()
         if (enabled) {

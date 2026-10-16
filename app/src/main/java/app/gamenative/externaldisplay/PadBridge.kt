@@ -25,6 +25,26 @@ object PadBridge {
         triggerModifiersChanged?.invoke()
     }
 
+    /** True while the right stick is the mouse pointer (R3 cursor mode). Read by the renderer to draw the ring. */
+    @Volatile
+    private var cursorMode = false
+
+    /** Set by the renderer so a mode change redraws the screen even when nothing else moves. */
+    @Volatile
+    private var renderRequest: Runnable? = null
+
+    @JvmStatic
+    fun isCursorRingShown(): Boolean = cursorMode && PadSettings.bool(PadSettings.CURSOR_RING)
+
+    @JvmStatic
+    fun setRenderRequest(r: Runnable?) { renderRequest = r }
+
+    fun setCursorMode(on: Boolean) {
+        if (cursorMode == on) return
+        cursorMode = on
+        renderRequest?.run()
+    }
+
     fun clickFinished() {
         releaseModifiers?.invoke()
     }

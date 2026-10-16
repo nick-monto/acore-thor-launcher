@@ -131,6 +131,8 @@ class ExternalPadSettingsView(
         // Only shown when R3 mouse/camera toggling was switched on at launch (main screen).
         if (PadSettings.bool(PadSettings.R3_TOGGLE)) {
             section("Right-stick cursor (R3)", collapsible = true) {
+                addView(toggleRow(listOf("Ring around the cursor" to PadSettings.CURSOR_RING)))
+                addView(note("The ring shows on the game screen while the right stick is the cursor, and goes away in camera mode."))
                 addView(note("Stick"))
                 addView(sliderRow("Base speed", PadSettings.STICK_BASE, 5, 30) { tenths(it) })
                 addView(sliderRow("Max speed", PadSettings.STICK_MAX, 10, 50) { tenths(it) })

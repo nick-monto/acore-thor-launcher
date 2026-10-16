@@ -44,6 +44,7 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
     private final WindowMaterial windowMaterial = new WindowMaterial();
     public final ViewTransformation viewTransformation = new ViewTransformation();
     private final Drawable rootCursorDrawable;
+    private Drawable cursorRingDrawable;
     private final ArrayList<RenderableWindow> renderableWindows = new ArrayList<>();
     private String forceFullscreenWMClass = null;
     private boolean fullscreen = false;
@@ -77,6 +78,7 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
         this.xServer = xServer;
         this.effectComposer = new EffectComposer(this);
         rootCursorDrawable = createRootCursorDrawable();
+        app.gamenative.externaldisplay.PadBridge.setRenderRequest(xServerView::requestRender);
 
         quadVertices.put(new float[]{
                 0.0f, 0.0f,
@@ -112,6 +114,7 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
                 if (d != null) d.getTexture().invalidate(); // sets textureId=0 so next draw re-creates
             }
             rootCursorDrawable.getTexture().invalidate();
+            if (cursorRingDrawable != null) cursorRingDrawable.getTexture().invalidate();
         }
         updateScene();
         xServerView.requestRender();
@@ -226,6 +229,7 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
 
         renderWindows();
         if (cursorVisible) renderCursor();
+        if (app.gamenative.externaldisplay.PadBridge.isCursorRingShown()) renderCursorRing();
 
         if ((!magnifierEnabled && !fullscreen) || renderingToOffscreenTarget) GLES20.glDisable(GLES20.GL_SCISSOR_TEST);
     }
@@ -338,6 +342,34 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
             else renderDrawable(rootCursorDrawable, x, y, cursorMaterial);
         }
 
+        quadVertices.disable();
+    }
+
+    /** A ring centred on the pointer, drawn only while the right stick works as the cursor. */
+    private void renderCursorRing() {
+        if (cursorRingDrawable == null) {
+            int size = Math.max(40, Math.round(xServer.screenInfo.height * 0.05f));
+            Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+            android.graphics.Canvas canvas = new android.graphics.Canvas(bitmap);
+            android.graphics.Paint paint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+            paint.setStyle(android.graphics.Paint.Style.STROKE);
+            float stroke = Math.max(3f, size * 0.07f);
+            float radius = size / 2f - stroke * 1.5f;
+            // Dark edge first so the bright ring reads on both light and dark scenes.
+            paint.setColor(0xFF000000);
+            paint.setStrokeWidth(stroke + 3f);
+            canvas.drawCircle(size / 2f, size / 2f, radius, paint);
+            paint.setColor(0xFFFFB300);
+            paint.setStrokeWidth(stroke);
+            canvas.drawCircle(size / 2f, size / 2f, radius, paint);
+            cursorRingDrawable = Drawable.fromBitmap(bitmap);
+        }
+        cursorMaterial.use();
+        GLES20.glUniform2f(cursorMaterial.getUniformLocation("viewSize"), xServer.screenInfo.width, xServer.screenInfo.height);
+        quadVertices.bind(cursorMaterial.programId);
+        short x = xServer.pointer.getClampedX();
+        short y = xServer.pointer.getClampedY();
+        renderDrawable(cursorRingDrawable, x - cursorRingDrawable.width / 2, y - cursorRingDrawable.height / 2, cursorMaterial);
         quadVertices.disable();
     }
 
