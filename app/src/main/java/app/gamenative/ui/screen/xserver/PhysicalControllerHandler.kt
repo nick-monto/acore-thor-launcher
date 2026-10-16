@@ -394,17 +394,22 @@ class PhysicalControllerHandler(
                     cursorScrollBindings[keyCode] = scroll
                     handleScrollBinding(scroll, true)
                     return true
-                } else if (event.action == KeyEvent.ACTION_DOWN && rightStickMouseMode && PadSettings.int(PadSettings.AB_MODE) != 0) {
-                    // Cursor mode: A / B (or L1 / R1, per the setting) act as left / right click, optionally swapped.
+                } else if (event.action == KeyEvent.ACTION_DOWN && rightStickMouseMode &&
+                    (PadSettings.bool(PadSettings.CLICK_AB) || PadSettings.bool(PadSettings.CLICK_SHOULDERS))
+                ) {
+                    // Cursor mode: A / B and / or L1 / R1 act as left / right click, optionally swapped.
                     val swapped = PadSettings.bool(PadSettings.AB_SWAP)
-                    val useShoulders = PadSettings.int(PadSettings.AB_MODE) == 2
-                    val firstButton = if (useShoulders) Binding.GAMEPAD_BUTTON_L1 else Binding.GAMEPAD_BUTTON_A
-                    val secondButton = if (useShoulders) Binding.GAMEPAD_BUTTON_R1 else Binding.GAMEPAD_BUTTON_B
+                    val leftClick = if (swapped) Binding.MOUSE_RIGHT_BUTTON else Binding.MOUSE_LEFT_BUTTON
+                    val rightClick = if (swapped) Binding.MOUSE_LEFT_BUTTON else Binding.MOUSE_RIGHT_BUTTON
                     val bindings = controller.getControllerBinding(keyCode)?.bindingCombo?.bindings
+                    val useAB = PadSettings.bool(PadSettings.CLICK_AB)
+                    val useShoulders = PadSettings.bool(PadSettings.CLICK_SHOULDERS)
                     val click = when {
                         bindings == null -> null
-                        firstButton in bindings -> if (swapped) Binding.MOUSE_RIGHT_BUTTON else Binding.MOUSE_LEFT_BUTTON
-                        secondButton in bindings -> if (swapped) Binding.MOUSE_LEFT_BUTTON else Binding.MOUSE_RIGHT_BUTTON
+                        useAB && Binding.GAMEPAD_BUTTON_A in bindings -> leftClick
+                        useAB && Binding.GAMEPAD_BUTTON_B in bindings -> rightClick
+                        useShoulders && Binding.GAMEPAD_BUTTON_L1 in bindings -> leftClick
+                        useShoulders && Binding.GAMEPAD_BUTTON_R1 in bindings -> rightClick
                         else -> null
                     }
                     if (click != null) {

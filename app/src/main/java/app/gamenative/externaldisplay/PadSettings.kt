@@ -82,7 +82,10 @@ object PadSettings {
     const val STICK_MAX = "stick_max"
     const val STICK_RAMP = "stick_ramp"
     const val STICK_DEADZONE = "stick_deadzone"
-    const val AB_MODE = "ab_mode"
+    /** In cursor mode, A (left) and B (right) click. */
+    const val CLICK_AB = "click_ab"
+    /** In cursor mode, L1 (left) and R1 (right) click. Can be on together with A / B. */
+    const val CLICK_SHOULDERS = "click_shoulders"
     const val AB_SWAP = "ab_swap"
     const val R3_TOGGLE = "r3_toggle"
     const val DPAD_CURSOR = "dpad_cursor"
@@ -146,7 +149,8 @@ object PadSettings {
         STICK_MAX to 25,
         STICK_RAMP to 90,
         STICK_DEADZONE to 15,
-        AB_MODE to 1,
+        CLICK_AB to true,
+        CLICK_SHOULDERS to false,
         AB_SWAP to false,
         R3_TOGGLE to true,
         DPAD_CURSOR to false,
@@ -180,13 +184,19 @@ object PadSettings {
         editor.remove("mod_on").remove("mod_order_tp").remove("number_emphasis").apply()
     }
 
-    /** Click buttons: mode 2 used to mean "A right, B left"; it now means L1 / R1, and swapping is its own setting. */
+    /** The old "Click buttons" cycle (Off / A-B / A-B swapped) became two switches plus a swap switch. */
     private fun migrateClickButtons() {
         val p = prefs ?: return
-        if (p.getBoolean("ab_migrated", false)) return
-        val editor = p.edit().putBoolean("ab_migrated", true)
-        if (p.getInt(AB_MODE, 1) == 2) editor.putInt(AB_MODE, 1).putBoolean(AB_SWAP, true)
-        editor.apply()
+        if (!p.contains("ab_mode")) return
+        val mode = p.getInt("ab_mode", 1)
+        val editor = p.edit()
+        // Mode 2 was "A right, B left" in the first version and "L1 / R1" in the second (swap then lived in ab_swap).
+        if (!p.getBoolean("ab_migrated", false) && mode == 2) {
+            editor.putBoolean(CLICK_AB, true).putBoolean(CLICK_SHOULDERS, false).putBoolean(AB_SWAP, true)
+        } else {
+            editor.putBoolean(CLICK_AB, mode == 1).putBoolean(CLICK_SHOULDERS, mode == 2)
+        }
+        editor.putBoolean("ab_migrated", true).remove("ab_mode").apply()
     }
 
     /** Extra buttons were called "Extra 1" to "Extra 5"; they are "Ex1" to "Ex5" now. Carries saved remaps, names, colors, order and hidden over. */
@@ -397,10 +407,13 @@ object PadSettings {
             // Older snapshots with the modifier row switched off: turn the three keys off instead.
             json.put(MOD_SHIFT, false); json.put(MOD_CTRL, false); json.put(MOD_ALT, false)
         }
-        if (json.has(AB_MODE) && !json.has(AB_SWAP) && json.optInt(AB_MODE, 1) == 2) {
-            // Older snapshots: mode 2 was "A right, B left". It is now A / B with Swap turned on.
-            json.put(AB_MODE, 1)
-            json.put(AB_SWAP, true)
+        if (json.has("ab_mode") && !json.has(CLICK_AB)) {
+            // Older snapshots: one "Click buttons" cycle. 1 = A / B, 2 = L1 / R1 (or, before swap existed, A right B left).
+            val mode = json.optInt("ab_mode", 1)
+            val oldSwap = mode == 2 && !json.has(AB_SWAP)
+            json.put(CLICK_AB, mode == 1 || oldSwap)
+            json.put(CLICK_SHOULDERS, mode == 2 && !oldSwap)
+            if (oldSwap) json.put(AB_SWAP, true)
         }
         DEFAULTS.forEach { (key, def) ->
             if (key in LAUNCH_ONLY || !json.has(key)) return@forEach
