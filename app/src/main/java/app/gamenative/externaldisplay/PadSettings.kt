@@ -57,7 +57,9 @@ object PadSettings {
     const val CHAT_HEIGHT = "chat_height"
     /** The optional "Extra Buttons" panel next to the number block. */
     const val EXTRA_ON = "extra_on"
-    /** How many extra buttons it shows, 1 to 5. */
+    /** Splits the extra buttons over two rows. */
+    const val EXTRA_TWO_ROWS = "extra_two_rows"
+    /** How many extra buttons it shows, 1 to 10. Ex6 to Ex10 repeat Ex1 to Ex5 with Shift. */
     const val EXTRA_N = "extra_n"
     /** Lets an armed Shift, Ctrl or Alt apply to the Extra Buttons, as it does to the number buttons. */
     const val EXTRA_MODS = "extra_mods"
@@ -143,6 +145,7 @@ object PadSettings {
         CHAT_HEIGHT to 100,
         EXTRA_ON to false,
         EXTRA_N to 3,
+        EXTRA_TWO_ROWS to false,
         EXTRA_MODS to false,
         EXTRA_HEIGHT to 100,
         TAB_POS to 0,

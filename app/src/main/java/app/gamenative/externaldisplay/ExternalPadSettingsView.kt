@@ -84,9 +84,10 @@ class ExternalPadSettingsView(
         section("Extra Buttons", collapsible = true) {
             addView(toggleRow(listOf("Show Extra Buttons panel" to PadSettings.EXTRA_ON)))
             addView(toggleRow(listOf("Modifier keys affect Extra Buttons" to PadSettings.EXTRA_MODS)))
-            addView(sliderRow("Buttons shown", PadSettings.EXTRA_N, 1, 5) { "$it" })
+            addView(sliderRow("Buttons shown", PadSettings.EXTRA_N, 1, 10) { "$it" })
+            addView(toggleRow(listOf("Split into two rows" to PadSettings.EXTRA_TWO_ROWS)))
             addView(sliderRow("Panel height", PadSettings.EXTRA_HEIGHT, 50, 250) { "$it%" })
-            addView(note("Ex1 to Ex5 start on F8 to F12. Remap them under \"Remap, rename, and recolor buttons\"."))
+            addView(note("Ex1 to Ex5 start on F8 to F12. Ex6 to Ex10 send the same keys as Ex1 to Ex5 with Shift held, and follow them if you remap those. Remap them under \"Remap, rename, and recolor buttons\"."))
         }
         section("Chat Buttons", collapsible = true) {
             addView(toggleRow(listOf("Show Chat Buttons panel" to PadSettings.CHAT_ON)))

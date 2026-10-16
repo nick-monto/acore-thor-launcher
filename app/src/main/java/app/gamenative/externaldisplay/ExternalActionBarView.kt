@@ -101,14 +101,17 @@ class ExternalActionBarView(
             }
             if (!PadSettings.bool(PadSettings.SEC_NUMBERS)) visibility = GONE
         }
-        // The optional Extra Buttons panel: up to five buttons in one row.
+        // The optional Extra Buttons panel: up to ten buttons, in one row or split over two.
         val extraGroup: LinearLayout? = if (PadSettings.bool(PadSettings.EXTRA_ON)) {
-            val slots = orderedSlots(GROUP_EXTRAS, EXTRA_SLOTS).take(PadSettings.int(PadSettings.EXTRA_N).coerceIn(1, 5))
+            val slots = orderedSlots(GROUP_EXTRAS, EXTRA_SLOTS).take(PadSettings.int(PadSettings.EXTRA_N).coerceIn(1, 10))
                 // Isolated buttons ignore armed modifiers; with the option on, the extras take them like the numbers do.
                 .map { it.copy(isolated = !PadSettings.bool(PadSettings.EXTRA_MODS)) }
+            val twoRows = PadSettings.bool(PadSettings.EXTRA_TWO_ROWS) && slots.size > 1
+            val rows = if (twoRows) listOf(slots.take((slots.size + 1) / 2), slots.drop((slots.size + 1) / 2)) else listOf(slots)
             group(vertical = true, strong = false).apply {
-                layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 0, 0.7f * PadSettings.int(PadSettings.EXTRA_HEIGHT) / 100f).apply { setMargins(0, dp(3), 0, dp(3)) }
-                addView(keyRow(slots, textSp = 14f, weight = 1f, muted = true, wrap = true, canHide = false))
+                val height = 0.7f * PadSettings.int(PadSettings.EXTRA_HEIGHT) / 100f * rows.size
+                layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, 0, height).apply { setMargins(0, dp(3), 0, dp(3)) }
+                rows.forEach { addView(keyRow(it, textSp = 14f, weight = 1f, muted = true, wrap = true, canHide = false)) }
             }
         } else null
         // The optional Chat Buttons panel: Chat, Slash, Reply and Close in one row.
@@ -280,8 +283,16 @@ class ExternalActionBarView(
     }
 
     /** What a button sends: the user's remap if there is one, otherwise the default. */
-    private fun comboFor(slot: Slot): KeyCombo =
-        PadSettings.remapped(slot.label)?.let { KeyCombo.parse(it) } ?: KeyCombo(slot.key, slot.mods)
+    private fun comboFor(slot: Slot): KeyCombo {
+        PadSettings.remapped(slot.label)?.let { KeyCombo.parse(it) }?.let { return it }
+        // Ex6 to Ex10 follow whatever Ex1 to Ex5 are set to, with Shift added.
+        val n = slot.label.removePrefix("Ex").toIntOrNull()
+        if (slot.label.startsWith("Ex") && n != null && n in 6..10) {
+            val base = comboFor(EXTRA_SLOTS[n - 6])
+            return KeyCombo(base.key, if (XKeycode.KEY_SHIFT_L in base.mods) base.mods else base.mods + XKeycode.KEY_SHIFT_L)
+        }
+        return KeyCombo(slot.key, slot.mods)
+    }
 
     private fun pressKey(combo: KeyCombo, isolated: Boolean = false) {
         if (downKeys.containsKey(combo.key)) return
@@ -442,6 +453,12 @@ class ExternalActionBarView(
             Slot("Ex3", XKeycode.KEY_F10),
             Slot("Ex4", XKeycode.KEY_F11),
             Slot("Ex5", XKeycode.KEY_F12),
+            // Ex6 to Ex10 repeat Ex1 to Ex5 with Shift held; see [comboFor].
+            Slot("Ex6", XKeycode.KEY_F8, listOf(XKeycode.KEY_SHIFT_L)),
+            Slot("Ex7", XKeycode.KEY_F9, listOf(XKeycode.KEY_SHIFT_L)),
+            Slot("Ex8", XKeycode.KEY_F10, listOf(XKeycode.KEY_SHIFT_L)),
+            Slot("Ex9", XKeycode.KEY_F11, listOf(XKeycode.KEY_SHIFT_L)),
+            Slot("Ex10", XKeycode.KEY_F12, listOf(XKeycode.KEY_SHIFT_L)),
         )
 
         // WoW's default bindings for Action Bar 1, slots 1 to 12.
