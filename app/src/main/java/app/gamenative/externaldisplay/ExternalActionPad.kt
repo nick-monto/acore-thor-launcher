@@ -4,6 +4,7 @@ import android.content.Context
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
@@ -82,7 +83,7 @@ class ExternalActionPad(
         padView = ExternalActionBarView(
             context, xServer, theme,
             onKeyTapped = { releaseModifiers() },
-            onChatTyping = { setKeyboard(true); chatKeyboard = true },
+            onChatTyping = { setKeyboard(true); chatKeyboard = true; chatBar.visibility = View.VISIBLE },
             onSuspendModifiers = { suspendModifiers() },
             onResumeModifiers = { resumeModifiers(it) },
             initialPage = currentPage,
@@ -141,9 +142,34 @@ class ExternalActionPad(
         }
         keyboardView = ExternalOnScreenKeyboardView(context, xServer).apply {
             onEnterReleased = { if (chatKeyboard) post { setKeyboard(false) } }
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            visibility = View.GONE
+        }
+        // A slim strip above the keyboard while a chat button has it up: the close icon cancels the chat.
+        val density = context.resources.displayMetrics.density
+        chatBar = FrameLayout(context).apply {
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (34 * density).toInt())
+            setBackgroundColor(theme.background)
+            visibility = View.GONE
+            addView(Button(context).apply {
+                contentDescription = "Cancel chat"
+                background = null
+                foreground = ChatIconDrawable("Close", theme.text, theme.textPressed)
+                layoutParams = FrameLayout.LayoutParams((56 * density).toInt(), ViewGroup.LayoutParams.MATCH_PARENT, Gravity.END)
+                setOnClickListener {
+                    PadSettings.haptic(this)
+                    xServer.injectKeyPress(XKeycode.KEY_ESC)
+                    xServer.injectKeyRelease(XKeycode.KEY_ESC)
+                    setKeyboard(false)
+                }
+            })
+        }
+        keyboardHolder = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
             layoutParams = FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
                 .apply { gravity = Gravity.BOTTOM }
-            visibility = View.GONE
+            addView(chatBar)
+            addView(keyboardView)
         }
 
         trackpadButton = circleButton(R.drawable.icon_trackpad, "Trackpad") { setTrackpad(trackpadPanel.visibility != View.VISIBLE) }
@@ -211,7 +237,7 @@ class ExternalActionPad(
             layoutParams = LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f)
             addView(padView)
             addView(trackpadPanel)
-            addView(keyboardView)
+            addView(keyboardHolder)
             addView(settingsView)
             addView(textEntryPanel)
         }
@@ -662,9 +688,12 @@ class ExternalActionPad(
 
     /** True while the keyboard is up only because a chat button asked for it; Enter puts it away again. */
     private var chatKeyboard = false
+    private lateinit var chatBar: FrameLayout
+    private lateinit var keyboardHolder: LinearLayout
 
     private fun setKeyboard(on: Boolean) {
         chatKeyboard = false
+        chatBar.visibility = View.GONE
         if (on != (keyboardView.visibility == View.VISIBLE)) releaseAllModifiers()
         if (on) {
             finishTextEntry(false)
