@@ -93,7 +93,8 @@ object PadSettings {
     /** Swaps left and right click for L1 / R1. */
     const val SHOULDER_SWAP = "shoulder_swap"
     const val R3_TOGGLE = "r3_toggle"
-    const val DPAD_CURSOR = "dpad_cursor"
+    /** What the d-pad does in R3 cursor mode: 0 = reaches the game, 1 = moves the cursor, 2 = scrolls. */
+    const val DPAD_MODE = "dpad_mode"
     const val CURSOR_CLICK_WAIT_MS = "cursor_click_wait_ms"
     const val TRIGGER_MODS = "trigger_mods"
     const val DPAD_BASE = "dpad_base"
@@ -160,7 +161,7 @@ object PadSettings {
         AB_SWAP to false,
         SHOULDER_SWAP to false,
         R3_TOGGLE to true,
-        DPAD_CURSOR to false,
+        DPAD_MODE to 0,
         CURSOR_CLICK_WAIT_MS to 120,
         TRIGGER_MODS to false,
         DPAD_BASE to 10,
@@ -211,6 +212,12 @@ object PadSettings {
     }
 
     /** One swap switch used to cover both pairs; L1 / R1 now has its own, starting from what the shared one was. */
+    private fun migrateDpadMode() {
+        val p = prefs ?: return
+        if (p.contains(DPAD_MODE) || !p.contains("dpad_cursor")) return
+        p.edit().putInt(DPAD_MODE, if (p.getBoolean("dpad_cursor", false)) 1 else 0).apply()
+    }
+
     private fun migrateShoulderSwap() {
         val p = prefs ?: return
         if (p.contains(SHOULDER_SWAP) || !p.contains(AB_SWAP)) return
@@ -252,6 +259,7 @@ object PadSettings {
         migrateExtraLabels()
         migrateClickButtons()
         migrateShoulderSwap()
+        migrateDpadMode()
         migrateModifierRow()
         migratePanelOrder()
     }
@@ -456,6 +464,7 @@ object PadSettings {
             if (!order.has("panels")) order.put("panels", legacyPanelOrder(json.optInt("col_order", 0)))
             json.put(ORDER, order)
         }
+        if (json.has("dpad_cursor") && !json.has(DPAD_MODE)) json.put(DPAD_MODE, if (json.optBoolean("dpad_cursor", false)) 1 else 0)
         if (json.has(AB_SWAP) && !json.has(SHOULDER_SWAP)) json.put(SHOULDER_SWAP, json.optBoolean(AB_SWAP, false))
         DEFAULTS.forEach { (key, def) ->
             if (key in LAUNCH_ONLY || !json.has(key)) return@forEach

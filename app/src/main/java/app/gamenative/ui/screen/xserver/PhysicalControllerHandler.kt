@@ -18,6 +18,7 @@ import com.winlator.inputcontrols.ExternalControllerBinding
 import com.winlator.inputcontrols.GamepadState
 import com.winlator.inputcontrols.JoyConSupport
 import com.winlator.math.Mathf
+import com.winlator.xserver.Pointer
 import com.winlator.xserver.XServer
 import java.util.Timer
 import java.util.TimerTask
@@ -116,7 +117,54 @@ class PhysicalControllerHandler(
         }
     }
 
-    private fun dpadCursorActive() = rightStickMouseMode && PadSettings.bool(PadSettings.DPAD_CURSOR)
+    /** True while the d-pad is taken over from the game (cursor or scroll mode). */
+    private fun dpadCursorActive() = rightStickMouseMode && PadSettings.int(PadSettings.DPAD_MODE) != 0
+
+    private fun dpadScrollMode() = PadSettings.int(PadSettings.DPAD_MODE) == 2
+
+    private var dpadScrollPosted = false
+    private val dpadScrollTick = object : Runnable {
+        override fun run() {
+            dpadScrollPosted = false
+            if (!dpadCursorActive() || !dpadScrollMode()) return
+            pulseDpadScroll()
+        }
+    }
+
+    private fun pulseDpadScroll() {
+        val x = dpadEffX
+        val y = dpadEffY
+        if (x == 0 && y == 0) return
+        val invert = PadSettings.bool(PadSettings.SCROLL_INVERT)
+        if (y != 0) {
+            val up = (y < 0) != invert
+            xServer?.let {
+                val b = if (up) Pointer.Button.BUTTON_SCROLL_UP else Pointer.Button.BUTTON_SCROLL_DOWN
+                it.injectPointerButtonPress(b); it.injectPointerButtonRelease(b)
+            }
+        }
+        if (x != 0) {
+            val b = if (x < 0) Pointer.Button.BUTTON_SCROLL_CLICK_LEFT else Pointer.Button.BUTTON_SCROLL_CLICK_RIGHT
+            xServer?.let { it.injectPointerButtonPress(b); it.injectPointerButtonRelease(b) }
+        }
+        dpadScrollPosted = true
+        val interval = (CURSOR_SCROLL_BASE_MS / PadSettings.int(PadSettings.SCROLL_SPEED).coerceIn(1, 10)).toLong()
+        dpadHandler.postDelayed(dpadScrollTick, interval)
+    }
+
+    private fun refreshDpadScroll() {
+        val x = if (dpadHatX != 0) dpadHatX else dpadKeyX
+        val y = if (dpadHatY != 0) dpadHatY else dpadKeyY
+        val changed = x != dpadEffX || y != dpadEffY
+        dpadEffX = x; dpadEffY = y
+        if (x == 0 && y == 0) {
+            dpadHandler.removeCallbacks(dpadScrollTick)
+            dpadScrollPosted = false
+        } else if (changed) {
+            dpadHandler.removeCallbacks(dpadScrollTick)
+            pulseDpadScroll()
+        }
+    }
 
     private fun dpadSpeed(since: Long): Float {
         val ramp = PadSettings.dpadRampMs.coerceAtLeast(1L)
@@ -125,6 +173,7 @@ class PhysicalControllerHandler(
     }
 
     private fun refreshDpadCursor() {
+        if (dpadScrollMode()) { refreshDpadScroll(); return }
         val now = System.currentTimeMillis()
         val x = if (dpadHatX != 0) dpadHatX else dpadKeyX
         val y = if (dpadHatY != 0) dpadHatY else dpadKeyY
@@ -147,11 +196,17 @@ class PhysicalControllerHandler(
 
     private fun clearDpadCursor() {
         dpadHandler.removeCallbacks(dpadTick)
+        dpadHandler.removeCallbacks(dpadScrollTick)
+        dpadScrollPosted = false
         dpadTickPosted = false
         dpadHatX = 0; dpadHatY = 0; dpadKeyX = 0; dpadKeyY = 0
         if (dpadEffX != 0 || dpadEffY != 0) {
             dpadEffX = 0; dpadEffY = 0
-            refreshDpadCursor()
+            val dev = dpadDeviceId
+            updateMouseMoveContribution(Binding.MOUSE_MOVE_LEFT, false, 0f, KeyEvent.KEYCODE_DPAD_LEFT, dev)
+            updateMouseMoveContribution(Binding.MOUSE_MOVE_RIGHT, false, 0f, KeyEvent.KEYCODE_DPAD_RIGHT, dev)
+            updateMouseMoveContribution(Binding.MOUSE_MOVE_UP, false, 0f, KeyEvent.KEYCODE_DPAD_UP, dev)
+            updateMouseMoveContribution(Binding.MOUSE_MOVE_DOWN, false, 0f, KeyEvent.KEYCODE_DPAD_DOWN, dev)
         }
     }
 
