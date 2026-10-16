@@ -83,7 +83,7 @@ class ExternalActionPad(
         padView = ExternalActionBarView(
             context, xServer, theme,
             onKeyTapped = { releaseModifiers() },
-            onChatTyping = { setKeyboard(true); chatKeyboard = true; chatBar.visibility = View.VISIBLE },
+            onChatTyping = { setKeyboard(true); chatKeyboard = true; chatBar.visibility = View.VISIBLE; styleButton(keyboardButton, false) },
             onSuspendModifiers = { suspendModifiers() },
             onResumeModifiers = { resumeModifiers(it) },
             initialPage = currentPage,
@@ -173,7 +173,14 @@ class ExternalActionPad(
         }
 
         trackpadButton = circleButton(R.drawable.icon_trackpad, "Trackpad") { setTrackpad(trackpadPanel.visibility != View.VISIBLE) }
-        keyboardButton = circleButton(R.drawable.icon_keyboard, "Keyboard") { setKeyboard(keyboardView.visibility != View.VISIBLE) }
+        keyboardButton = circleButton(R.drawable.icon_keyboard, "Keyboard") {
+            if (chatKeyboard) {
+                // Up only for chat: the header button turns it into the normal keyboard.
+                chatKeyboard = false
+                chatBar.visibility = View.GONE
+                styleButton(keyboardButton, true)
+            } else setKeyboard(keyboardView.visibility != View.VISIBLE)
+        }
         settingsButton = circleButton(R.drawable.icon_settings, "Settings") { setSettings(!settingsOpen) }
         settingsView = ExternalPadSettingsView(context, theme).apply {
             layoutParams = FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
