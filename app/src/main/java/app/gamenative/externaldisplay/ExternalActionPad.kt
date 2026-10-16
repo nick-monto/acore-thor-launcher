@@ -82,6 +82,7 @@ class ExternalActionPad(
         padView = ExternalActionBarView(
             context, xServer, theme,
             onKeyTapped = { releaseModifiers() },
+            onChatTyping = { setKeyboard(true); chatKeyboard = true },
             onSuspendModifiers = { suspendModifiers() },
             onResumeModifiers = { resumeModifiers(it) },
             initialPage = currentPage,
@@ -139,6 +140,7 @@ class ExternalActionPad(
             visibility = View.GONE
         }
         keyboardView = ExternalOnScreenKeyboardView(context, xServer).apply {
+            onEnterReleased = { if (chatKeyboard) post { setKeyboard(false) } }
             layoutParams = FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
                 .apply { gravity = Gravity.BOTTOM }
             visibility = View.GONE
@@ -658,7 +660,11 @@ class ExternalActionPad(
         refreshTabs()
     }
 
+    /** True while the keyboard is up only because a chat button asked for it; Enter puts it away again. */
+    private var chatKeyboard = false
+
     private fun setKeyboard(on: Boolean) {
+        chatKeyboard = false
         if (on != (keyboardView.visibility == View.VISIBLE)) releaseAllModifiers()
         if (on) {
             finishTextEntry(false)

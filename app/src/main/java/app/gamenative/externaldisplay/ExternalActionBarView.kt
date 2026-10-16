@@ -35,6 +35,8 @@ class ExternalActionBarView(
     private val onSuspendModifiers: () -> List<XKeycode> = { emptyList() },
     /** Presses back the modifiers [onSuspendModifiers] returned, those the user is still holding. */
     private val onResumeModifiers: (List<XKeycode>) -> Unit = {},
+    /** Called after the Chat, Slash or Reply button is tapped, so the pad can bring up the keyboard for typing. */
+    private val onChatTyping: () -> Unit = {},
     /** The page shown first (index into the pages). */
     initialPage: Int = 0,
 ) : LinearLayout(context) {
@@ -258,6 +260,9 @@ class ExternalActionBarView(
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                         view.isPressed = false
                         releaseKey(comboFor(slot).key)
+                        if (event.actionMasked == MotionEvent.ACTION_UP &&
+                            (slot.label == "Chat" || slot.label == "Slash" || slot.label == "Reply")
+                        ) onChatTyping()
                     }
                 }
                 true

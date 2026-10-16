@@ -49,6 +49,9 @@ class ExternalOnScreenKeyboardView(
 
     var capture: Capture? = null
 
+    /** Called after the Enter key has been released (not while typing a button name). */
+    var onEnterReleased: (() -> Unit)? = null
+
     private val keyButtons = mutableListOf<KeyButton>()
     private val downKeys = mutableSetOf<XKeycode>()
     private var shiftState: ShiftState = ShiftState.OFF
@@ -411,7 +414,7 @@ class ExternalOnScreenKeyboardView(
                 refreshLabels()
             }
             Action.BACKSPACE -> releaseRepeating(XKeycode.KEY_BKSP)
-            Action.ENTER -> releaseKey(XKeycode.KEY_ENTER)
+            Action.ENTER -> { releaseKey(XKeycode.KEY_ENTER); if (!cancel) onEnterReleased?.invoke() }
             Action.SPACE -> releaseKey(XKeycode.KEY_SPACE)
             Action.ARROW_LEFT -> releaseRepeating(XKeycode.KEY_LEFT)
             Action.ARROW_DOWN -> releaseRepeating(XKeycode.KEY_DOWN)
