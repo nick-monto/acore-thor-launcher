@@ -2415,6 +2415,11 @@ fun XServerScreen(
             } else {
                 frameLayout.addView(icView)
             }
+            // Ring around the pointer while the right stick is the cursor (R3 cursor mode); never takes touches.
+            frameLayout.addView(
+                app.gamenative.externaldisplay.CursorRingView(context, xServerView.getxServer()) { xServerView as? View },
+                FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
+            )
             val configuredExternalMode = ExternalDisplayInputController.fromConfig(container.externalDisplayMode)
             val swapEnabled = container.isExternalDisplaySwap
 
