@@ -47,7 +47,7 @@ class ExternalActionBarView(
      */
     private data class Slot(val label: String, val key: XKeycode, val mods: List<XKeycode> = emptyList(), val isolated: Boolean = false)
 
-    private class Down(val combo: KeyCombo, val isolated: Boolean)
+    private class Down(val combo: KeyCombo, val isolated: Boolean, val pressed: List<XKeycode> = combo.mods)
 
     private val downKeys = mutableMapOf<XKeycode, Down>()
     private var isolatedDown = 0
@@ -252,13 +252,13 @@ class ExternalActionBarView(
                 setMargins(margin, margin, margin, margin)
             }
             // Only buttons that take an armed modifier glow: not the page buttons, nor ones remapped to a combo.
-            if (!slot.isolated && comboFor(slot).mods.isEmpty()) modifierAffected.add(this)
+            if (!slot.isolated && (comboFor(slot).mods.isEmpty() || mergesModifiers(slot))) modifierAffected.add(this)
             setOnTouchListener { view, event ->
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
                         view.isPressed = true
                         PadSettings.haptic(view)
-                        pressKey(comboFor(slot), isolated = slot.isolated)
+                        pressKey(comboFor(slot), isolated = slot.isolated, mergeModifiers = mergesModifiers(slot))
                     }
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                         view.isPressed = false
@@ -283,31 +283,35 @@ class ExternalActionBarView(
     }
 
     /** What a button sends: the user's remap if there is one, otherwise the default. */
-    private fun comboFor(slot: Slot): KeyCombo {
-        PadSettings.remapped(slot.label)?.let { KeyCombo.parse(it) }?.let { return it }
-        // Ex6 to Ex10 follow whatever Ex1 to Ex5 are set to, with Shift added.
-        val n = slot.label.removePrefix("Ex").toIntOrNull()
-        if (slot.label.startsWith("Ex") && n != null && n in 6..10) {
-            val base = comboFor(EXTRA_SLOTS[n - 6])
-            return KeyCombo(base.key, if (XKeycode.KEY_SHIFT_L in base.mods) base.mods else base.mods + XKeycode.KEY_SHIFT_L)
-        }
-        return KeyCombo(slot.key, slot.mods)
+    private fun comboFor(slot: Slot): KeyCombo =
+        PadSettings.remapped(slot.label)?.let { KeyCombo.parse(it) } ?: KeyCombo(slot.key, slot.mods)
+
+    /** Ex6 to Ex10 (with the modifier option on) take armed Shift, Ctrl and Alt like the other extras, on top of their own Shift. */
+    private fun mergesModifiers(slot: Slot) = !slot.isolated && slot.label.removePrefix("Ex").toIntOrNull() in 6..10 && slot.label.startsWith("Ex")
+
+    private fun pressKey(combo: KeyCombo, isolated: Boolean = false, mergeModifiers: Boolean = false) {
+        if (downKeys.containsKey(combo.key)) return
+        // A button with its own modifiers, or an isolated one, must not pick up Shift, Ctrl or Alt held on the pad,
+        // unless it is meant to add its own on top of them.
+        val isolate = isolated || (combo.mods.isNotEmpty() && !mergeModifiers)
+        // When merging, a modifier already held on the pad is left alone, so letting go does not drop it.
+        val toPress = if (mergeModifiers) combo.mods.filter { !xServer.keyboard.modifiersMask.isSet(modifierMask(it)) } else combo.mods
+        downKeys[combo.key] = Down(combo, isolate, toPress)
+        if (isolate && isolatedDown++ == 0) suspendedModifiers = onSuspendModifiers()
+        toPress.forEach { xServer.injectKeyPress(it) }
+        xServer.injectKeyPress(combo.key)
     }
 
-    private fun pressKey(combo: KeyCombo, isolated: Boolean = false) {
-        if (downKeys.containsKey(combo.key)) return
-        // A button with its own modifiers, or an isolated one, must not pick up Shift, Ctrl or Alt held on the pad.
-        val isolate = isolated || combo.mods.isNotEmpty()
-        downKeys[combo.key] = Down(combo, isolate)
-        if (isolate && isolatedDown++ == 0) suspendedModifiers = onSuspendModifiers()
-        combo.mods.forEach { xServer.injectKeyPress(it) }
-        xServer.injectKeyPress(combo.key)
+    private fun modifierMask(key: XKeycode): Long = when (key) {
+        XKeycode.KEY_SHIFT_L, XKeycode.KEY_SHIFT_R -> 1L
+        XKeycode.KEY_CTRL_L, XKeycode.KEY_CTRL_R -> 4L
+        else -> 8L
     }
 
     private fun releaseKey(key: XKeycode) {
         val down = downKeys.remove(key) ?: return
         xServer.injectKeyRelease(key)
-        down.combo.mods.asReversed().forEach { xServer.injectKeyRelease(it) }
+        down.pressed.asReversed().forEach { xServer.injectKeyRelease(it) }
         onKeyTapped()
         if (down.isolated && --isolatedDown == 0) {
             onResumeModifiers(suspendedModifiers)
@@ -324,7 +328,7 @@ class ExternalActionBarView(
     private fun releaseAllKeys() {
         downKeys.values.toList().forEach { d ->
             xServer.injectKeyRelease(d.combo.key)
-            d.combo.mods.forEach { xServer.injectKeyRelease(it) }
+            d.pressed.forEach { xServer.injectKeyRelease(it) }
         }
         downKeys.clear()
         if (isolatedDown > 0) onResumeModifiers(suspendedModifiers)
@@ -453,7 +457,7 @@ class ExternalActionBarView(
             Slot("Ex3", XKeycode.KEY_F10),
             Slot("Ex4", XKeycode.KEY_F11),
             Slot("Ex5", XKeycode.KEY_F12),
-            // Ex6 to Ex10 repeat Ex1 to Ex5 with Shift held; see [comboFor].
+            // Ex6 to Ex10 start on Shift+F8 to Shift+F12.
             Slot("Ex6", XKeycode.KEY_F8, listOf(XKeycode.KEY_SHIFT_L)),
             Slot("Ex7", XKeycode.KEY_F9, listOf(XKeycode.KEY_SHIFT_L)),
             Slot("Ex8", XKeycode.KEY_F10, listOf(XKeycode.KEY_SHIFT_L)),
