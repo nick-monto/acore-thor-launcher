@@ -237,6 +237,11 @@ class ExternalActionBarView(
             val accent = PadSettings.colorOf(slot.label)
             background = createKeyBackground(muted, numbers, accent)
             if (accent != null) setTextColor(accent)
+            // Chat Buttons show a drawn icon instead of text, until the user gives the button a name of its own.
+            if (ChatIconDrawable.has(slot.label) && PadSettings.renamed(slot.label) == null) {
+                text = ""
+                foreground = ChatIconDrawable(slot.label, accent ?: theme.text, theme.textPressed)
+            }
             layoutParams = LayoutParams(0, LayoutParams.MATCH_PARENT, 1f).apply {
                 val margin = dp(3)
                 setMargins(margin, margin, margin, margin)
