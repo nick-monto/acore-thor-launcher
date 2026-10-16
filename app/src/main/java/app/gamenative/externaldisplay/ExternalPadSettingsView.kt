@@ -132,6 +132,9 @@ class ExternalPadSettingsView(
         if (PadSettings.bool(PadSettings.R3_TOGGLE)) {
             section("Right-stick cursor (R3)", collapsible = true) {
                 addView(toggleRow(listOf("Ring around the cursor" to PadSettings.CURSOR_RING)))
+                addView(cycleRow("Ring colour", PadSettings.RING_COLOR, PadSettings.RING_COLORS.map { it.first }))
+                addView(sliderRow("Ring size", PadSettings.RING_SIZE, 20, 120) { tenths(it) + "%" })
+                addView(sliderRow("Ring thickness", PadSettings.RING_THICK, 50, 250) { "$it%" })
                 addView(note("The ring shows on the game screen while the right stick is the cursor, and goes away in camera mode."))
                 addView(note("Stick"))
                 addView(sliderRow("Base speed", PadSettings.STICK_BASE, 5, 30) { tenths(it) })

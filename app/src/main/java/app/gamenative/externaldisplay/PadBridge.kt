@@ -36,6 +36,11 @@ object PadBridge {
     @JvmStatic
     fun isCursorRingShown(): Boolean = cursorMode && PadSettings.bool(PadSettings.CURSOR_RING)
 
+    /** Ring look for the renderer: size (tenths of a percent of screen height), thickness percent and colour. */
+    @JvmStatic fun ringSize(): Int = PadSettings.int(PadSettings.RING_SIZE)
+    @JvmStatic fun ringThick(): Int = PadSettings.int(PadSettings.RING_THICK)
+    @JvmStatic fun ringColor(): Int = PadSettings.RING_COLORS[PadSettings.int(PadSettings.RING_COLOR).coerceIn(0, PadSettings.RING_COLORS.size - 1)].second
+
     @JvmStatic
     fun setRenderRequest(r: Runnable?) { renderRequest = r }
 

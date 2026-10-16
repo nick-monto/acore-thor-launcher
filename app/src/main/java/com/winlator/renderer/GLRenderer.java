@@ -45,6 +45,7 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
     public final ViewTransformation viewTransformation = new ViewTransformation();
     private final Drawable rootCursorDrawable;
     private Drawable cursorRingDrawable;
+    private long cursorRingKey;
     private final ArrayList<RenderableWindow> renderableWindows = new ArrayList<>();
     private String forceFullscreenWMClass = null;
     private boolean fullscreen = false;
@@ -347,19 +348,28 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
 
     /** A ring centred on the pointer, drawn only while the right stick works as the cursor. */
     private void renderCursorRing() {
+        int ringSize = app.gamenative.externaldisplay.PadBridge.ringSize();
+        int ringThick = app.gamenative.externaldisplay.PadBridge.ringThick();
+        int ringColor = app.gamenative.externaldisplay.PadBridge.ringColor();
+        long ringKey = ((long) ringSize << 40) ^ ((long) ringThick << 32) ^ (ringColor & 0xFFFFFFFFL);
+        if (cursorRingDrawable != null && ringKey != cursorRingKey) {
+            cursorRingDrawable.getTexture().invalidate();
+            cursorRingDrawable = null;
+        }
         if (cursorRingDrawable == null) {
-            int size = Math.max(40, Math.round(xServer.screenInfo.height * 0.05f));
+            cursorRingKey = ringKey;
+            int size = Math.max(24, Math.round(xServer.screenInfo.height * ringSize / 1000f));
             Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
             android.graphics.Canvas canvas = new android.graphics.Canvas(bitmap);
             android.graphics.Paint paint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
             paint.setStyle(android.graphics.Paint.Style.STROKE);
-            float stroke = Math.max(3f, size * 0.07f);
+            float stroke = Math.max(2f, size * 0.07f * ringThick / 100f);
             float radius = size / 2f - stroke * 1.5f;
             // Dark edge first so the bright ring reads on both light and dark scenes.
             paint.setColor(0xFF000000);
             paint.setStrokeWidth(stroke + 3f);
             canvas.drawCircle(size / 2f, size / 2f, radius, paint);
-            paint.setColor(0xFFFFB300);
+            paint.setColor(ringColor);
             paint.setStrokeWidth(stroke);
             canvas.drawCircle(size / 2f, size / 2f, radius, paint);
             cursorRingDrawable = Drawable.fromBitmap(bitmap);

@@ -97,6 +97,13 @@ object PadSettings {
     const val DPAD_MODE = "dpad_mode"
     /** Draws a ring around the pointer while the right stick is the cursor. */
     const val CURSOR_RING = "cursor_ring"
+    /** Ring size in tenths of a percent of the screen height (default 50 = 5%). */
+    const val RING_SIZE = "ring_size"
+    /** Ring line thickness as a percent of its default. */
+    const val RING_THICK = "ring_thick"
+    const val RING_COLOR = "ring_color"
+    val RING_COLORS = listOf("Amber" to 0xFFFFB300.toInt(), "White" to 0xFFFFFFFF.toInt(), "Red" to 0xFFFF3B30.toInt(),
+        "Green" to 0xFF34C759.toInt(), "Cyan" to 0xFF00E5FF.toInt(), "Magenta" to 0xFFFF40C8.toInt())
     const val CURSOR_CLICK_WAIT_MS = "cursor_click_wait_ms"
     const val TRIGGER_MODS = "trigger_mods"
     const val DPAD_BASE = "dpad_base"
@@ -165,6 +172,9 @@ object PadSettings {
         R3_TOGGLE to true,
         DPAD_MODE to 0,
         CURSOR_RING to true,
+        RING_SIZE to 50,
+        RING_THICK to 100,
+        RING_COLOR to 0,
         CURSOR_CLICK_WAIT_MS to 120,
         TRIGGER_MODS to false,
         DPAD_BASE to 10,
