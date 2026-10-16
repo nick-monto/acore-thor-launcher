@@ -398,18 +398,20 @@ class PhysicalControllerHandler(
                     (PadSettings.bool(PadSettings.CLICK_AB) || PadSettings.bool(PadSettings.CLICK_SHOULDERS))
                 ) {
                     // Cursor mode: A / B and / or L1 / R1 act as left / right click, optionally swapped.
-                    val swapped = PadSettings.bool(PadSettings.AB_SWAP)
-                    val leftClick = if (swapped) Binding.MOUSE_RIGHT_BUTTON else Binding.MOUSE_LEFT_BUTTON
-                    val rightClick = if (swapped) Binding.MOUSE_LEFT_BUTTON else Binding.MOUSE_RIGHT_BUTTON
                     val bindings = controller.getControllerBinding(keyCode)?.bindingCombo?.bindings
                     val useAB = PadSettings.bool(PadSettings.CLICK_AB)
                     val useShoulders = PadSettings.bool(PadSettings.CLICK_SHOULDERS)
+                    // Each pair has its own swap: the first button is left click unless that pair is swapped.
+                    fun left(swapped: Boolean) = if (swapped) Binding.MOUSE_RIGHT_BUTTON else Binding.MOUSE_LEFT_BUTTON
+                    fun right(swapped: Boolean) = if (swapped) Binding.MOUSE_LEFT_BUTTON else Binding.MOUSE_RIGHT_BUTTON
+                    val abSwap = PadSettings.bool(PadSettings.AB_SWAP)
+                    val shoulderSwap = PadSettings.bool(PadSettings.SHOULDER_SWAP)
                     val click = when {
                         bindings == null -> null
-                        useAB && Binding.GAMEPAD_BUTTON_A in bindings -> leftClick
-                        useAB && Binding.GAMEPAD_BUTTON_B in bindings -> rightClick
-                        useShoulders && Binding.GAMEPAD_BUTTON_L1 in bindings -> leftClick
-                        useShoulders && Binding.GAMEPAD_BUTTON_R1 in bindings -> rightClick
+                        useAB && Binding.GAMEPAD_BUTTON_A in bindings -> left(abSwap)
+                        useAB && Binding.GAMEPAD_BUTTON_B in bindings -> right(abSwap)
+                        useShoulders && Binding.GAMEPAD_BUTTON_L1 in bindings -> left(shoulderSwap)
+                        useShoulders && Binding.GAMEPAD_BUTTON_R1 in bindings -> right(shoulderSwap)
                         else -> null
                     }
                     if (click != null) {

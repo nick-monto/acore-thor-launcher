@@ -86,7 +86,10 @@ object PadSettings {
     const val CLICK_AB = "click_ab"
     /** In cursor mode, L1 (left) and R1 (right) click. Can be on together with A / B. */
     const val CLICK_SHOULDERS = "click_shoulders"
+    /** Swaps left and right click for A / B. */
     const val AB_SWAP = "ab_swap"
+    /** Swaps left and right click for L1 / R1. */
+    const val SHOULDER_SWAP = "shoulder_swap"
     const val R3_TOGGLE = "r3_toggle"
     const val DPAD_CURSOR = "dpad_cursor"
     const val CURSOR_CLICK_WAIT_MS = "cursor_click_wait_ms"
@@ -152,6 +155,7 @@ object PadSettings {
         CLICK_AB to true,
         CLICK_SHOULDERS to false,
         AB_SWAP to false,
+        SHOULDER_SWAP to false,
         R3_TOGGLE to true,
         DPAD_CURSOR to false,
         CURSOR_CLICK_WAIT_MS to 120,
@@ -182,6 +186,13 @@ object PadSettings {
         val editor = p.edit()
         if (!p.getBoolean("mod_on", true)) editor.putBoolean(MOD_SHIFT, false).putBoolean(MOD_CTRL, false).putBoolean(MOD_ALT, false)
         editor.remove("mod_on").remove("mod_order_tp").remove("number_emphasis").apply()
+    }
+
+    /** One swap switch used to cover both pairs; L1 / R1 now has its own, starting from what the shared one was. */
+    private fun migrateShoulderSwap() {
+        val p = prefs ?: return
+        if (p.contains(SHOULDER_SWAP) || !p.contains(AB_SWAP)) return
+        p.edit().putBoolean(SHOULDER_SWAP, p.getBoolean(AB_SWAP, false)).apply()
     }
 
     /** The old "Click buttons" cycle (Off / A-B / A-B swapped) became two switches plus a swap switch. */
@@ -218,6 +229,7 @@ object PadSettings {
         if (prefs == null) prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         migrateExtraLabels()
         migrateClickButtons()
+        migrateShoulderSwap()
         migrateModifierRow()
     }
 
@@ -415,6 +427,7 @@ object PadSettings {
             json.put(CLICK_SHOULDERS, mode == 2 && !oldSwap)
             if (oldSwap) json.put(AB_SWAP, true)
         }
+        if (json.has(AB_SWAP) && !json.has(SHOULDER_SWAP)) json.put(SHOULDER_SWAP, json.optBoolean(AB_SWAP, false))
         DEFAULTS.forEach { (key, def) ->
             if (key in LAUNCH_ONLY || !json.has(key)) return@forEach
             if (def is Boolean) editor.putBoolean(key, json.optBoolean(key, def))
