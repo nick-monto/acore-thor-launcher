@@ -58,7 +58,11 @@ of a Blizzard realm. Four things change for that flavor:
   motion it expects: face buttons and D-pad on F1-F12, shoulders and triggers on shift/control plus
   F7/F8, the left stick on WASD, and the right stick on relative pointer motion, which turns the camera
   while ConsolePort holds mouse look. Open `/cp` in game once to bind ConsolePort's buttons to those
-  keys, and the ring follows the pad. Cursor mode (R3) is unchanged and still drives the mouse.
+  keys, and the ring follows the pad. The right stick drives the pointer in both modes, because injected
+  pointer motion is the only thing a 3.3.5a client can turn a camera with — so R3 changes what the face
+  buttons do rather than whether the stick works: in cursor mode A/B click and Y/X scroll the interface,
+  outside it they send ConsolePort's keys. Stick speed is adjustable in both: the profile's cursor speed
+  for the plain stick, and the R3 section of the pad settings for cursor mode.
 
 The server half is [`acore-thor-selfhost`](https://github.com/nick-monto/acore-thor-selfhost): install
 it with `thor-install.sh`, then pick this flavor.
