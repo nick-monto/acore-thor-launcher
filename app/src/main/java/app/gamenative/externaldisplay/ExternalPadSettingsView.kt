@@ -369,7 +369,7 @@ class ExternalPadSettingsView(
                         *chunk.map { (label, default) ->
                             val mapped = PadSettings.remapped(label)
                             val shown = PadSettings.displayName(label)
-                            button(if (mapped == null) shown else "$shown → ${comboLabel(mapped)}", active = mapped != null || PadSettings.renamed(label) != null || PadSettings.colorOf(label) != null) {
+                            button(shown, active = mapped != null || PadSettings.renamed(label) != null || PadSettings.colorOf(label) != null) {
                                 showKeyPicker(label, default)
                             }
                         }.toTypedArray(),
