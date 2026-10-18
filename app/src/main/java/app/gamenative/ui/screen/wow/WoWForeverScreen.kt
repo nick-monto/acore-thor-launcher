@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -84,6 +85,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -101,6 +103,10 @@ private const val LOCAL_REALM_ADDRESS = "127.0.0.1"
 
 /** The locale folder the local realm's realmlist.wtf is written into. */
 private const val LOCAL_CLIENT_LOCALE = "enUS"
+
+/** Shown when the realm cannot be started or stopped: it runs in Termux, not in this app. */
+private const val TERMUX_REQUIRED =
+    "Termux did not accept the command. Install Termux (and Termux:API, for the wake lock), then set allow-external-apps = true in ~/.termux/termux.properties."
 
 /** The container key that selects a pad profile; the X server screen reads it as a string. */
 private const val CONTAINER_EXTRA_PROFILE_ID = "profileId"
@@ -159,6 +165,58 @@ fun WoWForeverScreen(
     var showAppUpdatePermissionDialog by remember { mutableStateOf(false) }
     var pendingInstallPermission by remember { mutableStateOf(false) }
     var downloadedApk by remember { mutableStateOf<File?>(null) }
+
+    // The realm lives in Termux, so its state is not ours to remember: probe the ports while this
+    // screen is up, and let a start or stop settle on what the ports say rather than on the intent.
+    var termuxInstalled by remember { mutableStateOf(true) }
+    var serverStatus by remember { mutableStateOf(LocalServer.Status()) }
+    var serverPendingAt by remember { mutableStateOf(0L) }
+    var serverPendingIsStart by remember { mutableStateOf(false) }
+    val serverBusy = serverPendingAt > 0L
+
+    fun startServer() {
+        if (serverBusy) return
+        errorMessage = null
+        if (LocalServer.start(context)) {
+            serverPendingIsStart = true
+            serverPendingAt = System.currentTimeMillis()
+        } else {
+            termuxInstalled = LocalServer.termuxInstalled(context)
+            errorMessage = TERMUX_REQUIRED
+        }
+    }
+
+    fun stopServer() {
+        if (serverBusy) return
+        errorMessage = null
+        if (LocalServer.stop(context)) {
+            serverPendingIsStart = false
+            serverPendingAt = System.currentTimeMillis()
+        } else {
+            termuxInstalled = LocalServer.termuxInstalled(context)
+            errorMessage = TERMUX_REQUIRED
+        }
+    }
+
+    if (flavor.isLocal) {
+        LaunchedEffect(flavor) {
+            termuxInstalled = LocalServer.termuxInstalled(context)
+            while (true) {
+                val probed = withContext(Dispatchers.IO) { LocalServer.probe() }
+                serverStatus = probed
+                if (serverPendingAt > 0L) {
+                    // A start is done when the logon port opens; a stop is done when it closes. The
+                    // deadline is for the rest: the first start after an update imports SQL for a long
+                    // time, and a command Termux silently refused would otherwise spin forever.
+                    val settled = if (serverPendingIsStart) probed.running else !probed.running
+                    if (settled || System.currentTimeMillis() - serverPendingAt > 180_000L) {
+                        serverPendingAt = 0L
+                    }
+                }
+                delay(3000)
+            }
+        }
+    }
 
     suspend fun fetchAppUpdate(manual: Boolean = false): AppUpdater.Release? {
         // With "skip automatic app updates" on, only a manual refresh looks for a new app version.
@@ -510,7 +568,11 @@ fun WoWForeverScreen(
                         )
                         CheckItem(label = "Game Asset Archives (Data/)", ready = files.dataExists)
                         if (flavor.isLocal) {
-                            CheckItem(label = "Local Realm ($LOCAL_REALM_ADDRESS:3724)", ready = true)
+                            CheckItem(
+                                label = "Local Realm ($LOCAL_REALM_ADDRESS:${LocalServer.AUTH_PORT}) - ${serverStatus.label}",
+                                ready = serverStatus.running,
+                                warning = !serverStatus.running,
+                            )
                         } else {
                             CheckItem(
                                 label = if (files.isWrongGame) {
@@ -564,6 +626,76 @@ fun WoWForeverScreen(
                     errorMessage?.let {
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(text = "Error: $it", fontSize = 12.sp, color = WowError, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+
+            if (flavor.isLocal) {
+                Spacer(modifier = Modifier.height(20.dp))
+                WowPanel {
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        SectionTitle("LOCAL SERVER", WowGold)
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            CheckItem(
+                                label = "Logon Server ($LOCAL_REALM_ADDRESS:${LocalServer.AUTH_PORT})",
+                                ready = serverStatus.auth,
+                                warning = !serverStatus.auth,
+                            )
+                            CheckItem(
+                                label = "World Server ($LOCAL_REALM_ADDRESS:${LocalServer.WORLD_PORT})",
+                                ready = serverStatus.world,
+                                warning = serverStatus.auth && !serverStatus.world,
+                            )
+                            CheckItem(
+                                label = if (termuxInstalled) "Termux (this is where the realm runs)" else "Termux is not installed",
+                                ready = termuxInstalled,
+                                warning = !termuxInstalled,
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+                        HorizontalDivider(color = WowFrameInner)
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            PrimaryButton(
+                                text = when {
+                                    serverBusy -> "WORKING..."
+                                    serverStatus.running -> "RESTART SERVER"
+                                    else -> "START SERVER"
+                                },
+                                icon = Icons.Default.PlayArrow,
+                                enabled = !serverBusy && !isLaunching,
+                                onClick = { startServer() },
+                            )
+                            LinkButton(
+                                text = "Stop",
+                                icon = Icons.Default.Stop,
+                                enabled = !serverBusy && serverStatus.running,
+                                onClick = { stopServer() },
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = when {
+                                !termuxInstalled ->
+                                    "The realm runs in Termux, so install Termux (and Termux:API for the wake lock) and set allow-external-apps = true, then start it here."
+                                serverStatus.world ->
+                                    "Both servers are up. The client is pointed at $LOCAL_REALM_ADDRESS:${LocalServer.AUTH_PORT}."
+                                serverStatus.auth ->
+                                    "The logon server is up and the world is still starting. Right after a client update that import can take a while."
+                                serverPendingAt > 0L && serverPendingIsStart ->
+                                    "Asked Termux to start the realm. Starting is slower than restarting."
+                                else ->
+                                    "Start the realm before playing. It keeps running in Termux while you play, and Stop shuts down both servers and the database."
+                            },
+                            fontSize = 11.sp,
+                            color = WowSubtle,
+                            lineHeight = 15.sp,
+                        )
                     }
                 }
             }

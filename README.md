@@ -26,6 +26,7 @@ This uses Blizzard's own **Windows ARM64** WoW clients, so the game itself runs 
 ### Highlights of this fork
 
 - **Five clients in one app:** Forever (beta), Retail, Classic Era, TBC Anniversary and MoP Classic, each with its own game folder, in-app updates and Play button.
+- **Server control for the local flavor:** the AzerothCore panel reports whether the realm's two ports are actually listening and starts, restarts or stops it through Termux, so a self-hosted realm needs no terminal.
 - **Per-game switches on the main screen:** the Thor button pad, forcing WoW's gamepad UI, and R3 mouse/camera toggling can each be set separately for every client.
 - **Thor second-screen button pad:** a touch pad on the bottom screen with a trackpad, keyboard, hotbar-style buttons, three switchable pages of common shortcuts (Interface, Target and Utility), modifier keys, optional Extra Buttons, a scroll area, a Gboard-style keyboard, and a full settings page. Every button can be remapped (including to a key with Shift, Ctrl or Alt), renamed, recolored, reordered and hidden. See [The Thor button pad](#the-thor-button-pad).
 - **Controller mouse mode:** the right stick becomes a cursor on R3, with A/B as clicks, Y/X as scroll up/down and an adjustable speed ramp. R3 toggling can be switched off per game, and then R3 stays a normal button press.
@@ -40,7 +41,7 @@ This uses Blizzard's own **Windows ARM64** WoW clients, so the game itself runs 
 ## Local realm (AzerothCore flavor)
 
 Pick **AzerothCore** in the flavor selector to play a 3.3.5a realm running on the same device instead
-of a Blizzard realm. Four things change for that flavor:
+of a Blizzard realm. Five things change for that flavor:
 
 - **Your client, your files.** Copy a 3.3.5a client (`Wow.exe` + `Data/`, its folder root) anywhere on
   the device and point the launcher at it — there is no Blizzard download and no `.build.info`.
@@ -66,6 +67,14 @@ of a Blizzard realm. Four things change for that flavor:
   buttons do rather than whether the stick works: in cursor mode A/B click and Y/X scroll the interface,
   outside it they send ConsolePort's keys. Stick speed is adjustable in both: the profile's cursor speed
   for the plain stick, and the R3 section of the pad settings for cursor mode.
+
+- **The realm is started from here.** A **LOCAL SERVER** panel shows what is listening on
+  `127.0.0.1:3724` and `127.0.0.1:8085` and starts, restarts or stops the realm through Termux, which
+  is where the realm runs: the installer leaves `start-wow-server.sh` and `stop-wow-server.sh` in
+  Termux's home, and the panel sends them through Termux's `RUN_COMMAND` service. That service is off
+  by default, so Termux needs `allow-external-apps = true` in `~/.termux/termux.properties`; the panel
+  says so when a start produces no port. Status is a port probe rather than a guess about what was
+  asked for, so a realm started by hand in Termux shows up as running, and Stop stops that one too.
 
 The server half is [`acore-thor-selfhost`](https://github.com/nick-monto/acore-thor-selfhost): install
 it with `thor-install.sh`, then pick this flavor.
