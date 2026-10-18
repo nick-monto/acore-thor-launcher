@@ -499,7 +499,13 @@ class ExternalPadSettingsView(
     /** A row of equal-width views. [filler] adds empty cells so a short last row keeps the grid widths. */
     private fun rowOf(vararg views: View, filler: Int = 0): LinearLayout = LinearLayout(context).apply {
         orientation = LinearLayout.HORIZONTAL
-        views.forEach { addView(it) }
+        // Buttons whose labels run to two lines must not shift their neighbours: no baseline alignment, and every
+        // button in a row takes the height of the tallest one.
+        isBaselineAligned = false
+        views.forEach { v ->
+            (v.layoutParams as? LinearLayout.LayoutParams)?.takeIf { v is Button }?.height = ViewGroup.LayoutParams.MATCH_PARENT
+            addView(v)
+        }
         repeat(filler) {
             addView(View(context), LinearLayout.LayoutParams(0, 1, 1f).apply { setMargins(dp(3), 0, dp(3), 0) })
         }
