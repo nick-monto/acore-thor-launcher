@@ -45,7 +45,7 @@ public abstract class WineUtils {
                 missingDrives += "D:" + android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS);
             }
             if (!currentDrives.contains("E:")) {
-                missingDrives += "E:/data/data/app.aynthorwow/storage";
+                missingDrives += "E:/data/data/" + context.getPackageName() + "/storage";
             }
             String updatedDrives = missingDrives + currentDrives;
             container.setDrives(updatedDrives);
@@ -57,7 +57,9 @@ public abstract class WineUtils {
         for (String[] drive : container.drivesIterator()) {
             File linkTarget = new File(drive[1]);
             String path = linkTarget.getAbsolutePath();
-            if (!linkTarget.isDirectory() && path.endsWith("/app.aynthorwow/storage")) {
+            // The E: drive is this app's own private storage, keyed off the installed package name (not a
+            // literal), so a cloned or repackaged build still gets its directory instead of a dangling link.
+            if (!linkTarget.isDirectory() && path.endsWith("/" + context.getPackageName() + "/storage")) {
                 linkTarget.mkdirs();
                 FileUtils.chmod(linkTarget, 0771);
             }

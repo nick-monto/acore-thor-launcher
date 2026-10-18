@@ -86,7 +86,7 @@ enum class WowFlavor(
         // 3.3.5a keeps Wow.exe, Data/ and WTF/ together at the client root, so "." is that root.
         dir = ".",
         exeNames = listOf("Wow.exe"),
-        portal = "us",                  // unused: RealmList comes from realmlist.wtf, not Config.wtf
+        portal = "us", // unused: RealmList comes from realmlist.wtf, not Config.wtf
         defaultFolder = "AzerothCore 3.3.5a",
     ),
     ;
@@ -122,15 +122,16 @@ enum class WowFlavor(
     val gameName get() = if (isLocal) "AzerothCore 3.3.5a" else "World of Warcraft $shortName"
 
     /**
-     * The ARM64 client in this flavor's folder. Blizzard's exe names differ per product, so after
-     * the known names this falls back to any ARM64 .exe the CDN download put there.
-     */
-    /**
      * The folder holding this flavor's client under the install root. Blizzard's flavors live in their
      * `_product_` subfolder; a 3.3.5a client keeps `Wow.exe`, `Data/` and `WTF/` at the root itself.
      */
     fun clientDir(root: File): File = if (isLocal) root else File(root, dir)
 
+    /**
+     * The client in this flavor's folder. Blizzard's exe names differ per product, so after the known
+     * names this falls back to any ARM64 .exe the CDN download put there - or, for the local flavor,
+     * to any `Wow*.exe`, since its client is a 32-bit `Wow.exe`.
+     */
     fun exeFile(root: File): File {
         val flavorDir = clientDir(root)
         exeNames.map { File(flavorDir, it) }.firstOrNull { it.isFile }?.let { return it }

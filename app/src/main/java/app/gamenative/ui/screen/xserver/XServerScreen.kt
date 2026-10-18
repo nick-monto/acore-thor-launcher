@@ -3905,7 +3905,13 @@ private fun getWineStartCommand(
         "\"A:\\${normalizedPath}\""
     }
 
-    return if (args.contains("ARM64", ignoreCase = true)) args else "winhandler.exe $args"
+    // The absolute non-ARM64 path above came back already wrapped in winhandler.exe (the route a 32-bit
+    // client like Wow.exe takes); wrapping it again would tell winhandler to run winhandler.
+    return if (args.contains("ARM64", ignoreCase = true) || args.startsWith("winhandler.exe")) {
+        args
+    } else {
+        "winhandler.exe $args"
+    }
 }
 private fun exit(
     winHandler: WinHandler?,

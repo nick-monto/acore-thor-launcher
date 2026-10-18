@@ -48,8 +48,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import app.gamenative.BuildConfig
-import app.gamenative.R
 import app.gamenative.PluviaApp
+import app.gamenative.R
 import app.gamenative.events.AndroidEvent
 import app.gamenative.ui.screen.wow.WowClientDownloader.BUILD_INFO
 import app.gamenative.ui.screen.wow.WowClientDownloader.FLAVOR_DIR
@@ -482,8 +482,12 @@ fun WoWForeverScreen(
                             CheckItem(label = "Local Realm ($LOCAL_REALM_ADDRESS:3724)", ready = true)
                         } else {
                             CheckItem(
-                                label = if (files.isWrongGame) "Install Info ($BUILD_INFO - requires $TARGET_PRODUCT)" else "Install Info ($BUILD_INFO)",
-                                ready = files.buildInfoExists && !files.isWrongGame
+                                label = if (files.isWrongGame) {
+                                    "Install Info ($BUILD_INFO - requires $TARGET_PRODUCT)"
+                                } else {
+                                    "Install Info ($BUILD_INFO)"
+                                },
+                                ready = files.buildInfoExists && !files.isWrongGame,
                             )
                         }
                         CheckItem(label = "All Files Access Permission", ready = files.hasStorageAccess)
@@ -962,8 +966,11 @@ object GamePath {
         val hasStorageAccess: Boolean = true,
     ) {
         val isWrongGame get() = requiresBuildInfo && buildInfoExists && product.isNotBlank() && product != TARGET_PRODUCT
-        val isReady get() = exeExists && dataExists && hasStorageAccess &&
-            (!requiresBuildInfo || buildInfoExists) && !isWrongGame
+        val isReady get() = exeExists &&
+            dataExists &&
+            hasStorageAccess &&
+            (!requiresBuildInfo || buildInfoExists) &&
+            !isWrongGame
     }
 
     fun status(context: Context, path: String): Status {
@@ -1002,12 +1009,19 @@ object GamePath {
     }
 
     fun isReady(context: Context, path: String = load(context)): Boolean =
-        path.isNotEmpty() && status(context, path).let {
-            it.isReady && (WowFlavor.current.isLocal || it.product == TARGET_PRODUCT)
-        }
+        path.isNotEmpty() &&
+            status(context, path).let {
+                it.isReady && (WowFlavor.current.isLocal || it.product == TARGET_PRODUCT)
+            }
 
     fun findGameRoot(picked: File): File? =
-        sequenceOf(picked, picked.parentFile, File(picked, WowFlavor.current.defaultFolder), File(picked, "WoW Forever"), File(picked, "World of Warcraft"))
+        sequenceOf(
+            picked,
+            picked.parentFile,
+            File(picked, WowFlavor.current.defaultFolder),
+            File(picked, "WoW Forever"),
+            File(picked, "World of Warcraft"),
+        )
             .filterNotNull()
             .firstOrNull {
                 if (WowFlavor.current.isLocal) {
@@ -1086,7 +1100,8 @@ private fun LaunchSwitches(
 
 @Composable
 private fun FlavorSelector(selected: WowFlavor, enabled: Boolean, onSelect: (WowFlavor) -> Unit) {
-    // Top row: Forever, Retail, Classic. Tapping Classic opens a second row with the three Classic products.
+    // Top row: Forever, Retail, Classic. The second row carries the three Classic products when a
+    // Classic flavor is selected, and the local realm otherwise, so every flavor stays one tap away.
     val top = listOf(WowFlavor.FOREVER, WowFlavor.RETAIL, WowFlavor.CLASSIC_ERA)
     val classic = listOf(WowFlavor.CLASSIC_ERA, WowFlavor.CLASSIC_ANNIVERSARY, WowFlavor.CLASSIC_MOP)
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.alpha(if (enabled) 1f else 0.5f)) {
@@ -1097,10 +1112,18 @@ private fun FlavorSelector(selected: WowFlavor, enabled: Boolean, onSelect: (Wow
             enabled = enabled,
             onSelect = { if (it.isClassic && selected.isClassic) Unit else onSelect(it) },
         )
+        Spacer(modifier = Modifier.height(6.dp))
         if (selected.isClassic) {
-            Spacer(modifier = Modifier.height(6.dp))
             FlavorButtonRow(
                 items = classic,
+                text = { it.shortName.uppercase() },
+                isSelected = { it == selected },
+                enabled = enabled,
+                onSelect = onSelect,
+            )
+        } else {
+            FlavorButtonRow(
+                items = listOf(WowFlavor.LOCAL_AC),
                 text = { it.shortName.uppercase() },
                 isSelected = { it == selected },
                 enabled = enabled,
@@ -1121,9 +1144,10 @@ private fun FlavorButtonRow(
     Row {
         items.forEachIndexed { index, flavor ->
             val selected = isSelected(flavor)
-            val shape = when (index) {
-                0 -> RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp)
-                items.lastIndex -> RoundedCornerShape(topEnd = 8.dp, bottomEnd = 8.dp)
+            val shape = when {
+                items.size == 1 -> RoundedCornerShape(8.dp)
+                index == 0 -> RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp)
+                index == items.lastIndex -> RoundedCornerShape(topEnd = 8.dp, bottomEnd = 8.dp)
                 else -> RoundedCornerShape(0.dp)
             }
             val faces = if (selected) listOf(WowBronze, Color(0xFF462C0C)) else listOf(Color(0xFF28201A), Color(0xFF16110E))
@@ -1272,6 +1296,7 @@ private const val DEFAULT_DRIVER = "Turnip-WoW-scheduler-test"
 private const val ADRENO_8XX_DRIVER = "Turnip-V32-RP6sched"
 private const val PROTON_VERSION = "proton-11.0-90624-arm64ec"
 private const val DXVK_VERSION = "2.4.1-wow-aarch64-test"
+
 /** The shipped profile installs no WinComponents: every DLL comes from the bundled runtime. */
 private const val WINCOMPONENTS_OFF =
     "direct3d=0,directsound=0,directinput8=0,directinput=0,directmusic=0,directshow=0," +
@@ -1355,8 +1380,11 @@ private fun prepareLaunch(context: Context, gameRoot: File, gpu: GpuProfile, onS
     }
     // Second display (if any) shows the 12-button action bar pad when its switch is on.
     container.setExternalDisplayMode(
-        if (ButtonPad.isEnabled(context, WowFlavor.current)) Container.EXTERNAL_DISPLAY_MODE_BUTTONS
-        else Container.EXTERNAL_DISPLAY_MODE_OFF,
+        if (ButtonPad.isEnabled(context, WowFlavor.current)) {
+            Container.EXTERNAL_DISPLAY_MODE_BUTTONS
+        } else {
+            Container.EXTERNAL_DISPLAY_MODE_OFF
+        },
     )
     container.saveData()
     return flavor.containerId
