@@ -643,7 +643,7 @@ class ExternalPadSettingsView(
     }
 
     private companion object {
-        private const val MAX_NAME = 12
+        private const val MAX_NAME = Int.MAX_VALUE
 
         /** Trim colors offered per button; "Default" keeps the gold. */
         private val COLOR_CHOICES = listOf(
