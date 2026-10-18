@@ -443,7 +443,7 @@ class ExternalPadSettingsView(
             }
         }
         section("Keys") {
-            addView(note("Optional: add Shift, Ctrl or Alt to the key (pick them first, then the key). To make a button act as a modifier key itself, choose Shift, Ctrl or Alt from the keys below."))
+            addView(note("Optional: add Shift, Ctrl or Alt to the key (pick them first, then the key). To make a button hold modifiers on their own (one or several at once), pick them above and tap "Use the modifiers above on their own"; a single one can also be chosen from the keys below."))
             addView(
                 rowOf(
                     *KeyCombo.MODIFIERS.map { (name, _) ->
@@ -453,6 +453,19 @@ class ExternalPadSettingsView(
                         }
                     }.toTypedArray(),
                     filler = 3,
+                ),
+            )
+            addView(
+                rowOf(
+                    button("Use the modifiers above on their own") {
+                        // Shift, Ctrl and Alt together: the first one picked is the key, the rest go along as its modifiers.
+                        val chosen = KeyCombo.MODIFIERS.filter { it.first in pickerMods }
+                        if (chosen.isNotEmpty()) {
+                            val keyMod = chosen.first()
+                            PadSettings.setRemap(label, KeyCombo.encode(keyMod.second.name, chosen.drop(1).map { it.first }.toSet()))
+                            showRemap()
+                        }
+                    },
                 ),
             )
             val current = PadSettings.remapped(label)
