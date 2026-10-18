@@ -72,6 +72,8 @@ data class PadTheme(
         numbers: Boolean = false,
         /** A user-chosen trim color replacing the gold. */
         accent: Int? = null,
+        /** How strong the outline is, 0 (faded into the key face) to 1 (normal). */
+        edgeLevel: Float = 1f,
     ): Drawable {
         val edge = accent ?: border
         val edgeInner = if (accent != null) blend(accent, keyBottom, 0.55f) else borderInner
@@ -92,14 +94,15 @@ data class PadTheme(
                 dim -> borderMuted(edge)
                 else -> edge
             }
-            setStroke((strokeDp * density).toInt(), strokeColor)
+            setStroke((strokeDp * density).toInt(), if (edgeLevel < 1f) blend(strokeColor, bottom, 1f - edgeLevel) else strokeColor)
         }
         val inner = GradientDrawable().apply {
             cornerRadius = (radiusDp - 2).coerceAtLeast(2f) * density
             setColor(Color.TRANSPARENT)
             setStroke(
                 density.toInt().coerceAtLeast(1),
-                if (custom) blend(borderInnerMuted(edgeInner), edgeInner, outline) else if (dim) borderInnerMuted(edgeInner) else edgeInner,
+                (if (custom) blend(borderInnerMuted(edgeInner), edgeInner, outline) else if (dim) borderInnerMuted(edgeInner) else edgeInner)
+                    .let { if (edgeLevel < 1f) blend(it, bottom, 1f - edgeLevel) else it },
             )
         }
         val inset = (3 * density).toInt()

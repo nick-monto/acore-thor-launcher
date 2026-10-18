@@ -74,6 +74,8 @@ object PadSettings {
     const val HAPTICS = "haptics"
     const val KB_POPUP = "kb_popup"
     const val KB_HEIGHT = "kb_height"
+    /** How strong the outline of the keyboard keys is, in percent. */
+    const val KB_BORDER = "kb_border"
     const val KB_CAPS_MS = "kb_caps_ms"
     const val KB_POPUP_MS = "kb_popup_ms"
     const val DOUBLE_TAP_MS = "double_tap_ms"
@@ -157,6 +159,7 @@ object PadSettings {
         HAPTICS to 2,
         KB_POPUP to true,
         KB_HEIGHT to 100,
+        KB_BORDER to 100,
         KB_CAPS_MS to 350,
         KB_POPUP_MS to 50,
         DOUBLE_TAP_MS to 350,

@@ -119,6 +119,7 @@ class ExternalPadSettingsView(
             addView(toggleRow(listOf("Pop-up when a key is pressed" to PadSettings.KB_POPUP)))
             addView(sliderRow("Pop-up hold time", PadSettings.KB_POPUP_MS, 0, 300) { if (it == 0) "Off" else "$it ms" })
             addView(sliderRow("Key height", PadSettings.KB_HEIGHT, 70, 110) { "$it%" })
+            addView(sliderRow("Key border intensity", PadSettings.KB_BORDER, 0, 100) { "$it%" })
             addView(sliderRow("Caps double-tap time", PadSettings.KB_CAPS_MS, 150, 600) { "$it ms" })
             addView(note("100% is the standard key height, applied the next time the keyboard opens. Double-tap the Shift key within the double-tap time to switch Caps on or off."))
         }
