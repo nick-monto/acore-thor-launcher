@@ -214,6 +214,13 @@ class ExternalActionPad(
                 // Side by side: no page tabs. The three buttons live at the top of the pad's right column;
                 // this header only shows (with the buttons in it) while the trackpad, keyboard or settings are open.
                 gravity = Gravity.END or Gravity.CENTER_VERTICAL
+                // The empty space where the tabs would be names the screen that is open.
+                modeTitle = pageTab("") {}.apply {
+                    isClickable = false
+                    background = theme.buttonBackground(density, 12f, true, muted = true)
+                    setTextColor(theme.textPressed)
+                }
+                addView(modeTitle)
             } else if (PadSettings.bool(PadSettings.SWAP_TABS)) {
                 // "Swap sides (tabs on the right)" puts the three mode buttons first.
                 modeButtons.forEach { addView(it) }
@@ -277,6 +284,7 @@ class ExternalActionPad(
     private fun m3() = (3 * density).toInt()
 
     private lateinit var headerView: LinearLayout
+    private lateinit var modeTitle: TextView
     private lateinit var padModeRow: LinearLayout
 
     /**
@@ -294,6 +302,12 @@ class ExternalActionPad(
                 else LayoutParams((52 * density).toInt(), (44 * density).toInt()).apply { setMargins(m3(), 0, m3(), 0) }
                 target.addView(b)
             }
+        }
+        modeTitle.text = when {
+            settingsOpen -> "Settings"
+            trackpadPanel.visibility == View.VISIBLE -> "Trackpad"
+            keyboardView.visibility == View.VISIBLE -> "Keyboard"
+            else -> ""
         }
         headerView.visibility = if (onPad) View.GONE else View.VISIBLE
     }
