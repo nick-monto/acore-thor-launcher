@@ -56,7 +56,7 @@ class ExternalPadSettingsView(
             addView(toggleRow(listOf("Swap sides (tabs on the right)" to PadSettings.SWAP_TABS)))
             addView(toggleRow(listOf("Show all pages side by side" to PadSettings.SIDE_BY_SIDE)))
             addView(note("Side by side puts Interface, Target and Utility next to each other in one column each. The tabs become captions, and the page area is made wider. Hide buttons you do not use under \"Buttons shown\" to give the rest more room."))
-            addView(sliderRow("Page area width", PadSettings.PAGE_WIDTH, 60, 300) { "$it%" })
+            addView(sliderRow("Page area width", PadSettings.PAGE_WIDTH, 60, 200) { "$it%" })
             addView(note("Order of the panels in the right-hand column, top to bottom. Panels that are switched off are skipped."))
             val panelList = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
             addView(panelList)
