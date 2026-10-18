@@ -155,7 +155,8 @@ class ExternalActionBarView(
         if (PadSettings.bool(PadSettings.SIDE_BY_SIDE)) {
             // All pages at once, one column each.
             PAGES.forEach { page ->
-                val slots = orderedSlots(page.id, page.slots).filter { !PadSettings.isHidden(it.label) }
+                // Hidden buttons do not count; only the first 8 of the rest fit in a column.
+                val slots = orderedSlots(page.id, page.slots).filter { !PadSettings.isHidden(it.label) }.take(SIDE_BY_SIDE_MAX)
                 pageHost.addView(
                     group(vertical = true, strong = false).apply {
                         layoutParams = LayoutParams(0, LayoutParams.MATCH_PARENT, 1f).apply { setMargins(dp(3), dp(3), dp(3), dp(3)) }
@@ -402,6 +403,9 @@ class ExternalActionBarView(
             LEFT_WEIGHT * PadSettings.int(PadSettings.PAGE_WIDTH) / 100f * (if (PadSettings.bool(PadSettings.SIDE_BY_SIDE)) SIDE_BY_SIDE_WIDEN else 1f)
 
         private const val SIDE_BY_SIDE_WIDEN = 1.5f
+
+        /** Most buttons one side-by-side column shows. */
+        private const val SIDE_BY_SIDE_MAX = 8
 
         // Width split between the page area and the number/modifier block.
         // A smaller RIGHT_WEIGHT squeezes that block toward the right edge, within reach of a right thumb.
