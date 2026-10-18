@@ -79,13 +79,29 @@ enum class WowFlavor(
         portal = "us",
         defaultFolder = "World of Warcraft",
     ),
+    LOCAL_AC(
+        label = "AzerothCore",
+        subtitle = "SELF-HOSTED 3.3.5A (32-BIT)",
+        product = "wow_ac_335",
+        // 3.3.5a keeps Wow.exe, Data/ and WTF/ together at the client root, so "." is that root.
+        dir = ".",
+        exeNames = listOf("Wow.exe"),
+        portal = "us",                  // unused: RealmList comes from realmlist.wtf, not Config.wtf
+        defaultFolder = "AzerothCore 3.3.5a",
+    ),
     ;
+
+    /** True for the self-hosted AzerothCore flavor: no Battle.net, no CDN, no `.build.info`, no region. */
+    val isLocal get() = this == LOCAL_AC
+
+    /** Each flavor boots in its own container, so the two very different Wine profiles never mix. */
+    val containerId get() = if (isLocal) "ac_thor_335" else "wow_forever"
 
     /** True for the three Classic products, which share the Classic button and its second row. */
     val isClassic get() = this == CLASSIC_ERA || this == CLASSIC_ANNIVERSARY || this == CLASSIC_MOP
 
-    /** Forever runs on Blizzard's test servers, so it has no region choice. */
-    val hasRegion get() = this != FOREVER
+    /** Forever runs on Blizzard's test servers and a local realm has one address, so neither picks a region. */
+    val hasRegion get() = this != FOREVER && !isLocal
 
     /** The `portal` for Config.wtf: the chosen region, or the fixed test portal for Forever. */
     val activePortal get() = if (hasRegion) WowFlavor.region.code else portal
@@ -99,20 +115,31 @@ enum class WowFlavor(
         CLASSIC_ERA -> "Classic Era"
         CLASSIC_ANNIVERSARY -> "TBC Anniversary"
         CLASSIC_MOP -> "MoP Classic"
+        LOCAL_AC -> "AzerothCore"
     }
 
     /** Full name shown while the game boots. */
-    val gameName get() = "World of Warcraft $shortName"
+    val gameName get() = if (isLocal) "AzerothCore 3.3.5a" else "World of Warcraft $shortName"
 
     /**
      * The ARM64 client in this flavor's folder. Blizzard's exe names differ per product, so after
      * the known names this falls back to any ARM64 .exe the CDN download put there.
      */
+    /**
+     * The folder holding this flavor's client under the install root. Blizzard's flavors live in their
+     * `_product_` subfolder; a 3.3.5a client keeps `Wow.exe`, `Data/` and `WTF/` at the root itself.
+     */
+    fun clientDir(root: File): File = if (isLocal) root else File(root, dir)
+
     fun exeFile(root: File): File {
-        val flavorDir = File(root, dir)
+        val flavorDir = clientDir(root)
         exeNames.map { File(flavorDir, it) }.firstOrNull { it.isFile }?.let { return it }
+        // The local flavor's client is 32-bit and named Wow.exe; Blizzard's flavors ship *-ARM64.exe.
+        val wanted = { name: String ->
+            if (isLocal) name.startsWith("wow", ignoreCase = true) else name.contains("arm64", ignoreCase = true)
+        }
         flavorDir.listFiles()
-            ?.filter { it.isFile && it.name.endsWith(".exe", ignoreCase = true) && it.name.contains("arm64", ignoreCase = true) }
+            ?.filter { it.isFile && it.name.endsWith(".exe", ignoreCase = true) && wanted(it.name) }
             ?.firstOrNull { exe -> listOf("launcher", "crash", "error").none { exe.name.contains(it, ignoreCase = true) } }
             ?.let { return it }
         return File(flavorDir, exeName)

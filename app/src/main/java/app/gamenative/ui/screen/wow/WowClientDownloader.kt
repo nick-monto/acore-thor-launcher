@@ -48,6 +48,8 @@ object WowClientDownloader {
         runCatching { activeBuild(buildInfo) }.getOrNull()
 
     fun checkVersion(gameRoot: File): VersionCheckResult? {
+        // A local realm has no Battle.net patch server, so there is nothing to check or update.
+        if (WowFlavor.current.isLocal) return null
         val row = runCatching { activeBuild(File(gameRoot, BUILD_INFO)) }.getOrElse {
             Timber.w(it, "checkVersion: no readable $BUILD_INFO in $gameRoot")
             return null
@@ -129,6 +131,7 @@ object WowClientDownloader {
     }
 
     fun download(gameRoot: File, onStatus: (String) -> Unit) {
+        check(!WowFlavor.current.isLocal) { "The local AzerothCore flavor has no Blizzard CDN to download from." }
         val row = activeBuild(File(gameRoot, BUILD_INFO))
         check(row["Product"] == TARGET_PRODUCT) { "Incompatible game product: ${row["Product"]}. Expected $TARGET_PRODUCT." }
         val latest = checkVersion(gameRoot)

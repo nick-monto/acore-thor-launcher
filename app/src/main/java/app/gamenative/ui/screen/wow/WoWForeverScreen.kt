@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import app.gamenative.BuildConfig
+import app.gamenative.R
 import app.gamenative.PluviaApp
 import app.gamenative.events.AndroidEvent
 import app.gamenative.ui.screen.wow.WowClientDownloader.BUILD_INFO
@@ -85,8 +86,13 @@ object WoWLauncherState {
     var shouldAutoLaunch = false
 }
 
-private const val CONTAINER_ID = "wow_forever"
 private const val READY_STATUS = "Ready to launch"
+
+/** Where a local realm's client looks for its logon server: loopback, because the server is this device. */
+private const val LOCAL_REALM_ADDRESS = "127.0.0.1"
+
+/** The locale folder the local realm's realmlist.wtf is written into. */
+private const val LOCAL_CLIENT_LOCALE = "enUS"
 
 @Composable
 fun WoWForeverScreen(
@@ -107,8 +113,9 @@ fun WoWForeverScreen(
     var launchJob by remember { mutableStateOf<Job?>(null) }
     var hasSavedLogin by remember { mutableStateOf(BattleNetSignIn.load(context) != null) }
     var autoLogin by remember { mutableStateOf(BattleNetSignIn.autoLoginEnabled(context)) }
-    // Ready to play: either a login is saved, or auto-login is off and you sign in by hand.
-    val loginReady = hasSavedLogin || !autoLogin
+    // Ready to play: a local realm has no Battle.net login at all; otherwise a login is saved,
+    // or auto-login is off and you sign in by hand.
+    val loginReady = flavor.isLocal || hasSavedLogin || !autoLogin
     var showLoginDialog by remember { mutableStateOf(false) }
     var statusText by remember { mutableStateOf(READY_STATUS) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -184,7 +191,8 @@ fun WoWForeverScreen(
     }
 
     fun checkVersionStatus() {
-        if (!File(gamePath, BUILD_INFO).exists()) return
+        // Nothing to compare a local realm against: there is no Blizzard patch server in the path.
+        if (flavor.isLocal || !File(gamePath, BUILD_INFO).exists()) return
         scope.launch { fetchVersionStatus() }
     }
 
@@ -253,7 +261,7 @@ fun WoWForeverScreen(
                 statusText = READY_STATUS
                 denyStorageAccess()
             } catch (e: Exception) {
-                Timber.e(e, "Error launching WoW Forever")
+                Timber.e(e, "Error launching the WoW client")
                 errorMessage = e.message ?: "Launch failed"
                 statusText = "Launch failed"
                 isLaunching = false
@@ -295,7 +303,11 @@ fun WoWForeverScreen(
         val path = StorageUtils.getPathFromTreeUri(context, uri) ?: return@rememberLauncherForActivityResult
         val root = GamePath.findGameRoot(File(path))
         if (root == null) {
-            errorMessage = "No $BUILD_INFO found in $path. Pick the folder that contains $BUILD_INFO and Data/."
+            errorMessage = if (flavor.isLocal) {
+                "No ${flavor.exeName} and Data/ in $path. Pick the folder that holds your 3.3.5a client."
+            } else {
+                "No $BUILD_INFO found in $path. Pick the folder that contains $BUILD_INFO and Data/."
+            }
             return@rememberLauncherForActivityResult
         }
         errorMessage = null
@@ -310,7 +322,12 @@ fun WoWForeverScreen(
         }
     }
 
-    val filesMissing = !(files.dataExists && files.buildInfoExists)
+    // A local client carries no .build.info: its binary plus Data/ are the whole readiness test.
+    val filesMissing = if (flavor.isLocal) {
+        !(files.exeExists && files.dataExists)
+    } else {
+        !(files.dataExists && files.buildInfoExists)
+    }
     val canUpdate = !isLaunching && !isUpdating && !filesMissing && !files.isWrongGame
     // The game won't start until auto-login is set up or switched off.
     val canPlay = canUpdate && loginReady && files.hasStorageAccess
@@ -348,8 +365,10 @@ fun WoWForeverScreen(
     }
 
     LaunchedEffect(gamePath) {
-        // A previous run may have been killed before the login file was removed.
-        withContext(Dispatchers.IO) { BattleNetSignIn.removeLoginFile(File(gamePath)) }
+        // A previous run may have been killed before the login file was removed. A local realm has none.
+        if (!flavor.isLocal) {
+            withContext(Dispatchers.IO) { BattleNetSignIn.removeLoginFile(File(gamePath)) }
+        }
         val ready = checkFiles()
         if (!files.hasStorageAccess && (files.dataExists || files.buildInfoExists)) {
             showStoragePermissionDialog = true
@@ -399,7 +418,7 @@ fun WoWForeverScreen(
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Spacer(modifier = Modifier.height(20.dp))
                 Text(
-                    text = "WORLD OF WARCRAFT",
+                    text = if (flavor.isLocal) "AZEROTHCORE" else "WORLD OF WARCRAFT",
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Black,
                     fontFamily = FontFamily.Serif,
@@ -449,24 +468,35 @@ fun WoWForeverScreen(
 
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         CheckItem(
-                            label = if (files.exeExists) "ARM64 Binary (${files.exeName})" else "ARM64 Binary (downloads on Play)",
+                            label = when {
+                                flavor.isLocal && files.exeExists -> "Client Binary (${files.exeName})"
+                                flavor.isLocal -> "Client Binary (copy your 3.3.5a client here)"
+                                files.exeExists -> "ARM64 Binary (${files.exeName})"
+                                else -> "ARM64 Binary (downloads on Play)"
+                            },
                             ready = files.exeExists,
                             warning = !files.exeExists,
                         )
                         CheckItem(label = "Game Asset Archives (Data/)", ready = files.dataExists)
-                        CheckItem(
-                            label = if (files.isWrongGame) "Install Info ($BUILD_INFO - requires $TARGET_PRODUCT)" else "Install Info ($BUILD_INFO)",
-                            ready = files.buildInfoExists && !files.isWrongGame
-                        )
+                        if (flavor.isLocal) {
+                            CheckItem(label = "Local Realm ($LOCAL_REALM_ADDRESS:3724)", ready = true)
+                        } else {
+                            CheckItem(
+                                label = if (files.isWrongGame) "Install Info ($BUILD_INFO - requires $TARGET_PRODUCT)" else "Install Info ($BUILD_INFO)",
+                                ready = files.buildInfoExists && !files.isWrongGame
+                            )
+                        }
                         CheckItem(label = "All Files Access Permission", ready = files.hasStorageAccess)
-                        CheckItem(
-                            label = when {
-                                !autoLogin -> "Battle.net Login (Auto-login off, sign in by hand)"
-                                hasSavedLogin -> "Battle.net Login (Configured)"
-                                else -> "Battle.net Login (Configure below, or turn off auto-login)"
-                            },
-                            ready = loginReady,
-                        )
+                        if (!flavor.isLocal) {
+                            CheckItem(
+                                label = when {
+                                    !autoLogin -> "Battle.net Login (Auto-login off, sign in by hand)"
+                                    hasSavedLogin -> "Battle.net Login (Configured)"
+                                    else -> "Battle.net Login (Configure below, or turn off auto-login)"
+                                },
+                                ready = loginReady,
+                            )
+                        }
                         appUpdate?.let {
                             CheckItem(
                                 label = "App Build: v${BuildConfig.VERSION_NAME} (v${it.version} available)",
@@ -654,7 +684,10 @@ fun WoWForeverScreen(
                     if (!filesMissing) {
                         LinkButton("Change Location", Icons.Default.FolderOpen, enabled = !busy) { folderPicker.launch(null) }
                     }
-                    if (autoLogin) {
+                    if (flavor.isLocal) {
+                        // A local realm has no Battle.net credentials to configure: its account is created
+                        // in the worldserver console (see the server half's runbook).
+                    } else if (autoLogin) {
                         LinkButton(
                             text = if (hasSavedLogin) "Update Login" else "Configure Login",
                             icon = Icons.Default.Key,
@@ -714,22 +747,24 @@ fun WoWForeverScreen(
                     }
                     .padding(vertical = 8.dp),
             )
-            Text(
-                text = "Region: ${region.name} (tap to change)",
-                fontSize = 11.sp,
-                color = WowSubtle,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(enabled = !isLaunching && !isUpdating) {
-                        region = region.next
-                        WowFlavor.setRegion(context, region)
-                        // A different region has its own servers and game build, so check again.
-                        versionStatus = null
-                        checkVersionStatus()
-                    }
-                    .padding(vertical = 8.dp),
-            )
+            if (flavor.hasRegion) {
+                Text(
+                    text = "Region: ${region.name} (tap to change)",
+                    fontSize = 11.sp,
+                    color = WowSubtle,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = !isLaunching && !isUpdating) {
+                            region = region.next
+                            WowFlavor.setRegion(context, region)
+                            // A different region has its own servers and game build, so check again.
+                            versionStatus = null
+                            checkVersionStatus()
+                        }
+                        .padding(vertical = 8.dp),
+                )
+            }
             Spacer(modifier = Modifier.height(8.dp))
         }
     }
@@ -753,7 +788,9 @@ fun WoWForeverScreen(
             title = { Text(text = "Storage Permission Required", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = WowGold) },
             text = {
                 Text(
-                    text = "Android requires 'All files access' for WoW Forever to read and update game files in this directory.\n\nPlease enable 'Allow access to manage all files' on the next screen.",
+                    text = "Android requires 'All files access' for ${context.getString(R.string.app_name)} " +
+                        "to read and update game files in this directory.\n\n" +
+                        "Please enable 'Allow access to manage all files' on the next screen.",
                     fontSize = 13.sp,
                     color = WowCream,
                     lineHeight = 18.sp
@@ -871,7 +908,9 @@ fun WoWForeverScreen(
             },
             text = {
                 Text(
-                    text = "Android requires permission to install apps from WoW Forever.\n\nPlease enable 'Allow from this source' on the next screen.",
+                    text = "Android requires permission to install apps from " +
+                        "${context.getString(R.string.app_name)}.\n\n" +
+                        "Please enable 'Allow from this source' on the next screen.",
                     fontSize = 13.sp,
                     color = WowCream,
                     lineHeight = 18.sp,
@@ -917,11 +956,14 @@ object GamePath {
         val exeName: String = "",
         val dataExists: Boolean = false,
         val buildInfoExists: Boolean = false,
+        /** False for the local flavor: a 3.3.5a client has no .build.info and no Blizzard product. */
+        val requiresBuildInfo: Boolean = true,
         val product: String = "",
         val hasStorageAccess: Boolean = true,
     ) {
-        val isWrongGame get() = buildInfoExists && product.isNotBlank() && product != TARGET_PRODUCT
-        val isReady get() = exeExists && dataExists && buildInfoExists && hasStorageAccess && !isWrongGame
+        val isWrongGame get() = requiresBuildInfo && buildInfoExists && product.isNotBlank() && product != TARGET_PRODUCT
+        val isReady get() = exeExists && dataExists && hasStorageAccess &&
+            (!requiresBuildInfo || buildInfoExists) && !isWrongGame
     }
 
     fun status(context: Context, path: String): Status {
@@ -932,6 +974,7 @@ object GamePath {
             exeName = exe.name,
             dataExists = File(root, "Data").listFiles()?.isNotEmpty() == true,
             buildInfoExists = File(root, BUILD_INFO).isFile,
+            requiresBuildInfo = !WowFlavor.current.isLocal,
             product = productOf(root).orEmpty(),
             hasStorageAccess = StorageUtils.hasStoragePermission(context, path),
         )
@@ -943,7 +986,14 @@ object GamePath {
         val saved = prefs.getString(pathKey(), null)?.let(::File)
         // A single Battle.net-style folder can hold several products, so the other flavors' folders are candidates too.
         val others = WowFlavor.entries.mapNotNull { prefs.getString(pathKey(it), null)?.let(::File) }
-        val usable = (listOfNotNull(saved, defaultPath) + others).firstOrNull { productOf(it) == TARGET_PRODUCT }
+        val usable = if (WowFlavor.current.isLocal) {
+            // No .build.info to go by: a local client is the folder that holds Wow.exe and Data/.
+            (listOfNotNull(saved, defaultPath) + others).firstOrNull { candidate ->
+                File(candidate, "Data").isDirectory && WowFlavor.current.exeFile(candidate).exists()
+            }
+        } else {
+            (listOfNotNull(saved, defaultPath) + others).firstOrNull { productOf(it) == TARGET_PRODUCT }
+        }
         return (usable ?: saved ?: defaultPath).absolutePath
     }
 
@@ -952,12 +1002,20 @@ object GamePath {
     }
 
     fun isReady(context: Context, path: String = load(context)): Boolean =
-        path.isNotEmpty() && status(context, path).let { it.isReady && it.product == TARGET_PRODUCT }
+        path.isNotEmpty() && status(context, path).let {
+            it.isReady && (WowFlavor.current.isLocal || it.product == TARGET_PRODUCT)
+        }
 
     fun findGameRoot(picked: File): File? =
         sequenceOf(picked, picked.parentFile, File(picked, WowFlavor.current.defaultFolder), File(picked, "WoW Forever"), File(picked, "World of Warcraft"))
             .filterNotNull()
-            .firstOrNull { File(it, BUILD_INFO).isFile }
+            .firstOrNull {
+                if (WowFlavor.current.isLocal) {
+                    File(it, "Data").isDirectory && WowFlavor.current.exeFile(it).exists()
+                } else {
+                    File(it, BUILD_INFO).isFile
+                }
+            }
 
     private fun productOf(root: File) = WowClientDownloader.readBuildInfo(File(root, BUILD_INFO))?.get("Product")
 }
@@ -1214,6 +1272,10 @@ private const val DEFAULT_DRIVER = "Turnip-WoW-scheduler-test"
 private const val ADRENO_8XX_DRIVER = "Turnip-V32-RP6sched"
 private const val PROTON_VERSION = "proton-11.0-90624-arm64ec"
 private const val DXVK_VERSION = "2.4.1-wow-aarch64-test"
+/** The shipped profile installs no WinComponents: every DLL comes from the bundled runtime. */
+private const val WINCOMPONENTS_OFF =
+    "direct3d=0,directsound=0,directinput8=0,directinput=0,directmusic=0,directshow=0," +
+        "directplay=0,vcrun2010=0,wmdecoder=0,opengl=0"
 
 private data class GpuProfile(val driver: String, val tuDebug: String, val screenSize: String, val label: String, val edition: String) {
     companion object {
@@ -1237,7 +1299,15 @@ private data class GpuProfile(val driver: String, val tuDebug: String, val scree
 private fun prepareLaunch(context: Context, gameRoot: File, gpu: GpuProfile, onStatus: (String) -> Unit): String {
     installBundledComponents(context, onStatus)
 
-    check(File(gameRoot, BUILD_INFO).exists()) { "Missing $BUILD_INFO in $gameRoot. Copy it from your WoW install." }
+    val flavor = WowFlavor.current
+    if (flavor.isLocal) {
+        // A 3.3.5a client brings its own Wow.exe + Data/ and no Battle.net metadata, so it must be
+        // in place before we launch: there is no CDN to fetch it from.
+        check(File(gameRoot, "Data").isDirectory) { "No Data/ folder in $gameRoot. Copy your 3.3.5a client there." }
+        check(flavor.exeFile(gameRoot).exists()) { "No ${flavor.exeName} in $gameRoot. Copy your 3.3.5a client there." }
+    } else {
+        check(File(gameRoot, BUILD_INFO).exists()) { "Missing $BUILD_INFO in $gameRoot. Copy it from your WoW install." }
+    }
     try {
         PadSettings.init(context)
         PadSettings.launchProfile(WowFlavor.current.name).takeIf { it > 0 }?.let { PadSettings.loadProfile(it) }
@@ -1248,51 +1318,63 @@ private fun prepareLaunch(context: Context, gameRoot: File, gpu: GpuProfile, onS
         throw e
     }
 
-    val flavor = WowFlavor.current
-    if (BattleNetSignIn.autoLoginEnabled(context)) {
-        BattleNetSignIn.load(context)?.let { login ->
-            BattleNetSignIn.writeLoginFile(gameRoot, login)
+    if (!flavor.isLocal) {
+        if (BattleNetSignIn.autoLoginEnabled(context)) {
+            BattleNetSignIn.load(context)?.let { login ->
+                BattleNetSignIn.writeLoginFile(gameRoot, login)
+            }
+        } else {
+            BattleNetSignIn.removeLoginFile(gameRoot)
         }
-    } else {
-        BattleNetSignIn.removeLoginFile(gameRoot)
-    }
-    if (!flavor.exeFile(gameRoot).exists()) {
-        try {
-            WowClientDownloader.download(gameRoot, onStatus)
-        } catch (e: Exception) {
-            if (!flavor.exeFile(gameRoot).exists()) throw IllegalStateException("Couldn't download the ${flavor.label} client: ${e.message}", e)
-            Timber.w(e, "Client update check failed, launching the existing ${flavor.label} client")
+        if (!flavor.exeFile(gameRoot).exists()) {
+            try {
+                WowClientDownloader.download(gameRoot, onStatus)
+            } catch (e: Exception) {
+                if (!flavor.exeFile(gameRoot).exists()) {
+                    throw IllegalStateException("Couldn't download the ${flavor.label} client: ${e.message}", e)
+                }
+                Timber.w(e, "Client update check failed, launching the existing ${flavor.label} client")
+            }
         }
     }
-    val arm64Exe = flavor.exeFile(gameRoot)
-    check(arm64Exe.exists()) { "No ARM64 client in ${arm64Exe.parent} after download." }
+    val clientExe = flavor.exeFile(gameRoot)
+    check(clientExe.exists()) { "No ${if (flavor.isLocal) flavor.exeName else "ARM64 client"} in ${clientExe.parent}." }
 
     onStatus("Configuring ${gpu.label} container...")
     val containerManager = ContainerManager(context)
-    val config = containerConfig(gameRoot, gpu, arm64Exe.name, gpu.screenSize)
-    val existing = containerManager.getContainerById(CONTAINER_ID)
+    val config = containerConfig(context, gameRoot, gpu, clientExe.name, gpu.screenSize, flavor)
+    val existing = containerManager.getContainerById(flavor.containerId)
     if (existing == null) {
         onStatus("Creating prefix environment (first boot)...")
-        containerManager.createContainer(CONTAINER_ID, config)
+        containerManager.createContainer(flavor.containerId, config)
     } else {
         existing.loadData(config)
     }
-    val container = checkNotNull(containerManager.getContainerById(CONTAINER_ID)) { "Container creation failed. Check system storage and logs." }
+    val container = checkNotNull(containerManager.getContainerById(flavor.containerId)) {
+        "Container creation failed. Check system storage and logs."
+    }
     // Second display (if any) shows the 12-button action bar pad when its switch is on.
     container.setExternalDisplayMode(
         if (ButtonPad.isEnabled(context, WowFlavor.current)) Container.EXTERNAL_DISPLAY_MODE_BUTTONS
         else Container.EXTERNAL_DISPLAY_MODE_OFF,
     )
     container.saveData()
-    return CONTAINER_ID
+    return flavor.containerId
 }
 
-private fun containerConfig(gameRoot: File, gpu: GpuProfile, exeName: String, screenSize: String): JSONObject {
+private fun containerConfig(
+    context: Context,
+    gameRoot: File,
+    gpu: GpuProfile,
+    exeName: String,
+    screenSize: String,
+    flavor: WowFlavor,
+): JSONObject {
     val samsungEnv = if (Build.MANUFACTURER.equals("samsung", ignoreCase = true)) " FD_DEV_FEATURES=enable_tp_ubwc_flag_hint=1" else ""
     val envVars = "WRAPPER_MAX_IMAGE_COUNT=0 ZINK_DESCRIPTORS=lazy ZINK_DEBUG=compact,deck_emu MESA_SHADER_CACHE_DISABLE=false MESA_SHADER_CACHE_MAX_SIZE=512MB mesa_glthread=true WINEESYNC=0 MESA_VK_WSI_PRESENT_MODE=mailbox TU_DEBUG=${gpu.tuDebug} VKD3D_SHADER_MODEL=6_0 PULSE_LATENCY_MSEC=144$samsungEnv"
     return JSONObject().apply {
-        put("id", CONTAINER_ID)
-        put("name", "WoW Forever")
+        put("id", flavor.containerId)
+        put("name", if (flavor.isLocal) "AzerothCore 3.3.5a" else "WoW Forever")
         put("screenSize", screenSize)
         put("envVars", envVars)
         put("graphicsDriver", "Wrapper")
@@ -1303,14 +1385,25 @@ private fun containerConfig(gameRoot: File, gpu: GpuProfile, exeName: String, sc
         put("dxwrapperConfig", "version=$DXVK_VERSION-1")
         put("wineVersion", "$PROTON_VERSION-1")
         put("containerVariant", "bionic")
-        put("fexcoreVersion", "2609-0")
-        put("drives", "D:/storage/emulated/0/DownloadE:/data/data/app.aynthorwow/storageG:${gameRoot.path}")
-        put("executablePath", "G:\\$FLAVOR_DIR\\$exeName")
-        put("execArgs", "-d3d11")
+        if (!flavor.isLocal) {
+            put("fexcoreVersion", "2609-0")
+        }
+        put("drives", "D:/storage/emulated/0/DownloadE:/data/data/${context.packageName}/storageG:${gameRoot.path}")
+        // A local client sits at the root of its folder; Blizzard's live in their _product_ subfolder.
+        put("executablePath", if (flavor.isLocal) "G:\\$exeName" else "G:\\$FLAVOR_DIR\\$exeName")
+        // 3.3.5a has no -d3d11 switch: D3D9 is its only renderer, and this prefix serves that from
+        // Wine's own 32-bit wined3d. The bundled DXVK carries no d3d9.dll and no syswow64/ at all while
+        // the prefix overrides d3d9 as "native,builtin" (WineUtils), so the call lands on wined3d by
+        // itself - which is why wincomponents stays at the shipped all-zero profile (no downloads).
+        put("execArgs", if (flavor.isLocal) "" else "-d3d11")
+        if (flavor.isLocal) {
+            // A 32-bit Windows client needs the WoW64 emulator: the bundled wowbox64 HODLL.
+            put("emulator", "Box64")
+        }
         put("showFPS", true)
         put("startupSelection", Container.STARTUP_SELECTION_AGGRESSIVE.toInt())
         put("wow64Mode", true)
-        put("wincomponents", "direct3d=0,directsound=0,directinput8=0,directinput=0,directmusic=0,directshow=0,directplay=0,vcrun2010=0,wmdecoder=0,opengl=0")
+        put("wincomponents", WINCOMPONENTS_OFF)
     }
 }
 
@@ -1345,8 +1438,24 @@ private val CONFIG_DEFAULTS get() = linkedMapOf(
     "InputDeviceInterfaceStyle" to "\"1\"",
 )
 
+/**
+ * The same defaults for a 3.3.5a client: no Battle.net keys (`portal`, `agentUID`), its own renderer
+ * (`D3D9`, not `D3D11`) and the logon server this install runs, which is the realm list.
+ */
+private val LOCAL_CONFIG_DEFAULTS get() = CONFIG_DEFAULTS.also { defaults ->
+    defaults.remove("portal")
+    defaults.remove("agentUID")
+    defaults["gxApi"] = "\"D3D9\""
+    defaults["realmList"] = "\"$LOCAL_REALM_ADDRESS\""
+}
+
 private val ALWAYS_FORCED_CONFIG_KEYS get() =
-    listOf("gxApi", "RenderScale", "ResampleQuality") + if (WowFlavor.current.hasRegion) listOf("portal") else emptyList()
+    if (WowFlavor.current.isLocal) {
+        // The realm address is not a preference: it has to match the server this install runs.
+        listOf("gxApi", "realmList")
+    } else {
+        listOf("gxApi", "RenderScale", "ResampleQuality") + if (WowFlavor.current.hasRegion) listOf("portal") else emptyList()
+    }
 private val GAMEPAD_CONFIG_KEYS = listOf("GamePadEnable", "InputDeviceInterfaceStyle")
 
 private val LEGACY_CONFIG_VALUES = mapOf(
@@ -1364,7 +1473,8 @@ private val LEGACY_CONFIG_VALUES = mapOf(
 
 /** [gamepadMode]: 0 = force gamepad UI on, 1 = leave the player's lines alone, 2 = force off. */
 private fun ensureGameConfig(root: File, gamepadMode: Int) {
-    val defaults = CONFIG_DEFAULTS.also { d ->
+    val flavor = WowFlavor.current
+    val defaults = (if (flavor.isLocal) LOCAL_CONFIG_DEFAULTS else CONFIG_DEFAULTS).also { d ->
         when (gamepadMode) {
             2 -> GAMEPAD_CONFIG_KEYS.forEach { d[it] = "\"0\"" }
             // Leave alone: also never add the lines when they're missing. WoW drops settings that are back at
@@ -1374,11 +1484,15 @@ private fun ensureGameConfig(root: File, gamepadMode: Int) {
         }
     }
     val forcedKeys = if (gamepadMode == 1) ALWAYS_FORCED_CONFIG_KEYS else ALWAYS_FORCED_CONFIG_KEYS + GAMEPAD_CONFIG_KEYS
-    val flavorDir = File(root, FLAVOR_DIR)
+    val flavorDir = flavor.clientDir(root)
     flavorDir.mkdirs()
-    val flavorInfo = File(flavorDir, ".flavor.info")
-    if (!flavorInfo.exists()) {
-        flavorInfo.writeText("Product Flavor!STRING:0\n$TARGET_PRODUCT\n")
+    if (flavor.isLocal) {
+        writeLocalRealmList(flavorDir)
+    } else {
+        val flavorInfo = File(flavorDir, ".flavor.info")
+        if (!flavorInfo.exists()) {
+            flavorInfo.writeText("Product Flavor!STRING:0\n$TARGET_PRODUCT\n")
+        }
     }
     val configWtf = File(flavorDir, "WTF/Config.wtf")
     if (!configWtf.exists()) {
@@ -1405,6 +1519,19 @@ private fun ensureGameConfig(root: File, gamepadMode: Int) {
     if (updated != original) {
         configWtf.writeText(updated.joinToString("\n") + "\n")
     }
+}
+
+/**
+ * Points the local client at the local realm. `Data/<locale>/realmlist.wtf` is what a 3.3.5a client
+ * reads at login, so it is rewritten whenever it drifted - e.g. right after copying a client from a
+ * PC that played on someone else's realm.
+ */
+private fun writeLocalRealmList(clientDir: File) {
+    val wanted = "set realmlist $LOCAL_REALM_ADDRESS\r\n"
+    val realmList = File(File(clientDir, "Data/$LOCAL_CLIENT_LOCALE"), "realmlist.wtf")
+    if (realmList.isFile && realmList.readText() == wanted) return
+    realmList.parentFile?.mkdirs()
+    realmList.writeText(wanted)
 }
 
 private fun installBundledComponents(context: Context, onStatus: (String) -> Unit) {
