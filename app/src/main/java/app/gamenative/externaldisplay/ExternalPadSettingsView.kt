@@ -56,7 +56,7 @@ class ExternalPadSettingsView(
             addView(toggleRow(listOf("Swap sides (pages on the right)" to PadSettings.SWAP_SIDES)))
             addView(toggleRow(listOf("Swap sides (tabs on the right)" to PadSettings.SWAP_TABS)))
             addView(toggleRow(listOf("Show all pages side by side" to PadSettings.SIDE_BY_SIDE)))
-            addView(note("Side by side puts Interface, Target and Utility next to each other in one column each. Each column shows its first 8 buttons, in the order set under \"Buttons shown\" (hidden buttons are skipped), so move the ones you want to the top. The header bar goes away: the Settings, Trackpad and Keyboard buttons move to the top of the right-hand column (the header comes back while the trackpad, keyboard or settings are open). The page area is made wider."))
+            addView(note("Side by side puts Interface, Target and Utility next to each other in one column each. Each column shows its first 10 buttons, in the order set under \"Buttons shown\" (hidden buttons are skipped), so move the ones you want to the top. The header bar goes away: the Settings, Trackpad and Keyboard buttons move to the top of the right-hand column (the header comes back while the trackpad, keyboard or settings are open). The page area is made wider."))
             addView(sliderRow("Page area width", PadSettings.PAGE_WIDTH, 60, 200) { "$it%" })
             addView(note("Order of the panels in the right-hand column, top to bottom. Panels that are switched off are skipped."))
             val panelList = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }

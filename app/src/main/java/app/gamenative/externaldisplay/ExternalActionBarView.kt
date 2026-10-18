@@ -413,7 +413,7 @@ class ExternalActionBarView(
         private const val SIDE_BY_SIDE_WIDEN = 1.5f
 
         /** Most buttons one side-by-side column shows. */
-        private const val SIDE_BY_SIDE_MAX = 8
+        private const val SIDE_BY_SIDE_MAX = 10
 
         // Width split between the page area and the number/modifier block.
         // A smaller RIGHT_WEIGHT squeezes that block toward the right edge, within reach of a right thumb.
