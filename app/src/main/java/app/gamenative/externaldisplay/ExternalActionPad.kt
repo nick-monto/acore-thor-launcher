@@ -220,7 +220,15 @@ class ExternalActionPad(
                     background = theme.buttonBackground(density, 12f, true, muted = true)
                     setTextColor(theme.textPressed)
                 }
-                addView(modeTitle)
+                // The title sits over the page area and the buttons over the right column, so the buttons keep
+                // exactly the size they have on the pad.
+                setPadding(0, inset, 0, inset)
+                modeTitle.layoutParams = LayoutParams(0, (44 * density).toInt(), ExternalActionBarView.pageWeightNow()).apply { setMargins(m3(), 0, m3(), 0) }
+                headerModes = LinearLayout(context).apply {
+                    orientation = HORIZONTAL
+                    layoutParams = LayoutParams(0, (44 * density).toInt(), 1f)
+                }
+                if (PadSettings.bool(PadSettings.SWAP_SIDES)) { addView(headerModes); addView(modeTitle) } else { addView(modeTitle); addView(headerModes) }
             } else if (PadSettings.bool(PadSettings.SWAP_TABS)) {
                 // "Swap sides (tabs on the right)" puts the three mode buttons first.
                 modeButtons.forEach { addView(it) }
@@ -285,6 +293,7 @@ class ExternalActionPad(
 
     private lateinit var headerView: LinearLayout
     private lateinit var modeTitle: TextView
+    private lateinit var headerModes: LinearLayout
     private lateinit var padModeRow: LinearLayout
 
     /**
@@ -294,12 +303,11 @@ class ExternalActionPad(
     private fun updateModeButtons() {
         if (!PadSettings.bool(PadSettings.SIDE_BY_SIDE) || !::padModeRow.isInitialized) return
         val onPad = padView.visibility == View.VISIBLE
-        val target: ViewGroup = if (onPad) padModeRow else headerView
+        val target: ViewGroup = if (onPad) padModeRow else headerModes
         listOf(settingsButton, trackpadButton, keyboardButton).forEach { b ->
             if (b.parent !== target) {
                 (b.parent as? ViewGroup)?.removeView(b)
-                b.layoutParams = if (onPad) LayoutParams(0, (44 * density).toInt(), 1f).apply { setMargins(m3(), 0, m3(), 0) }
-                else LayoutParams((52 * density).toInt(), (44 * density).toInt()).apply { setMargins(m3(), 0, m3(), 0) }
+                b.layoutParams = LayoutParams(0, (44 * density).toInt(), 1f).apply { setMargins(m3(), 0, m3(), 0) }
                 target.addView(b)
             }
         }
