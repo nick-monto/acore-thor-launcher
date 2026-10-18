@@ -57,8 +57,11 @@ of a Blizzard realm. Four things change for that flavor:
   the client's `Interface/AddOns`, and gives the container a pad profile that sends the keys and pointer
   motion it expects: face buttons and D-pad on F1-F12, shoulders and triggers on shift/control plus
   F7/F8, the left stick on WASD, and the right stick on relative pointer motion, which turns the camera
-  while ConsolePort holds mouse look. Open `/cp` in game once to bind ConsolePort's buttons to those
-  keys, and the ring follows the pad. The right stick drives the pointer in both modes, because injected
+  while ConsolePort holds mouse look. The launcher also installs **ThorPad**, its own add-on, which hands
+  ConsolePort those keys on the first login: the pad is mapped without calibrating anything, the prompts
+  are Xbox ones (this pad's face buttons), and Wrath's F1-F4 "target party member" defaults are cleared
+  where the D-pad would otherwise fire them too. `/thorpad` reports what is bound; `/cp` still lets you
+  change all of it. The right stick drives the pointer in both modes, because injected
   pointer motion is the only thing a 3.3.5a client can turn a camera with — so R3 changes what the face
   buttons do rather than whether the stick works: in cursor mode A/B click and Y/X scroll the interface,
   outside it they send ConsolePort's keys. Stick speed is adjustable in both: the profile's cursor speed

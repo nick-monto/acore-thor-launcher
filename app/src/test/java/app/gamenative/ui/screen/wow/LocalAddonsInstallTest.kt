@@ -42,7 +42,17 @@ class LocalAddonsInstallTest {
                 root.resolve("Interface/AddOns/$name/$name.toc").isFile,
             )
         }
-        assertEquals("1.5.0-rc2", root.resolve(".consoleport-version").readText().trim())
+        assertEquals("1.5.0-rc2 1", root.resolve(".consoleport-version").readText().trim())
+
+        // ThorPad, which hands ConsolePort the pad's keys so nobody has to calibrate it.
+        assertTrue(
+            "ThorPad was not installed",
+            root.resolve("Interface/AddOns/ThorPad/ThorPad.toc").isFile,
+        )
+        assertTrue(
+            "ThorPad has no script, so it would load and do nothing",
+            root.resolve("Interface/AddOns/ThorPad/ThorPad.lua").isFile,
+        )
     }
 
     @Test

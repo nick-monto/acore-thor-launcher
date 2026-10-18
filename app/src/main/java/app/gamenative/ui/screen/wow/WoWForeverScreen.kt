@@ -109,6 +109,11 @@ private const val CONTAINER_EXTRA_PROFILE_ID = "profileId"
 private const val LOCAL_ADDON_ARCHIVE = "ConsolePortLK-1.5.0-rc2.zip"
 private const val LOCAL_ADDON_VERSION = "1.5.0-rc2"
 
+/** This project's own companion add-on, which hands ConsolePort the pad's keys. */
+private const val LOCAL_PAD_ADDON = "thorpad"
+private const val LOCAL_PAD_ADDON_FOLDER = "ThorPad"
+private const val LOCAL_PAD_ADDON_VERSION = "1"
+
 /** Marks the client root as carrying [LOCAL_ADDON_VERSION], so a launch does not re-extract it. */
 private const val LOCAL_ADDON_MARKER = ".consoleport-version"
 
@@ -1650,24 +1655,33 @@ internal fun ensureLocalControllerProfile(context: Context): Int {
 }
 
 /**
- * Installs the controller add-on into the client's `Interface/AddOns`. A 3.3.5a client accepts any keys
- * it is sent, but it has no idea what a controller is, so the console behaviour - the button rings, the
- * action bar, targeting, cursor mode - has to live in an add-on.
+ * Installs the controller add-ons into the client's `Interface/AddOns`. A 3.3.5a client accepts any
+ * keys it is sent, but it has no idea what a controller is, so the console behaviour - the button
+ * rings, the action bar, targeting, cursor mode - has to live in an add-on. That add-on is
+ * ConsolePortLK, and beside it goes ThorPad, this project's own, which hands ConsolePort the keys
+ * this pad sends so nobody has to calibrate a handheld.
  *
- * Idempotent and self-healing: the marker keeps a launch from re-extracting the textures every time, a
- * copy at another version is replaced, and add-ons the player added are left alone.
+ * Idempotent and self-healing: the marker records both versions and keeps a launch from re-extracting
+ * the textures or re-copying the defaults, a changed version is installed over the old copy, and
+ * add-ons the player added are left alone.
  */
 internal fun installLocalAddons(context: Context, clientRoot: File, onStatus: (String) -> Unit) {
+    val installed = "$LOCAL_ADDON_VERSION $LOCAL_PAD_ADDON_VERSION"
     val marker = File(clientRoot, LOCAL_ADDON_MARKER)
-    if (marker.isFile && marker.readText().trim() == LOCAL_ADDON_VERSION) return
+    if (marker.isFile && marker.readText().trim() == installed) return
 
-    onStatus("Installing the controller add-on...")
+    onStatus("Installing the controller add-ons...")
     val addOns = File(clientRoot, "Interface/AddOns")
     addOns.mkdirs()
     check(FileUtils.extractZipFromAssets(context, "bundled_components/$LOCAL_ADDON_ARCHIVE", addOns)) {
         "Could not install $LOCAL_ADDON_ARCHIVE into ${addOns.path}."
     }
-    marker.writeText("$LOCAL_ADDON_VERSION\n")
+    // Ours is two small files, so it ships as assets rather than inside the pinned archive.
+    FileUtils.copy(context, LOCAL_PAD_ADDON, File(addOns, LOCAL_PAD_ADDON_FOLDER))
+    check(File(addOns, "$LOCAL_PAD_ADDON_FOLDER/$LOCAL_PAD_ADDON_FOLDER.toc").isFile) {
+        "Could not install $LOCAL_PAD_ADDON_FOLDER into ${addOns.path}."
+    }
+    marker.writeText("$installed\n")
 }
 
 /** [gamepadMode]: 0 = force gamepad UI on, 1 = leave the player's lines alone, 2 = force off. */
