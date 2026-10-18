@@ -2,6 +2,7 @@ package app.gamenative.externaldisplay
 
 import android.content.Context
 import android.content.res.ColorStateList
+import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.util.TypedValue
 import android.view.Gravity
@@ -79,7 +80,7 @@ class ExternalPadSettingsView(
         section("Modifier glow", collapsible = true) {
             addView(toggleRow(listOf("Glow on buttons a modifier affects" to PadSettings.MOD_GLOW)))
             addView(sliderRow("Glow intensity", PadSettings.MOD_GLOW_LEVEL, 10, 100) { "$it%" })
-            addView(note("Glow color for each modifier. A color also becomes that modifier button's color. Default keeps the usual look."))
+            addView(note("Glow color for each modifier, from the swatches or a custom color. A color also becomes that modifier button's color. Default keeps the usual look."))
             listOf("Shift" to PadSettings.MOD_GLOW_SHIFT, "Ctrl" to PadSettings.MOD_GLOW_CTRL, "Alt" to PadSettings.MOD_GLOW_ALT)
                 .forEach { (name, key) -> addView(glowColorRow(name, key)) }
         }
@@ -218,17 +219,82 @@ class ExternalPadSettingsView(
 
     /** A modifier's name and a row of glow color choices. Default keeps the standard glow and button color. */
     private fun glowColorRow(name: String, key: String): LinearLayout {
-        val row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        val outer = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         fun fill() {
-            row.removeAllViews()
+            outer.removeAllViews()
+            val row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
             row.addView(label(name, 44))
             COLOR_CHOICES.forEach { (_, color) ->
                 row.addView(swatch(color, selected = PadSettings.glowColor(key) == color) { PadSettings.set(key, color); fill() })
             }
             row.addView(swatch(null, selected = PadSettings.glowColor(key) == null) { PadSettings.set(key, 0); fill() })
+            outer.addView(row)
+            outer.addView(customColorPanel(PadSettings.glowColor(key)) { color -> PadSettings.set(key, color); fill() })
         }
         fill()
-        return row
+        return outer
+    }
+
+    /**
+     * A "Custom color…" button that opens hue, saturation and brightness sliders with a preview and an Apply button.
+     * [current] is the color in use now (null for the default). It lights up when that is not one of the fixed swatches.
+     */
+    private fun customColorPanel(current: Int?, onApply: (Int) -> Unit): LinearLayout {
+        val outer = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+        val isCustom = current != null && COLOR_CHOICES.none { it.second == current }
+        val hsv = FloatArray(3)
+        Color.colorToHSV(current ?: 0xFFB08C40.toInt(), hsv)
+        val panel = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+            setPadding(dp(8), 0, dp(8), dp(4))
+        }
+        val preview = View(context).apply {
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(36)).apply { setMargins(0, dp(2), 0, dp(2)) }
+        }
+        fun refreshPreview() {
+            preview.background = GradientDrawable().apply {
+                cornerRadius = 8 * density
+                setColor(Color.HSVToColor(hsv))
+                setStroke(dp(1), theme.border)
+            }
+        }
+        fun seek(title: String, maxValue: Int, start: Int, onChange: (Int) -> Unit) = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            addView(label(title, 90))
+            addView(
+                SeekBar(context).apply {
+                    max = maxValue
+                    progress = start
+                    progressTintList = ColorStateList.valueOf(theme.border)
+                    thumbTintList = ColorStateList.valueOf(theme.borderBright)
+                    layoutParams = LinearLayout.LayoutParams(0, dp(40), 1f)
+                    setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                        override fun onProgressChanged(bar: SeekBar?, progress: Int, fromUser: Boolean) {
+                            if (fromUser) { onChange(progress); refreshPreview() }
+                        }
+                        override fun onStartTrackingTouch(bar: SeekBar?) {}
+                        override fun onStopTrackingTouch(bar: SeekBar?) {}
+                    })
+                },
+            )
+        }
+        panel.addView(preview)
+        panel.addView(seek("Hue", 360, hsv[0].toInt()) { hsv[0] = it.toFloat() })
+        panel.addView(seek("Saturation", 100, (hsv[1] * 100).toInt()) { hsv[1] = it / 100f })
+        panel.addView(seek("Brightness", 100, (hsv[2] * 100).toInt()) { hsv[2] = it / 100f })
+        panel.addView(rowOf(button("Use this color") { onApply(Color.HSVToColor(hsv)) }))
+        refreshPreview()
+        outer.addView(
+            rowOf(
+                button("Custom color\u2026", active = isCustom) {
+                    panel.visibility = if (panel.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+                },
+            ),
+        )
+        outer.addView(panel)
+        return outer
     }
 
     /** The right column's panels in their current order, each with Up / Down arrows. Rebuilds itself on a move. */
@@ -361,6 +427,10 @@ class ExternalPadSettingsView(
                     },
                 ),
             )
+            addView(customColorPanel(PadSettings.colorOf(label)) { color ->
+                PadSettings.setColor(listOf(label), color)
+                showKeyPicker(label, default)
+            })
             if (group != null) {
                 addView(
                     rowOf(
