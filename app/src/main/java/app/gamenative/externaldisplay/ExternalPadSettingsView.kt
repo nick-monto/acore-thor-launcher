@@ -443,7 +443,7 @@ class ExternalPadSettingsView(
             }
         }
         section("Keys") {
-            addView(note("Optional: add Shift, Ctrl or Alt to the key (pick them first, then the key). To make a button hold modifiers on their own (one or several at once), pick them above and tap "Use the modifiers above on their own"; a single one can also be chosen from the keys below."))
+            addView(note("Optional: add Shift, Ctrl or Alt to the key (pick them first, then the key). To make a button hold modifiers on their own (one or several at once), pick them above and tap \"Use the modifiers above on their own\"; a single one can also be chosen from the keys below."))
             addView(
                 rowOf(
                     *KeyCombo.MODIFIERS.map { (name, _) ->
