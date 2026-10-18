@@ -443,7 +443,7 @@ class ExternalPadSettingsView(
             }
         }
         section("Keys") {
-            addView(note("Optional: hold Shift, Ctrl or Alt with the key. Pick them first, then the key."))
+            addView(note("Optional: add Shift, Ctrl or Alt to the key (pick them first, then the key). To make a button act as a modifier key itself, choose Shift, Ctrl or Alt from the keys below."))
             addView(
                 rowOf(
                     *KeyCombo.MODIFIERS.map { (name, _) ->
@@ -715,6 +715,9 @@ class ExternalPadSettingsView(
         "GRAVE" -> "`"
         "MINUS" -> "-"
         "EQUAL" -> "="
+        "SHIFT_L" -> "Shift"
+        "CTRL_L" -> "Ctrl"
+        "ALT_L" -> "Alt"
         else -> n.lowercase().replaceFirstChar { it.uppercase() }.takeIf { n.length > 1 } ?: n
     }
 
@@ -733,7 +736,8 @@ class ExternalPadSettingsView(
         )
 
         val PICKER_KEYS: List<XKeycode> = buildList {
-            val names = ('A'..'Z').map { "KEY_$it" } + (0..9).map { "KEY_$it" } + (1..12).map { "KEY_F$it" } +
+            // The modifier keys themselves come first: a button can hold Shift, Ctrl or Alt while it is pressed.
+            val names = listOf("KEY_SHIFT_L", "KEY_CTRL_L", "KEY_ALT_L") + ('A'..'Z').map { "KEY_$it" } + (0..9).map { "KEY_$it" } + (1..12).map { "KEY_F$it" } +
                 listOf(
                     "KEY_ESC", "KEY_TAB", "KEY_SPACE", "KEY_ENTER", "KEY_BKSP", "KEY_DEL", "KEY_INSERT", "KEY_HOME",
                     "KEY_END", "KEY_PRIOR", "KEY_NEXT", "KEY_UP", "KEY_DOWN", "KEY_LEFT", "KEY_RIGHT", "KEY_MINUS",
