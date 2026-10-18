@@ -27,6 +27,7 @@ import app.gamenative.ui.theme.WowTitle
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
@@ -35,6 +36,7 @@ import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
@@ -47,6 +49,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -173,6 +176,23 @@ fun WoWForeverScreen(
     var serverPendingAt by remember { mutableStateOf(0L) }
     var serverPendingIsStart by remember { mutableStateOf(false) }
     val serverBusy = serverPendingAt > 0L
+
+    // The bot count is the launcher's own record of what it last wrote into the realm's config: the
+    // rootfs belongs to Termux, so there is nothing here to read it back from.
+    var botCount by remember { mutableStateOf(LocalServer.loadBots(context)) }
+    var botsDraft by remember { mutableStateOf("") }
+    var showBotsDialog by remember { mutableStateOf(false) }
+
+    fun applyBots(count: Int) {
+        errorMessage = null
+        if (LocalServer.setBots(context, count)) {
+            botCount = count
+            LocalServer.saveBots(context, count)
+        } else {
+            termuxInstalled = LocalServer.termuxInstalled(context)
+            errorMessage = TERMUX_REQUIRED
+        }
+    }
 
     fun startServer() {
         if (serverBusy) return
@@ -655,6 +675,26 @@ fun WoWForeverScreen(
                             )
                         }
 
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "Random bots: $botCount",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = WowCream,
+                            )
+                            Spacer(modifier = Modifier.weight(1f))
+                            LinkButton(
+                                text = "Change",
+                                icon = Icons.Default.Settings,
+                                enabled = !serverBusy && termuxInstalled,
+                                onClick = {
+                                    botsDraft = botCount.toString()
+                                    showBotsDialog = true
+                                },
+                            )
+                        }
+
                         Spacer(modifier = Modifier.height(16.dp))
                         HorizontalDivider(color = WowFrameInner)
                         Spacer(modifier = Modifier.height(12.dp))
@@ -946,6 +986,59 @@ fun WoWForeverScreen(
                 hasSavedLogin = true
                 autoLogin = true
             },
+        )
+    }
+
+    if (showBotsDialog) {
+        AlertDialog(
+            onDismissRequest = { showBotsDialog = false },
+            title = { Text(text = "Random Bots", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = WowGold) },
+            text = {
+                Column {
+                    Text(
+                        text = "How many random player bots the world loads. Each bot is a real player " +
+                            "session, so a phone-sized realm is happiest in the tens. The realm reads this " +
+                            "at its next world start, so restart it to apply a change.",
+                        fontSize = 13.sp,
+                        color = WowCream,
+                        lineHeight = 18.sp,
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = botsDraft,
+                        onValueChange = { entered -> botsDraft = entered.filter { it.isDigit() }.take(4) },
+                        singleLine = true,
+                        label = { Text("Bots", color = WowMuted) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "0 turns random bots off. The guest script refuses more than ${LocalServer.MAX_BOTS}.",
+                        fontSize = 11.sp,
+                        color = WowSubtle,
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showBotsDialog = false
+                        botsDraft.toIntOrNull()?.let { applyBots(it.coerceIn(0, LocalServer.MAX_BOTS)) }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = WowBronze, contentColor = Color.White),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("APPLY", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBotsDialog = false }) {
+                    Text("CANCEL", color = WowMuted)
+                }
+            },
+            containerColor = WowStoneTop,
+            shape = RoundedCornerShape(10.dp),
+            modifier = Modifier.border(3.dp, WowFrame, RoundedCornerShape(10.dp)),
         )
     }
 
