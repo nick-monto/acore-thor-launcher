@@ -1347,7 +1347,7 @@ private fun prepareLaunch(context: Context, gameRoot: File, gpu: GpuProfile, onS
         PadSettings.init(context)
         PadSettings.launchProfile(WowFlavor.current.name).takeIf { it > 0 }?.let { PadSettings.loadProfile(it) }
         PadSettings.set(PadSettings.R3_TOGGLE, ButtonPad.r3Toggle(context, WowFlavor.current))
-        ensureGameConfig(gameRoot, if (ButtonPad.forceGamepadUi(context, WowFlavor.current)) 0 else 1)
+        ensureGameConfig(gameRoot, if (ButtonPad.forceGamepadUi(context, WowFlavor.current)) 0 else 1, gpu.screenSize)
     } catch (e: Exception) {
         if (e.isPermissionDenied()) throw StorageAccessDeniedException(e)
         throw e
@@ -1518,19 +1518,29 @@ private val CONFIG_DEFAULTS get() = linkedMapOf(
 
 /**
  * The same defaults for a 3.3.5a client: no Battle.net keys (`portal`, `agentUID`), its own renderer
- * (`D3D9`, not `D3D11`) and the logon server this install runs, which is the realm list.
+ * (`D3D9`, not `D3D11`), the logon server this install runs, and the desktop it is launched into.
+ *
+ * The geometry keys are 3.3.5a's own. `gxWindowedResolution` is a modern-client key that a 3.3.5a
+ * client ignores, and without `gxWindow`/`gxResolution` it opens its 640x480 default window, which
+ * lands in the corner of the container's desktop.
  */
-private val LOCAL_CONFIG_DEFAULTS get() = CONFIG_DEFAULTS.also { defaults ->
+private fun localConfigDefaults(screenSize: String) = CONFIG_DEFAULTS.also { defaults ->
     defaults.remove("portal")
     defaults.remove("agentUID")
+    defaults.remove("gxWindowedResolution")
     defaults["gxApi"] = "\"D3D9\""
     defaults["realmList"] = "\"$LOCAL_REALM_ADDRESS\""
+    defaults["gxWindow"] = "\"1\""
+    defaults["gxResolution"] = "\"$screenSize\""
 }
 
 private val ALWAYS_FORCED_CONFIG_KEYS get() =
     if (WowFlavor.current.isLocal) {
-        // The realm address is not a preference: it has to match the server this install runs.
-        listOf("gxApi", "realmList")
+        // Neither the realm nor the client's shape is a preference here: the realm has to match the
+        // server this install runs, and the desktop is fixed by the GPU profile, so a 3.3.5a client
+        // that saved its own 640x480 window (or exclusive fullscreen, which cannot change the display
+        // mode in this X server) is corrected instead of left that way.
+        listOf("gxApi", "realmList", "gxWindow", "gxMaximize", "gxResolution")
     } else {
         listOf("gxApi", "RenderScale", "ResampleQuality") + if (WowFlavor.current.hasRegion) listOf("portal") else emptyList()
     }
@@ -1550,9 +1560,9 @@ private val LEGACY_CONFIG_VALUES = mapOf(
 )
 
 /** [gamepadMode]: 0 = force gamepad UI on, 1 = leave the player's lines alone, 2 = force off. */
-private fun ensureGameConfig(root: File, gamepadMode: Int) {
+private fun ensureGameConfig(root: File, gamepadMode: Int, screenSize: String) {
     val flavor = WowFlavor.current
-    val defaults = (if (flavor.isLocal) LOCAL_CONFIG_DEFAULTS else CONFIG_DEFAULTS).also { d ->
+    val defaults = (if (flavor.isLocal) localConfigDefaults(screenSize) else CONFIG_DEFAULTS).also { d ->
         when (gamepadMode) {
             2 -> GAMEPAD_CONFIG_KEYS.forEach { d[it] = "\"0\"" }
             // Leave alone: also never add the lines when they're missing. WoW drops settings that are back at
