@@ -13,10 +13,11 @@ No Battle.net account, no PC, no Docker.
 Server half: [`acore-thor-selfhost`](https://github.com/nick-monto/acore-thor-selfhost) — install the
 realm there, then point this app at `127.0.0.1` (auth 3724, world 8085).
 
-**Status:** the local flavor is implemented (flavor, container profile, realmlist plumbing); what is
-*not* verified yet is the 32-bit client booting on a Thor — upstream's Proton ARM64EC + wowbox64 path
-has never been shown running a 3.3.5a client. Treat that as the open gate. Design notes and the device
-runbook live in [`acore-thor-selfhost`](https://github.com/nick-monto/acore-thor-selfhost).
+**Status:** the local flavor boots a 3.3.5a client on a Thor — verified as far as the login screen,
+full-screen, rendering through DXVK's 32-bit `d3d9`. Still unverified: logging in to a realm served by
+[`acore-thor-selfhost`](https://github.com/nick-monto/acore-thor-selfhost) on the device, and the pad's
+mouse-look reaching the client. Treat those as the open gates. Design notes and the device runbook live
+in [`acore-thor-selfhost`](https://github.com/nick-monto/acore-thor-selfhost).
 
 Play **World of Warcraft** on Snapdragon Android handhelds as a normal Android app, with extra work for the dual-screen **AYN Thor**. Pick **Forever**, **Retail** or **Classic** (Classic Era, TBC Anniversary or MoP Classic), press Play, and the game runs.
 
@@ -39,16 +40,25 @@ This uses Blizzard's own **Windows ARM64** WoW clients, so the game itself runs 
 ## Local realm (AzerothCore flavor)
 
 Pick **AzerothCore** in the flavor selector to play a 3.3.5a realm running on the same device instead
-of a Blizzard realm. Three things change for that flavor:
+of a Blizzard realm. Four things change for that flavor:
 
 - **Your client, your files.** Copy a 3.3.5a client (`Wow.exe` + `Data/`, its folder root) anywhere on
   the device and point the launcher at it — there is no Blizzard download and no `.build.info`.
 - **The realm is written for you.** Each launch rewrites `Data/enUS/realmlist.wtf` and `Config.wtf`'s
   `realmList` to `127.0.0.1` (auth 3724, world 8085), so the client always points at this device. The
-  account comes from the server console, not Battle.net, so there is no login to configure.
-- **A different container.** It boots under Box64/`wow64Mode` in its own container with D3D9 served by
-  Wine's 32-bit wined3d (the bundled DXVK has no `d3d9`), rather than the ARM64/DXVK profile the
-  Blizzard flavors use.
+  account comes from the server console, not Battle.net, so there is no login to configure. The client
+  is also told its window geometry, so it fills the container's desktop instead of opening its own
+  640x480 default.
+- **A different container.** It boots under Box64/`wow64Mode` in its own container, with D3D9 served by
+  DXVK's 32-bit `d3d9.dll` installed into the container (the bundled DXVK carries no `d3d9`, and Wine's
+  own wined3d cannot render here), rather than the ARM64/DXVK profile the Blizzard flavors use.
+- **The pad arrives as keys.** A 3.3.5a client has no gamepad support at all, so the launcher installs
+  [ConsolePortLK](https://github.com/leoaviana/ConsolePortLK) — the Wrath backport of ConsolePort — into
+  the client's `Interface/AddOns`, and gives the container a pad profile that sends the keys and pointer
+  motion it expects: face buttons and D-pad on F1-F12, shoulders and triggers on shift/control plus
+  F7/F8, the left stick on WASD, and the right stick on relative pointer motion, which turns the camera
+  while ConsolePort holds mouse look. Open `/cp` in game once to bind ConsolePort's buttons to those
+  keys, and the ring follows the pad. Cursor mode (R3) is unchanged and still drives the mouse.
 
 The server half is [`acore-thor-selfhost`](https://github.com/nick-monto/acore-thor-selfhost): install
 it with `thor-install.sh`, then pick this flavor.

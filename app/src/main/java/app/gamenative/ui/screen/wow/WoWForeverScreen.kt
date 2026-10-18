@@ -5,6 +5,8 @@ import app.gamenative.externaldisplay.PadSettings
 import android.content.Context
 import android.os.Build
 import android.os.Environment
+import android.view.KeyEvent
+import android.view.MotionEvent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -72,6 +74,10 @@ import com.winlator.contents.ContentsManager
 import com.winlator.core.FileUtils
 import com.winlator.core.GPUInformation
 import com.winlator.core.TarCompressorUtils
+import com.winlator.inputcontrols.Binding
+import com.winlator.inputcontrols.ControlsProfile
+import com.winlator.inputcontrols.ExternalControllerBinding
+import com.winlator.inputcontrols.InputControlsManager
 import com.winlator.xenvironment.ImageFs
 import com.winlator.xenvironment.ImageFsInstaller
 import kotlinx.coroutines.CancellationException
@@ -95,6 +101,19 @@ private const val LOCAL_REALM_ADDRESS = "127.0.0.1"
 
 /** The locale folder the local realm's realmlist.wtf is written into. */
 private const val LOCAL_CLIENT_LOCALE = "enUS"
+
+/** The container key that selects a pad profile; the X server screen reads it as a string. */
+private const val CONTAINER_EXTRA_PROFILE_ID = "profileId"
+
+/** The controller add-on the launcher installs for the local realm, and the version it installs. */
+private const val LOCAL_ADDON_ARCHIVE = "ConsolePortLK-1.5.0-rc2.zip"
+private const val LOCAL_ADDON_VERSION = "1.5.0-rc2"
+
+/** Marks the client root as carrying [LOCAL_ADDON_VERSION], so a launch does not re-extract it. */
+private const val LOCAL_ADDON_MARKER = ".consoleport-version"
+
+/** The name of the pad profile this flavour installs. The player owns it once it exists. */
+private const val LOCAL_CONTROLLER_PROFILE = "Thor Controller (3.3.5a)"
 
 @Composable
 fun WoWForeverScreen(
@@ -1348,6 +1367,7 @@ private fun prepareLaunch(context: Context, gameRoot: File, gpu: GpuProfile, onS
         PadSettings.launchProfile(WowFlavor.current.name).takeIf { it > 0 }?.let { PadSettings.loadProfile(it) }
         PadSettings.set(PadSettings.R3_TOGGLE, ButtonPad.r3Toggle(context, WowFlavor.current))
         ensureGameConfig(gameRoot, if (ButtonPad.forceGamepadUi(context, WowFlavor.current)) 0 else 1, gpu.screenSize)
+        if (WowFlavor.current.isLocal) installLocalAddons(context, gameRoot, onStatus)
     } catch (e: Exception) {
         if (e.isPermissionDenied()) throw StorageAccessDeniedException(e)
         throw e
@@ -1400,7 +1420,12 @@ private fun prepareLaunch(context: Context, gameRoot: File, gpu: GpuProfile, onS
     // (a 3.3.5a Wow.exe here) is started by wine directly. Wine's wow64 layer and the bundled box64
     // HODLL run the 32-bit image; the ARM64 clients are unaffected because they never use the wrapper.
     container.putExtra(CONTAINER_EXTRA_SKIP_WINHANDLER, "1")
-    if (flavor.isLocal) installD3d9x32(context, container, onStatus)
+    if (flavor.isLocal) {
+        // A 3.3.5a client reads no gamepad, so its container gets the profile that turns the pad into
+        // keys and pointer motion instead of the default one, which forwards it as a virtual pad.
+        container.putExtra(CONTAINER_EXTRA_PROFILE_ID, ensureLocalControllerProfile(context).toString())
+        installD3d9x32(context, container, onStatus)
+    }
     container.saveData()
     return flavor.containerId
 }
@@ -1558,6 +1583,93 @@ private val LEGACY_CONFIG_VALUES = mapOf(
     "componentTextureLevel" to "\"1\"",
     "RAIDcomponentTextureLevel" to "\"1\"",
 )
+
+/**
+ * Installs the pad profile this flavour plays with. WoW 3.3.5a has no gamepad support of its own, so
+ * the pad cannot reach the client as a pad: it has to arrive as keys and pointer motion, which is what
+ * ConsolePortLK (the ConsolePort backport installed into Interface/AddOns) expects. The mapping is the
+ * one WoWpadX, the mapper that add-on was built against, sends - face buttons and D-pad on F1-F12, the
+ * shoulders and triggers on shift/control plus F7/F8, the left stick on WASD, and the right stick on
+ * relative pointer motion, which turns the camera while ConsolePort holds mouse look for us.
+ *
+ * The codes come from the app's own axis convention rather than literals, and the profile is only ever
+ * written when a profile of this name does not exist yet: after the first launch it belongs to the
+ * player, who binds its keys to ConsolePort's buttons once with /cp and may edit it freely.
+ */
+internal fun ensureLocalControllerProfile(context: Context): Int {
+    val manager = InputControlsManager(context)
+    manager.profiles.firstOrNull { it.name == LOCAL_CONTROLLER_PROFILE }?.let { return it.id }
+
+    val id = (manager.profiles.maxOfOrNull { it.id } ?: 0) + 1
+    val profile = ControlsProfile(context, id)
+    profile.setName(LOCAL_CONTROLLER_PROFILE)
+    // "*" is the wildcard controller, so this covers the Thor's built-in pad and any pad paired to it.
+    val pad = profile.addController("*")
+
+    fun bind(keyCode: Int, binding: Binding) {
+        val entry = ExternalControllerBinding()
+        entry.setKeyCode(keyCode)
+        entry.setBinding(binding)
+        pad.addControllerBinding(entry)
+    }
+
+    /** An axis direction in the app's own pseudo-key-code space, e.g. stick up is a negative Y. */
+    fun axis(axis: Int, sign: Int) = ExternalControllerBinding.getKeyCodeForAxis(axis, sign.toByte())
+
+    bind(KeyEvent.KEYCODE_BUTTON_Y, Binding.KEY_F9)
+    bind(KeyEvent.KEYCODE_BUTTON_B, Binding.KEY_F10)
+    bind(KeyEvent.KEYCODE_BUTTON_A, Binding.KEY_F11)
+    bind(KeyEvent.KEYCODE_BUTTON_X, Binding.KEY_F12)
+
+    bind(KeyEvent.KEYCODE_DPAD_UP, Binding.KEY_F1)
+    bind(KeyEvent.KEYCODE_DPAD_RIGHT, Binding.KEY_F2)
+    bind(KeyEvent.KEYCODE_DPAD_DOWN, Binding.KEY_F3)
+    bind(KeyEvent.KEYCODE_DPAD_LEFT, Binding.KEY_F4)
+
+    bind(KeyEvent.KEYCODE_BUTTON_SELECT, Binding.KEY_F5)
+    bind(KeyEvent.KEYCODE_BUTTON_START, Binding.KEY_F6)
+    bind(KeyEvent.KEYCODE_BUTTON_MODE, Binding.KEY_KP_MULTIPLY)
+
+    bind(KeyEvent.KEYCODE_BUTTON_L1, Binding.KEY_SHIFT_L)
+    bind(KeyEvent.KEYCODE_BUTTON_R1, Binding.KEY_F7)
+    bind(KeyEvent.KEYCODE_BUTTON_L2, Binding.KEY_CTRL_L)
+    bind(KeyEvent.KEYCODE_BUTTON_R2, Binding.KEY_F8)
+
+    bind(axis(MotionEvent.AXIS_Y, -1), Binding.KEY_W)
+    bind(axis(MotionEvent.AXIS_Y, 1), Binding.KEY_S)
+    bind(axis(MotionEvent.AXIS_X, -1), Binding.KEY_A)
+    bind(axis(MotionEvent.AXIS_X, 1), Binding.KEY_D)
+
+    bind(axis(MotionEvent.AXIS_RZ, -1), Binding.MOUSE_MOVE_UP)
+    bind(axis(MotionEvent.AXIS_RZ, 1), Binding.MOUSE_MOVE_DOWN)
+    bind(axis(MotionEvent.AXIS_Z, -1), Binding.MOUSE_MOVE_LEFT)
+    bind(axis(MotionEvent.AXIS_Z, 1), Binding.MOUSE_MOVE_RIGHT)
+
+    profile.save()
+    return id
+}
+
+/**
+ * Installs the controller add-on into the client's `Interface/AddOns`. A 3.3.5a client accepts any keys
+ * it is sent, but it has no idea what a controller is, so the console behaviour - the button rings, the
+ * action bar, targeting, cursor mode - has to live in an add-on.
+ *
+ * Idempotent and self-healing: the marker keeps a launch from re-extracting the textures every time, a
+ * copy at another version is replaced, and add-ons the player added are left alone.
+ */
+private fun installLocalAddons(context: Context, gameRoot: File, onStatus: (String) -> Unit) {
+    val root = WowFlavor.current.clientDir(gameRoot)
+    val marker = File(root, LOCAL_ADDON_MARKER)
+    if (marker.isFile && marker.readText().trim() == LOCAL_ADDON_VERSION) return
+
+    onStatus("Installing the controller add-on...")
+    val addOns = File(root, "Interface/AddOns")
+    addOns.mkdirs()
+    check(FileUtils.extractZipFromAssets(context, "bundled_components/$LOCAL_ADDON_ARCHIVE", addOns)) {
+        "Could not install $LOCAL_ADDON_ARCHIVE into ${addOns.path}."
+    }
+    marker.writeText("$LOCAL_ADDON_VERSION\n")
+}
 
 /** [gamepadMode]: 0 = force gamepad UI on, 1 = leave the player's lines alone, 2 = force off. */
 private fun ensureGameConfig(root: File, gamepadMode: Int, screenSize: String) {

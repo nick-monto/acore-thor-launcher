@@ -394,6 +394,20 @@ Installed into a container's wow64 system directory for the AzerothCore flavour,
 client is Direct3D 9 only and cannot use wined3d here. It imports nothing beyond ADVAPI32, GDI32,
 KERNEL32, USER32 and msvcrt, so it runs against the bundled Proton as is.
 
+## ConsolePortLK (controller add-on for 3.3.5a)
+
+**Add-on:** ConsolePortLK v1.5.0-rc2, vendored as `app/src/main/assets/bundled_components/ConsolePortLK-1.5.0-rc2.zip`
+**Authors:** Sebastian Lindfors (ConsolePort); Wrath of the Lich King backport by Leandro Araujo Viana
+**Source:** https://github.com/leoaviana/ConsolePortLK (release 1.5.0-rc2)
+**License:** Artistic License 2.0
+
+Installed unmodified into the AzerothCore flavour's `Interface/AddOns`. A 3.3.5a client has no
+gamepad support of its own, so this add-on supplies the console-style interface - button rings,
+action bar, targeting, cursor mode - and reads it from the keys the pad mapping sends (the mapping
+WoWpadX, the mapper this backport was built against, uses). See `tools/fetch_components.sh` and
+`tools/components.sha256` for how the archive is fetched and pinned; the licence text is at
+https://github.com/leoaviana/ConsolePortLK/blob/main/LICENSE.md.
+
 ## dxbc (DXVK shader translator)
 
 **Library:** dxbc, DXVK's DXBC-to-SPIR-V compiler extracted as a standalone library

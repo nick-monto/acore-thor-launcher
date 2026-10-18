@@ -9,6 +9,7 @@ FILES=(
     dxvk-2.4.1-wow-aarch64-test.wcp
     turnip-wow-scheduler-test.zip
     turnip-V32-RP6sched.zip
+    ConsolePortLK-1.5.0-rc2.zip
 )
 
 mkdir -p "$DEST"
@@ -19,11 +20,18 @@ for f in "${FILES[@]}"; do
         cp "$1/$f" "$DEST/$f"
         echo "copied $f"
     else
-        if [ "$f" = "turnip-V32-RP6sched.zip" ]; then
-            curl -fL --retry 3 -o "$DEST/$f.part" "https://raw.githubusercontent.com/arusiasotto/wow-forever-a840/main/driver/turnip-V32-RP6sched.zip"
-        else
-            curl -fL --retry 3 -o "$DEST/$f.part" "$RELEASE_URL/$f"
-        fi
+        case "$f" in
+            turnip-V32-RP6sched.zip)
+                curl -fL --retry 3 -o "$DEST/$f.part" "https://raw.githubusercontent.com/arusiasotto/wow-forever-a840/main/driver/turnip-V32-RP6sched.zip"
+                ;;
+            ConsolePortLK-1.5.0-rc2.zip)
+                # The controller add-on for the 3.3.5a flavour, straight from its upstream release.
+                curl -fL --retry 3 -o "$DEST/$f.part" "https://github.com/leoaviana/ConsolePortLK/releases/download/1.5.0-rc2/$f"
+                ;;
+            *)
+                curl -fL --retry 3 -o "$DEST/$f.part" "$RELEASE_URL/$f"
+                ;;
+        esac
         mv "$DEST/$f.part" "$DEST/$f"
         echo "downloaded $f"
     fi
