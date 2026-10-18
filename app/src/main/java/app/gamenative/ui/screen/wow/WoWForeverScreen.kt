@@ -1304,6 +1304,9 @@ private const val ADRENO_8XX_DRIVER = "Turnip-V32-RP6sched"
 private const val PROTON_VERSION = "proton-11.0-90624-arm64ec"
 private const val DXVK_VERSION = "2.4.1-wow-aarch64-test"
 
+/** DXVK's 32-bit d3d9, which the 3.3.5a client needs because wined3d cannot serve d3d9 here. */
+private const val D3D9_X32_ASSET = "d3d9-x32/d3d9.dll"
+
 /** The shipped profile installs no WinComponents: every DLL comes from the bundled runtime. */
 private const val WINCOMPONENTS_OFF =
     "direct3d=0,directsound=0,directinput8=0,directinput=0,directmusic=0,directshow=0," +
@@ -1397,8 +1400,29 @@ private fun prepareLaunch(context: Context, gameRoot: File, gpu: GpuProfile, onS
     // (a 3.3.5a Wow.exe here) is started by wine directly. Wine's wow64 layer and the bundled box64
     // HODLL run the 32-bit image; the ARM64 clients are unaffected because they never use the wrapper.
     container.putExtra(CONTAINER_EXTRA_SKIP_WINHANDLER, "1")
+    if (flavor.isLocal) installD3d9x32(context, container, onStatus)
     container.saveData()
     return flavor.containerId
+}
+
+/**
+ * Installs DXVK's 32-bit d3d9 into the container's wow64 system directory.
+ *
+ * The 3.3.5a client is Direct3D 9 only and wined3d cannot serve it on this Proton: its GL renderer
+ * trips wow64's WGL buffer mapping ("buffer->host_ptr == buffer->vm_ptr" in opengl32/unix_wgl.c) and
+ * its Vulkan renderer has no d3d9 state table, so CreateDevice fails and the client reports that 3D
+ * acceleration is unavailable. WineUtils already overrides d3d9 as "native,builtin" and copies i386
+ * DLLs into this directory for arm64ec wine, so the file is what the prefix is waiting for. A
+ * d3d9.dll the user put there themselves is left alone.
+ */
+private fun installD3d9x32(context: Context, container: Container, onStatus: (String) -> Unit) {
+    val target = File(container.getRootDir(), ".wine/drive_c/windows/syswow64/d3d9.dll")
+    if (target.exists()) return
+    onStatus("Installing 32-bit Direct3D 9...")
+    target.parentFile?.mkdirs()
+    context.assets.open(D3D9_X32_ASSET).use { source ->
+        target.outputStream().use { sink -> source.copyTo(sink) }
+    }
 }
 
 private fun containerConfig(
@@ -1415,12 +1439,22 @@ private fun containerConfig(
         put("id", flavor.containerId)
         put("name", if (flavor.isLocal) "AzerothCore 3.3.5a" else "WoW Forever")
         put("screenSize", screenSize)
-        // A 3.3.5a client is D3D9-only, and wined3d's GL renderer cannot survive here: the GL path
-        // goes through zink, and Proton's wow64 WGL buffer mapping asserts on it
-        // ("buffer->host_ptr == buffer->vm_ptr" in opengl32/unix_wgl.c) a second into the device,
-        // which kills the client. The bundled Proton's wined3d carries its Vulkan renderer too, so
-        // this asks for that instead of falling back to wined3d's GL path.
-        put("envVars", if (flavor.isLocal) "$envVars BOX64_LOG=1 BOX64_DYNAREC_MISSING=1 WINE_D3D_CONFIG=renderer=vulkan" else envVars)
+        // The 3.3.5a client is D3D9-only, and DXVK's 32-bit d3d9 (installed in prepareLaunch) is what
+        // serves it. WINE_D3D_CONFIG only matters if that file is missing: wined3d's GL renderer trips
+        // Proton's wow64 WGL buffer mapping ("buffer->host_ptr == buffer->vm_ptr" in
+        // opengl32/unix_wgl.c) and its Vulkan renderer has no d3d9 state table, so the Vulkan renderer
+        // is the better of the two ways to fail. DXVK's own log is the thing to read either way; the
+        // app otherwise silences it with DXVK_LOG_LEVEL=none, and the container's variables are
+        // applied after that.
+        put(
+            "envVars",
+            if (flavor.isLocal) {
+                "$envVars BOX64_LOG=1 BOX64_DYNAREC_MISSING=1 WINE_D3D_CONFIG=renderer=vulkan " +
+                    "DXVK_LOG_LEVEL=info DXVK_LOG_PATH=G:\\"
+            } else {
+                envVars
+            },
+        )
         put("graphicsDriver", "Wrapper")
         put("graphicsDriverVersion", gpu.driver)
         put("graphicsDriverConfig", "version=${gpu.driver},adrenotoolsTurnip=1,resourceType=buffer,bcnEmulation=auto,quality=high")
