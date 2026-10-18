@@ -1415,7 +1415,12 @@ private fun containerConfig(
         put("id", flavor.containerId)
         put("name", if (flavor.isLocal) "AzerothCore 3.3.5a" else "WoW Forever")
         put("screenSize", screenSize)
-        put("envVars", if (flavor.isLocal) "$envVars BOX64_LOG=1 BOX64_DYNAREC_MISSING=1" else envVars)
+        // A 3.3.5a client is D3D9-only, and wined3d's GL renderer cannot survive here: the GL path
+        // goes through zink, and Proton's wow64 WGL buffer mapping asserts on it
+        // ("buffer->host_ptr == buffer->vm_ptr" in opengl32/unix_wgl.c) a second into the device,
+        // which kills the client. The bundled Proton's wined3d carries its Vulkan renderer too, so
+        // this asks for that instead of falling back to wined3d's GL path.
+        put("envVars", if (flavor.isLocal) "$envVars BOX64_LOG=1 BOX64_DYNAREC_MISSING=1 WINE_D3D_CONFIG=renderer=vulkan" else envVars)
         put("graphicsDriver", "Wrapper")
         put("graphicsDriverVersion", gpu.driver)
         put("graphicsDriverConfig", "version=${gpu.driver},adrenotoolsTurnip=1,resourceType=buffer,bcnEmulation=auto,quality=high")
