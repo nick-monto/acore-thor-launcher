@@ -2,6 +2,7 @@ package app.gamenative.externaldisplay
 
 import android.content.Context
 import android.content.res.ColorStateList
+import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.util.TypedValue
 import android.view.Gravity
@@ -55,7 +56,7 @@ class ExternalPadSettingsView(
             addView(toggleRow(listOf("Swap sides (pages on the right)" to PadSettings.SWAP_SIDES)))
             addView(toggleRow(listOf("Swap sides (tabs on the right)" to PadSettings.SWAP_TABS)))
             addView(toggleRow(listOf("Show all pages side by side" to PadSettings.SIDE_BY_SIDE)))
-            addView(note("Side by side puts Interface, Target and Utility next to each other in one column each. Each column shows its first 8 buttons, in the order set under \"Buttons shown\" (hidden buttons are skipped), so move the ones you want to the top. The header bar goes away: the Settings, Trackpad and Keyboard buttons move to the top of the right-hand column (the header comes back while the trackpad, keyboard or settings are open). The page area is made wider."))
+            addView(note("Side by side puts Interface, Target and Utility next to each other in one column each. Each column shows its first 10 buttons, in the order set under \"Buttons shown\" (hidden buttons are skipped), so move the ones you want to the top. The header bar goes away: the Settings, Trackpad and Keyboard buttons move to the top of the right-hand column (the header comes back while the trackpad, keyboard or settings are open). The page area is made wider."))
             addView(sliderRow("Page area width", PadSettings.PAGE_WIDTH, 60, 200) { "$it%" })
             addView(note("Order of the panels in the right-hand column, top to bottom. Panels that are switched off are skipped."))
             val panelList = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
@@ -79,7 +80,7 @@ class ExternalPadSettingsView(
         section("Modifier glow", collapsible = true) {
             addView(toggleRow(listOf("Glow on buttons a modifier affects" to PadSettings.MOD_GLOW)))
             addView(sliderRow("Glow intensity", PadSettings.MOD_GLOW_LEVEL, 10, 100) { "$it%" })
-            addView(note("Glow color for each modifier. A color also becomes that modifier button's color. Default keeps the usual look."))
+            addView(note("Glow color for each modifier, from the swatches or a custom color. A color also becomes that modifier button's color. Default keeps the usual look."))
             listOf("Shift" to PadSettings.MOD_GLOW_SHIFT, "Ctrl" to PadSettings.MOD_GLOW_CTRL, "Alt" to PadSettings.MOD_GLOW_ALT)
                 .forEach { (name, key) -> addView(glowColorRow(name, key)) }
         }
@@ -218,17 +219,82 @@ class ExternalPadSettingsView(
 
     /** A modifier's name and a row of glow color choices. Default keeps the standard glow and button color. */
     private fun glowColorRow(name: String, key: String): LinearLayout {
-        val row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        val outer = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         fun fill() {
-            row.removeAllViews()
+            outer.removeAllViews()
+            val row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
             row.addView(label(name, 44))
             COLOR_CHOICES.forEach { (_, color) ->
                 row.addView(swatch(color, selected = PadSettings.glowColor(key) == color) { PadSettings.set(key, color); fill() })
             }
             row.addView(swatch(null, selected = PadSettings.glowColor(key) == null) { PadSettings.set(key, 0); fill() })
+            outer.addView(row)
+            outer.addView(customColorPanel(PadSettings.glowColor(key)) { color -> PadSettings.set(key, color); fill() })
         }
         fill()
-        return row
+        return outer
+    }
+
+    /**
+     * A "Custom color…" button that opens hue, saturation and brightness sliders with a preview and an Apply button.
+     * [current] is the color in use now (null for the default). It lights up when that is not one of the fixed swatches.
+     */
+    private fun customColorPanel(current: Int?, onApply: (Int) -> Unit): LinearLayout {
+        val outer = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+        val isCustom = current != null && COLOR_CHOICES.none { it.second == current }
+        val hsv = FloatArray(3)
+        Color.colorToHSV(current ?: 0xFFB08C40.toInt(), hsv)
+        val panel = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+            setPadding(dp(8), 0, dp(8), dp(4))
+        }
+        val preview = View(context).apply {
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(36)).apply { setMargins(0, dp(2), 0, dp(2)) }
+        }
+        fun refreshPreview() {
+            preview.background = GradientDrawable().apply {
+                cornerRadius = 8 * density
+                setColor(Color.HSVToColor(hsv))
+                setStroke(dp(1), theme.border)
+            }
+        }
+        fun seek(title: String, maxValue: Int, start: Int, onChange: (Int) -> Unit) = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            addView(label(title, 90))
+            addView(
+                SeekBar(context).apply {
+                    max = maxValue
+                    progress = start
+                    progressTintList = ColorStateList.valueOf(theme.border)
+                    thumbTintList = ColorStateList.valueOf(theme.borderBright)
+                    layoutParams = LinearLayout.LayoutParams(0, dp(40), 1f)
+                    setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                        override fun onProgressChanged(bar: SeekBar?, progress: Int, fromUser: Boolean) {
+                            if (fromUser) { onChange(progress); refreshPreview() }
+                        }
+                        override fun onStartTrackingTouch(bar: SeekBar?) {}
+                        override fun onStopTrackingTouch(bar: SeekBar?) {}
+                    })
+                },
+            )
+        }
+        panel.addView(preview)
+        panel.addView(seek("Hue", 360, hsv[0].toInt()) { hsv[0] = it.toFloat() })
+        panel.addView(seek("Saturation", 100, (hsv[1] * 100).toInt()) { hsv[1] = it / 100f })
+        panel.addView(seek("Brightness", 100, (hsv[2] * 100).toInt()) { hsv[2] = it / 100f })
+        panel.addView(rowOf(button("Use this color") { onApply(Color.HSVToColor(hsv)) }))
+        refreshPreview()
+        outer.addView(
+            rowOf(
+                button("Custom color\u2026", active = isCustom) {
+                    panel.visibility = if (panel.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+                },
+            ),
+        )
+        outer.addView(panel)
+        return outer
     }
 
     /** The right column's panels in their current order, each with Up / Down arrows. Rebuilds itself on a move. */
@@ -303,7 +369,7 @@ class ExternalPadSettingsView(
                         *chunk.map { (label, default) ->
                             val mapped = PadSettings.remapped(label)
                             val shown = PadSettings.displayName(label)
-                            button(if (mapped == null) shown else "$shown → ${comboLabel(mapped)}", active = mapped != null || PadSettings.renamed(label) != null || PadSettings.colorOf(label) != null) {
+                            button(shown, active = mapped != null || PadSettings.renamed(label) != null || PadSettings.colorOf(label) != null) {
                                 showKeyPicker(label, default)
                             }
                         }.toTypedArray(),
@@ -361,6 +427,10 @@ class ExternalPadSettingsView(
                     },
                 ),
             )
+            addView(customColorPanel(PadSettings.colorOf(label)) { color ->
+                PadSettings.setColor(listOf(label), color)
+                showKeyPicker(label, default)
+            })
             if (group != null) {
                 addView(
                     rowOf(
@@ -373,7 +443,7 @@ class ExternalPadSettingsView(
             }
         }
         section("Keys") {
-            addView(note("Optional: hold Shift, Ctrl or Alt with the key. Pick them first, then the key."))
+            addView(note("Optional: add Shift, Ctrl or Alt to the key (pick them first, then the key). To make a button hold modifiers on their own (one or several at once), pick them above and tap \"Use the modifiers above on their own\"; a single one can also be chosen from the keys below."))
             addView(
                 rowOf(
                     *KeyCombo.MODIFIERS.map { (name, _) ->
@@ -383,6 +453,19 @@ class ExternalPadSettingsView(
                         }
                     }.toTypedArray(),
                     filler = 3,
+                ),
+            )
+            addView(
+                rowOf(
+                    button("Use the modifiers above on their own") {
+                        // Shift, Ctrl and Alt together: the first one picked is the key, the rest go along as its modifiers.
+                        val chosen = KeyCombo.MODIFIERS.filter { it.first in pickerMods }
+                        if (chosen.isNotEmpty()) {
+                            val keyMod = chosen.first()
+                            PadSettings.setRemap(label, KeyCombo.encode(keyMod.second.name, chosen.drop(1).map { it.first }.toSet()))
+                            showRemap()
+                        }
+                    },
                 ),
             )
             val current = PadSettings.remapped(label)
@@ -499,9 +582,16 @@ class ExternalPadSettingsView(
     /** A row of equal-width views. [filler] adds empty cells so a short last row keeps the grid widths. */
     private fun rowOf(vararg views: View, filler: Int = 0): LinearLayout = LinearLayout(context).apply {
         orientation = LinearLayout.HORIZONTAL
-        views.forEach { addView(it) }
+        // Buttons whose labels run to two lines must not shift their neighbours: no baseline alignment, and every
+        // button in a row takes the height of the tallest one.
+        isBaselineAligned = false
+        views.forEach { v ->
+            (v.layoutParams as? LinearLayout.LayoutParams)?.takeIf { v is Button }?.height = ViewGroup.LayoutParams.MATCH_PARENT
+            addView(v)
+        }
         repeat(filler) {
-            addView(View(context), LinearLayout.LayoutParams(0, 1, 1f).apply { setMargins(dp(3), 0, dp(3), 0) })
+            // Match-parent height like the buttons, or the row would shrink to this spacer's height.
+            addView(View(context), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f).apply { setMargins(dp(3), 0, dp(3), 0) })
         }
     }
 
@@ -639,11 +729,14 @@ class ExternalPadSettingsView(
         "GRAVE" -> "`"
         "MINUS" -> "-"
         "EQUAL" -> "="
+        "SHIFT_L" -> "Shift"
+        "CTRL_L" -> "Ctrl"
+        "ALT_L" -> "Alt"
         else -> n.lowercase().replaceFirstChar { it.uppercase() }.takeIf { n.length > 1 } ?: n
     }
 
     private companion object {
-        private const val MAX_NAME = 12
+        private const val MAX_NAME = Int.MAX_VALUE
 
         /** Trim colors offered per button; "Default" keeps the gold. */
         private val COLOR_CHOICES = listOf(
@@ -657,7 +750,8 @@ class ExternalPadSettingsView(
         )
 
         val PICKER_KEYS: List<XKeycode> = buildList {
-            val names = ('A'..'Z').map { "KEY_$it" } + (0..9).map { "KEY_$it" } + (1..12).map { "KEY_F$it" } +
+            // The modifier keys themselves come first: a button can hold Shift, Ctrl or Alt while it is pressed.
+            val names = listOf("KEY_SHIFT_L", "KEY_CTRL_L", "KEY_ALT_L") + ('A'..'Z').map { "KEY_$it" } + (0..9).map { "KEY_$it" } + (1..12).map { "KEY_F$it" } +
                 listOf(
                     "KEY_ESC", "KEY_TAB", "KEY_SPACE", "KEY_ENTER", "KEY_BKSP", "KEY_DEL", "KEY_INSERT", "KEY_HOME",
                     "KEY_END", "KEY_PRIOR", "KEY_NEXT", "KEY_UP", "KEY_DOWN", "KEY_LEFT", "KEY_RIGHT", "KEY_MINUS",

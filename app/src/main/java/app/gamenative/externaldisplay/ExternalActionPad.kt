@@ -374,6 +374,8 @@ class ExternalActionPad(
             typeface = theme.typeface
             gravity = Gravity.CENTER_VERTICAL
             maxLines = 1
+            // A long name scrolls off the left, so the end being typed stays in view.
+            ellipsize = android.text.TextUtils.TruncateAt.START
             background = theme.groupBackground(density, strong = true)
             setPadding(m, 0, m, 0)
             layoutParams = LayoutParams(0, (52 * density).toInt(), 3f).apply { setMargins(m / 2, 0, m / 2, 0) }
