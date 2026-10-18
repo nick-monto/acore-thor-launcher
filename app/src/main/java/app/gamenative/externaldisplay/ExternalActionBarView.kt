@@ -80,7 +80,9 @@ class ExternalActionBarView(
         val pad = dp(8)
         // 5 dp here, plus the tab bar's 1 dp and the panels' own 3 dp, makes a 9 dp gap to the tab bar.
         val near = dp(5)
-        if (PadSettings.int(PadSettings.TAB_POS) == 1) setPadding(pad, pad, pad, near) else setPadding(pad, near, pad, pad)
+        // Side by side has no tab bar on the pad itself, so it gets the full margin all round.
+        if (PadSettings.bool(PadSettings.SIDE_BY_SIDE)) setPadding(pad, pad, pad, pad)
+        else if (PadSettings.int(PadSettings.TAB_POS) == 1) setPadding(pad, pad, pad, near) else setPadding(pad, near, pad, pad)
 
         // Each group of buttons sits on its own faint backing; the number block's is the strongest.
         // The page area shows one page of buttons at a time (see [showPage]).
@@ -192,6 +194,12 @@ class ExternalActionBarView(
     fun setModifierGlow(color: Int?, intensity: Int) {
         val density = resources.displayMetrics.density
         modifierAffected.forEach { view -> applyGlow(view, color, intensity, density) }
+    }
+
+    /** Side by side: puts the Settings, Trackpad and Keyboard buttons in a row at the top of the right column. */
+    fun setModeRow(row: View) {
+        (row.parent as? android.view.ViewGroup)?.removeView(row)
+        rightColumn.addView(row, 0)
     }
 
     /** Puts the modifier buttons above the action buttons. */

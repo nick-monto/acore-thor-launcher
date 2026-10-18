@@ -188,6 +188,7 @@ class ExternalActionPad(
         }
 
         val header = LinearLayout(context).apply {
+            headerView = this
             orientation = HORIZONTAL
             // The two header buttons sit on a faint gold backing, like the button groups below.
             background = theme.groupBackground(density, strong = false)
@@ -203,29 +204,16 @@ class ExternalActionPad(
             gravity = Gravity.CENTER_VERTICAL
             // Page tabs on the left share the width; the three mode buttons stay fixed on the right.
             pageTabs.clear()
-            ExternalActionBarView.PAGE_TITLES.forEachIndexed { i, title ->
-                pageTabs.add(pageTab(title) { selectPage(i) })
+            if (!PadSettings.bool(PadSettings.SIDE_BY_SIDE)) {
+                ExternalActionBarView.PAGE_TITLES.forEachIndexed { i, title ->
+                    pageTabs.add(pageTab(title) { selectPage(i) })
+                }
             }
             val modeButtons = listOf(settingsButton, trackpadButton, keyboardButton)
             if (PadSettings.bool(PadSettings.SIDE_BY_SIDE)) {
-                // Side by side: the tabs are plain captions over their panels, and the three buttons sit over the right column.
-                val pageW = ExternalActionBarView.pageWeightNow()
-                val captions = LinearLayout(context).apply {
-                    orientation = HORIZONTAL
-                    layoutParams = LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, pageW)
-                    pageTabs.forEach { tab ->
-                        tab.isClickable = false
-                        (tab.layoutParams as LayoutParams).apply { setMargins(m3(), 0, m3(), 0) }
-                        addView(tab)
-                    }
-                }
-                val modes = LinearLayout(context).apply {
-                    orientation = HORIZONTAL
-                    gravity = Gravity.END or Gravity.CENTER_VERTICAL
-                    layoutParams = LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-                    modeButtons.forEach { addView(it) }
-                }
-                if (PadSettings.bool(PadSettings.SWAP_SIDES)) { addView(modes); addView(captions) } else { addView(captions); addView(modes) }
+                // Side by side: no page tabs. The three buttons live at the top of the pad's right column;
+                // this header only shows (with the buttons in it) while the trackpad, keyboard or settings are open.
+                gravity = Gravity.END or Gravity.CENTER_VERTICAL
             } else if (PadSettings.bool(PadSettings.SWAP_TABS)) {
                 // "Swap sides (tabs on the right)" puts the three mode buttons first.
                 modeButtons.forEach { addView(it) }
@@ -267,6 +255,15 @@ class ExternalActionPad(
             addView(settingsView)
             addView(textEntryPanel)
         }
+        if (PadSettings.bool(PadSettings.SIDE_BY_SIDE)) {
+            // The same three buttons, in a row at the top of the pad's right column (see [updateModeButtons]).
+            padModeRow = LinearLayout(context).apply {
+                orientation = HORIZONTAL
+                layoutParams = LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (44 * density).toInt() + 2 * m3())
+                setPadding(0, m3(), 0, m3())
+            }
+            padView.setModeRow(padModeRow)
+        }
         if (PadSettings.int(PadSettings.TAB_POS) == 1) {
             addView(body)
             addView(header)
@@ -278,6 +275,28 @@ class ExternalActionPad(
     }
 
     private fun m3() = (3 * density).toInt()
+
+    private lateinit var headerView: LinearLayout
+    private lateinit var padModeRow: LinearLayout
+
+    /**
+     * Side by side only: the three mode buttons sit in the pad while it shows. With the trackpad, keyboard or
+     * settings open the pad is hidden, so they move up into the header, which shows just then.
+     */
+    private fun updateModeButtons() {
+        if (!PadSettings.bool(PadSettings.SIDE_BY_SIDE) || !::padModeRow.isInitialized) return
+        val onPad = padView.visibility == View.VISIBLE
+        val target: ViewGroup = if (onPad) padModeRow else headerView
+        listOf(settingsButton, trackpadButton, keyboardButton).forEach { b ->
+            if (b.parent !== target) {
+                (b.parent as? ViewGroup)?.removeView(b)
+                b.layoutParams = if (onPad) LayoutParams(0, (44 * density).toInt(), 1f).apply { setMargins(m3(), 0, m3(), 0) }
+                else LayoutParams((52 * density).toInt(), (44 * density).toInt()).apply { setMargins(m3(), 0, m3(), 0) }
+                target.addView(b)
+            }
+        }
+        headerView.visibility = if (onPad) View.GONE else View.VISIBLE
+    }
 
     private fun pageTab(title: String, onClick: () -> Unit) = TextView(context).apply {
         layoutParams = LayoutParams(0, (44 * density).toInt(), 1f).apply {
@@ -304,6 +323,7 @@ class ExternalActionPad(
 
     /** The active page tab only lights up while the pad itself is showing. */
     private fun refreshTabs() {
+        updateModeButtons()
         val mainVisible = padView.visibility == View.VISIBLE
         pageTabs.forEachIndexed { i, tab ->
             val active = mainVisible && i == currentPage && !PadSettings.bool(PadSettings.SIDE_BY_SIDE)
