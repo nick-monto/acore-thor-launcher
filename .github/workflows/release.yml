@@ -1,0 +1,174 @@
+name: Release APK
+
+# Cuts a GitHub release when a v* tag is pushed, so shipping is: bump versionName in
+# app/build.gradle.kts, commit, push, then
+#
+#   git tag v2.6.1d && git push origin v2.6.1d
+#
+# The tag has to equal versionName. The in-app updater compares the two, so a mismatch would make it
+# offer an update forever or never. That is checked before anything is built.
+#
+# Deliberately a separate file from build.yml: build.yml is upstream's and is edited upstream, this one
+# is the fork's, so merges stay clean. A tag push runs both (the debug artifact is harmless).
+#
+# Re-running: dispatch this workflow and pick the release's tag in "Use workflow from" - it then
+# replaces the APK on the existing release. A dispatch from a branch is skipped: a release needs a tag.
+# To replace the generated notes with hand-written ones (the style upstream uses):
+#
+#   gh release edit v2.6.1d --notes-file notes.md
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write # to create the release
+
+jobs:
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      # Fail in seconds rather than after a 20-minute build if the token plainly cannot publish. Only
+      # an explicit "false" blocks: an unexpected answer leaves the decision to gh at publish time.
+      - name: Check the workflow token may write
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          permissions="$(gh api "repos/$GITHUB_REPOSITORY" --jq '.permissions.push' 2>/dev/null || echo unknown)"
+          if [ "$permissions" = "false" ]; then
+            echo "::error::this workflow's token has read-only access, so it cannot create a release."
+            echo "Set Settings -> Actions -> General -> Workflow permissions to 'Read and write permissions'."
+            exit 1
+          fi
+          echo "Token may push: $permissions"
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the notes list the commits since the previous tag
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install NDK
+        run: |
+          echo "y" | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;27.3.13750724" > /dev/null
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+
+      - name: Tag matches the app version
+        run: |
+          version="$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts | head -1)"
+          if [ "${GITHUB_REF_NAME#v}" != "$version" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match versionName \"$version\" in app/build.gradle.kts."
+            exit 1
+          fi
+          echo "Releasing $version from $GITHUB_SHA"
+
+      - name: Cache runtime components
+        uses: actions/cache@v4
+        with:
+          path: app/src/main/assets/bundled_components
+          key: components-${{ hashFiles('tools/components.sha256') }}
+
+      - name: Fetch runtime components
+        run: tools/fetch_components.sh
+
+      - name: Unit tests
+        run: ./gradlew testModernDebugUnitTest
+
+      - name: Release signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          # Without the secrets, the release build type falls back to the committed debug key - the key
+          # every install from this fork so far is signed with, so those devices keep updating in place.
+          # With the secrets, every device uninstalls once to cross the key change.
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "No RELEASE_KEYSTORE_BASE64 secret: signing with the committed debug key."
+            echo "SIGNER=debug key (tools/ci-debug.keystore)" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          mkdir -p app/keystores
+          echo "$KEYSTORE_BASE64" | base64 -d > app/keystores/release.keystore
+          {
+            echo "storeFile=$GITHUB_WORKSPACE/app/keystores/release.keystore"
+            echo "storePassword=$STORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > app/keystores/keystore.properties
+          echo "SIGNER=release key \"$KEY_ALIAS\"" >> "$GITHUB_ENV"
+
+      - name: Build the release APK
+        run: ./gradlew assembleModernRelease
+
+      - name: Verify the APK
+        run: |
+          apk=app/build/outputs/apk/modern/release/app-modern-release.apk
+          [ -f "$apk" ] || { echo "::error::$apk is missing"; exit 1; }
+          size=$(stat -c%s "$apk")
+          echo "APK: $((size / 1024 / 1024)) MiB"
+          # An APK without the bundled runtime installs fine and then fails to start the game.
+          components=$(unzip -l "$apk" | grep -c 'assets/bundled_components/')
+          echo "Bundled components in the APK: $components"
+          [ "$components" -ge 3 ] || { echo "::error::only $components bundled components in the APK"; exit 1; }
+          # Measured: ~155 MB signed with the runtime, ~90 MB if the runtime is missing.
+          [ "$size" -gt 120000000 ] || { echo "::error::the APK is $size bytes - the runtime components are missing"; exit 1; }
+          aapt2=$(find "$ANDROID_HOME/build-tools" -name aapt2 -type f | sort -V | tail -1)
+          "$aapt2" dump badging "$apk" > "$RUNNER_TEMP/badging.txt"
+          grep -q "package: name='app.acorethor.launcher'" "$RUNNER_TEMP/badging.txt" \
+            || { echo "::error::unexpected package name in the APK"; exit 1; }
+          grep -q "versionName='${GITHUB_REF_NAME#v}'" "$RUNNER_TEMP/badging.txt" \
+            || { echo "::error::the APK does not carry versionName ${GITHUB_REF_NAME#v}"; exit 1; }
+          grep -q "application-label:'AC Thor Launcher'" "$RUNNER_TEMP/badging.txt" \
+            || { echo "::error::unexpected app label in the APK"; exit 1; }
+          echo "Signer: $SIGNER"
+
+      - name: Write the release notes
+        run: |
+          previous="$(git describe --tags --abbrev=0 "$GITHUB_REF_NAME^" 2>/dev/null || true)"
+          {
+            echo "## ${GITHUB_REF_NAME#v}"
+            echo
+            echo "World of Warcraft on the AYN Thor as a normal Android app, with the self-hosted"
+            echo "AzerothCore 3.3.5a client flavor included (arm64-v8a)."
+            echo
+            echo "Download **ACThorLauncher.apk** below. It installs over earlier builds from this repo"
+            echo "signed with the same key ($SIGNER); a build signed with a different key needs an"
+            echo "uninstall first."
+            echo
+            echo "Built from \`$GITHUB_SHA\`."
+            if [ -n "$previous" ]; then
+              echo
+              echo "### Commits since $previous"
+              echo
+              git log --oneline --no-merges "$previous..$GITHUB_REF_NAME" | sed 's/^/- /'
+            fi
+          } > "$RUNNER_TEMP/notes.md"
+          cat "$RUNNER_TEMP/notes.md"
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/modern/release/app-modern-release.apk ACThorLauncher.apk
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            echo "Release $GITHUB_REF_NAME exists: replacing its APK."
+            gh release upload "$GITHUB_REF_NAME" ACThorLauncher.apk --clobber
+          elif [ "${GITHUB_REF_NAME%-*}" != "$GITHUB_REF_NAME" ]; then
+            gh release create "$GITHUB_REF_NAME" ACThorLauncher.apk \
+              --title "AC Thor Launcher $GITHUB_REF_NAME" \
+              --notes-file "$RUNNER_TEMP/notes.md" --prerelease
+          else
+            gh release create "$GITHUB_REF_NAME" ACThorLauncher.apk \
+              --title "AC Thor Launcher $GITHUB_REF_NAME" \
+              --notes-file "$RUNNER_TEMP/notes.md"
+          fi

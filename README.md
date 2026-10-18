@@ -201,6 +201,33 @@ Release builds are signed with `app/keystores/keystore.properties` when it exist
 
 `fetch_components.sh` downloads the three runtime archives from jaredgei's `components-v1` release and checks them against `tools/components.sha256`. If you already have them, pass a folder instead: `tools/fetch_components.sh /path/to/components`.
 
+### Releases
+
+Pushing a `v*` tag builds and publishes a release through the `Release APK` workflow:
+
+```bash
+# bump versionName in app/build.gradle.kts, commit and push, then
+git tag v2.6.1d && git push origin v2.6.1d
+```
+
+The tag has to equal `versionName` - the app's updater compares the two, and the workflow refuses to build when they differ. It runs the unit tests, builds `assembleModernRelease`, checks the APK (package, label, version and the bundled runtime inside it) and attaches it to the release as `ACThorLauncher.apk`. Re-run the workflow with the release's tag selected in "Use workflow from" to replace that APK, or replace the generated notes with your own: `gh release edit v2.6.1d --notes-file notes.md`.
+
+Without the secrets below, the release is signed with the committed debug key - what builds from this repo have used so far - so those installs keep updating in place. To sign with your own key, create it and add four repository secrets:
+
+```bash
+keytool -genkeypair -v -keystore app/keystores/release.keystore -alias acthor -keyalg RSA -keysize 4096 -validity 10000
+base64 -w0 app/keystores/release.keystore   # paste the output as RELEASE_KEYSTORE_BASE64
+```
+
+| Secret | Value |
+|---|---|
+| `RELEASE_KEYSTORE_BASE64` | the base64 output above |
+| `RELEASE_STORE_PASSWORD` | the keystore password |
+| `RELEASE_KEY_ALIAS` | `acthor` |
+| `RELEASE_KEY_PASSWORD` | the key password |
+
+Every device then has to uninstall once, because Android refuses an update signed by a different key. The workflow also needs Settings -> Actions -> General -> Workflow permissions set to "Read and write permissions", so its token can create the release.
+
 ---
 
 ## Credits and how it works
