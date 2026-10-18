@@ -210,7 +210,9 @@ class MainViewModel @Inject constructor(
             setShowBootingSplash(false)
             PluviaApp.events.emit(AndroidEvent.ClearBootingSplash)
 
-            // You could also show an error dialog here if needed
+            // The guest exiting is reported here, and the launcher is where the player ends up: say so,
+            // rather than only logging it and leaving a silent bounce back to the launcher.
+            SnackbarManager.showTop(error)
             Timber.tag("MainViewModel").e("Game launch error: $error")
         }
     }

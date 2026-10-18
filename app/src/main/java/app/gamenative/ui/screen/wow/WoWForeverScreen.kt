@@ -1,5 +1,6 @@
 package app.gamenative.ui.screen.wow
 
+import app.gamenative.PrefManager
 import app.gamenative.externaldisplay.PadSettings
 import android.content.Context
 import android.os.Build
@@ -239,6 +240,11 @@ fun WoWForeverScreen(
             showStoragePermissionDialog = true
             return
         }
+        // A bounce back to this screen tells you nothing: the guest's own output (Wine and box64) is
+        // buffered and thrown away unless capture is on. The 32-bit path is new, so keep it on for the
+        // local flavor and leave it off elsewhere. Wine then logs warn,err,fixme,loaddll and the lines
+        // land in wine_logs/wine_debug.log inside the app's external files dir, overwritten each launch.
+        PrefManager.enableWineDebug = flavor.isLocal
         isLaunching = true
         errorMessage = null
         statusText = "Preparing components..."
@@ -1404,7 +1410,7 @@ private fun containerConfig(
         put("id", flavor.containerId)
         put("name", if (flavor.isLocal) "AzerothCore 3.3.5a" else "WoW Forever")
         put("screenSize", screenSize)
-        put("envVars", envVars)
+        put("envVars", if (flavor.isLocal) "$envVars BOX64_LOG=1 BOX64_DYNAREC_MISSING=1" else envVars)
         put("graphicsDriver", "Wrapper")
         put("graphicsDriverVersion", gpu.driver)
         put("graphicsDriverConfig", "version=${gpu.driver},adrenotoolsTurnip=1,resourceType=buffer,bcnEmulation=auto,quality=high")
@@ -1550,16 +1556,21 @@ private fun ensureGameConfig(root: File, gamepadMode: Int) {
 }
 
 /**
- * Points the local client at the local realm. `Data/<locale>/realmlist.wtf` is what a 3.3.5a client
- * reads at login, so it is rewritten whenever it drifted - e.g. right after copying a client from a
- * PC that played on someone else's realm.
+ * Points the local client at the local realm. A 3.3.5a client reads realmlist.wtf from `Data/<locale>/`
+ * and from its own root, and which one wins is not worth relying on, so both are written. They are
+ * rewritten whenever they drift - e.g. right after copying a client from a PC that played elsewhere.
  */
 private fun writeLocalRealmList(clientDir: File) {
     val wanted = "set realmlist $LOCAL_REALM_ADDRESS\r\n"
-    val realmList = File(File(clientDir, "Data/$LOCAL_CLIENT_LOCALE"), "realmlist.wtf")
-    if (realmList.isFile && realmList.readText() == wanted) return
-    realmList.parentFile?.mkdirs()
-    realmList.writeText(wanted)
+    val realmLists = listOf(
+        File(File(clientDir, "Data/$LOCAL_CLIENT_LOCALE"), "realmlist.wtf"),
+        File(clientDir, "realmlist.wtf"),
+    )
+    for (realmList in realmLists) {
+        if (realmList.isFile && realmList.readText() == wanted) continue
+        realmList.parentFile?.mkdirs()
+        realmList.writeText(wanted)
+    }
 }
 
 private fun installBundledComponents(context: Context, onStatus: (String) -> Unit) {
