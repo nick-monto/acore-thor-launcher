@@ -3885,12 +3885,7 @@ private fun getWineStartCommand(
                 guestProgramLauncherComponent.workingDir = hostDir
             }
         }
-        val isArm64 = executablePath.contains("ARM64", ignoreCase = true)
-        if (isArm64) {
-            if (executablePath.contains(" ")) "\"$executablePath\"" else executablePath
-        } else {
-            "winhandler.exe \"$executablePath\""
-        }
+        if (executablePath.contains(" ")) "\"$executablePath\"" else executablePath
     } else {
         if (gameFolderPath == null) {
             Timber.tag("XServerScreen").e("Could not find A: drive: $appId")
@@ -3905,13 +3900,13 @@ private fun getWineStartCommand(
         "\"A:\\${normalizedPath}\""
     }
 
-    // The absolute non-ARM64 path above came back already wrapped in winhandler.exe (the route a 32-bit
-    // client like Wow.exe takes); wrapping it again would tell winhandler to run winhandler.
-    return if (args.contains("ARM64", ignoreCase = true) || args.startsWith("winhandler.exe")) {
-        args
-    } else {
-        "winhandler.exe $args"
-    }
+    // The wrapper decision happens here and only here, so an argument that is already a bare
+    // executable cannot be wrapped a second time.
+    return guestProgramArgument(
+        args,
+        isArm64 = executablePath.contains("ARM64", ignoreCase = true),
+        skipWinHandler = container.getExtra(CONTAINER_EXTRA_SKIP_WINHANDLER) == "1",
+    )
 }
 private fun exit(
     winHandler: WinHandler?,

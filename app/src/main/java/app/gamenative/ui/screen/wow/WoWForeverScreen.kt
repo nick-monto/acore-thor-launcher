@@ -55,6 +55,7 @@ import app.gamenative.events.AndroidEvent
 import app.gamenative.ui.screen.wow.WowClientDownloader.BUILD_INFO
 import app.gamenative.ui.screen.wow.WowClientDownloader.FLAVOR_DIR
 import app.gamenative.ui.screen.wow.WowClientDownloader.TARGET_PRODUCT
+import app.gamenative.ui.screen.xserver.CONTAINER_EXTRA_SKIP_WINHANDLER
 import app.gamenative.ui.theme.WowBackgroundGradient
 import app.gamenative.ui.theme.WowBronze
 import app.gamenative.ui.theme.WowError
@@ -1392,6 +1393,10 @@ private fun prepareLaunch(context: Context, gameRoot: File, gpu: GpuProfile, onS
             Container.EXTERNAL_DISPLAY_MODE_OFF
         },
     )
+    // winhandler.exe is an x86-64 helper and this build ships no FEX for it, so a non-ARM64 client
+    // (a 3.3.5a Wow.exe here) is started by wine directly. Wine's wow64 layer and the bundled box64
+    // HODLL run the 32-bit image; the ARM64 clients are unaffected because they never use the wrapper.
+    container.putExtra(CONTAINER_EXTRA_SKIP_WINHANDLER, "1")
     container.saveData()
     return flavor.containerId
 }
