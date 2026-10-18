@@ -226,7 +226,7 @@ base64 -w0 app/keystores/release.keystore   # paste the output as RELEASE_KEYSTO
 | `RELEASE_KEY_ALIAS` | `acthor` |
 | `RELEASE_KEY_PASSWORD` | the key password |
 
-Every device then has to uninstall once, because Android refuses an update signed by a different key. The workflow also needs Settings -> Actions -> General -> Workflow permissions set to "Read and write permissions", so its token can create the release.
+Every device then has to uninstall once, because Android refuses an update signed by a different key. Nothing else needs configuring: the workflow grants its own token `contents: write`, which is what creating a release needs, and that overrides the read-only default of a new repository.
 
 ---
 

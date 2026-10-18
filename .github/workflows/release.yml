@@ -31,19 +31,28 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
-      # Fail in seconds rather than after a 20-minute build if the token plainly cannot publish. Only
-      # an explicit "false" blocks: an unexpected answer leaves the decision to gh at publish time.
+      # GET /repos computes permissions.push from the token's own view, which is not the workflow's
+      # granted scopes, so it cannot be trusted as a capability test. Probe with a real write instead:
+      # storing a throwaway blob needs contents: write, the same scope a release needs. An unreferenced
+      # blob is invisible in the UI and gets garbage collected.
       - name: Check the workflow token may write
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          permissions="$(gh api "repos/$GITHUB_REPOSITORY" --jq '.permissions.push' 2>/dev/null || echo unknown)"
-          if [ "$permissions" = "false" ]; then
-            echo "::error::this workflow's token has read-only access, so it cannot create a release."
-            echo "Set Settings -> Actions -> General -> Workflow permissions to 'Read and write permissions'."
-            exit 1
+          if probe="$(gh api -X POST "repos/$GITHUB_REPOSITORY/git/blobs" -f content=probe -f encoding=utf-8 2>&1)"; then
+            echo "Token can write to the repository."
+          else
+            case "$probe" in
+              *403* | *"not accessible"* | *"Not Found"*)
+                echo "::error::the workflow token cannot write to this repository, so it cannot create a release."
+                echo "Set Settings -> Actions -> General -> Workflow permissions to 'Read and write permissions'."
+                exit 1
+                ;;
+              *)
+                echo "::warning::the write probe failed for an unexpected reason, leaving it to gh at publish time: $probe"
+                ;;
+            esac
           fi
-          echo "Token may push: $permissions"
 
       - uses: actions/checkout@v4
         with:
@@ -160,15 +169,26 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           cp app/build/outputs/apk/modern/release/app-modern-release.apk ACThorLauncher.apk
+          publish() {
+            if "$@" 2> "$RUNNER_TEMP/gh-error.txt"; then
+              return 0
+            fi
+            cat "$RUNNER_TEMP/gh-error.txt" >&2
+            if grep -qE "403|404|not accessible|forbidden" "$RUNNER_TEMP/gh-error.txt"; then
+              echo "::error::gh could not write to this repository. The workflow already grants contents: write,"
+              echo "so check the error above, then Settings -> Actions -> General -> Workflow permissions."
+            fi
+            return 1
+          }
           if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
             echo "Release $GITHUB_REF_NAME exists: replacing its APK."
-            gh release upload "$GITHUB_REF_NAME" ACThorLauncher.apk --clobber
+            publish gh release upload "$GITHUB_REF_NAME" ACThorLauncher.apk --clobber
           elif [ "${GITHUB_REF_NAME%-*}" != "$GITHUB_REF_NAME" ]; then
-            gh release create "$GITHUB_REF_NAME" ACThorLauncher.apk \
+            publish gh release create "$GITHUB_REF_NAME" ACThorLauncher.apk \
               --title "AC Thor Launcher $GITHUB_REF_NAME" \
               --notes-file "$RUNNER_TEMP/notes.md" --prerelease
           else
-            gh release create "$GITHUB_REF_NAME" ACThorLauncher.apk \
+            publish gh release create "$GITHUB_REF_NAME" ACThorLauncher.apk \
               --title "AC Thor Launcher $GITHUB_REF_NAME" \
               --notes-file "$RUNNER_TEMP/notes.md"
           fi
