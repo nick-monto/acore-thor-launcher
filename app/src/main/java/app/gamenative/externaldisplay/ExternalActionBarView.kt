@@ -87,7 +87,7 @@ class ExternalActionBarView(
         pageHost = LinearLayout(context).apply {
             orientation = HORIZONTAL
             isMotionEventSplittingEnabled = true
-            layoutParams = LayoutParams(0, LayoutParams.MATCH_PARENT, LEFT_WEIGHT * pageWidthScale())
+            layoutParams = LayoutParams(0, LayoutParams.MATCH_PARENT, pageWeight())
         }
         populatePage()
         modifierGroup = group(vertical = false, strong = false).apply {
@@ -152,6 +152,21 @@ class ExternalActionBarView(
     /** Fills the page area: one column of buttons, or two when the page has more than [SINGLE_COLUMN_MAX]. */
     private fun populatePage() {
         pageHost.removeAllViews()
+        if (PadSettings.bool(PadSettings.SIDE_BY_SIDE)) {
+            // All pages at once, one column each.
+            PAGES.forEach { page ->
+                val slots = orderedSlots(page.id, page.slots).filter { !PadSettings.isHidden(it.label) }
+                pageHost.addView(
+                    group(vertical = true, strong = false).apply {
+                        layoutParams = LayoutParams(0, LayoutParams.MATCH_PARENT, 1f).apply { setMargins(dp(3), dp(3), dp(3), dp(3)) }
+                        slots.forEach { addView(keyRow(listOf(it), textSp = 13f, weight = 1f, muted = true, wrap = true)) }
+                    },
+                )
+            }
+            (pageHost.layoutParams as LayoutParams).weight = pageWeight()
+            pageHost.requestLayout()
+            return
+        }
         val page = PAGES[pageIndex]
         val slots = orderedSlots(page.id, page.slots).filter { !PadSettings.isHidden(it.label) }
         val columns = if (slots.size > SINGLE_COLUMN_MAX) slots.chunked((slots.size + 1) / 2) else listOf(slots)
@@ -164,11 +179,13 @@ class ExternalActionBarView(
                 },
             )
         }
-        (pageHost.layoutParams as LayoutParams).weight = LEFT_WEIGHT * pageWidthScale()
+        (pageHost.layoutParams as LayoutParams).weight = pageWeight()
         pageHost.requestLayout()
     }
 
     private fun pageWidthScale() = PadSettings.int(PadSettings.PAGE_WIDTH) / 100f
+
+    private fun pageWeight() = pageWeightNow()
 
     /** Makes the buttons armed modifiers apply to glow in [color] ([intensity] 10 to 100), or stop glowing when null. */
     fun setModifierGlow(color: Int?, intensity: Int) {
@@ -379,6 +396,12 @@ class ExternalActionBarView(
         /** Every remappable pad button: its label and what it sends by default. */
         fun remappableButtons(): List<Pair<String, KeyCombo>> =
             (PAGES.flatMap { it.slots } + ACTION_SLOTS + EXTRA_SLOTS + CHAT_SLOTS).map { it.label to KeyCombo(it.key, it.mods) }
+
+        /** The page area's share of the width, against 1 for the right column. Side by side is wider, to fit three panels. */
+        fun pageWeightNow(): Float =
+            LEFT_WEIGHT * PadSettings.int(PadSettings.PAGE_WIDTH) / 100f * (if (PadSettings.bool(PadSettings.SIDE_BY_SIDE)) SIDE_BY_SIDE_WIDEN else 1f)
+
+        private const val SIDE_BY_SIDE_WIDEN = 1.5f
 
         // Width split between the page area and the number/modifier block.
         // A smaller RIGHT_WEIGHT squeezes that block toward the right edge, within reach of a right thumb.

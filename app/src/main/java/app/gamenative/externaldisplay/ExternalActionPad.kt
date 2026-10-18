@@ -207,8 +207,27 @@ class ExternalActionPad(
                 pageTabs.add(pageTab(title) { selectPage(i) })
             }
             val modeButtons = listOf(settingsButton, trackpadButton, keyboardButton)
-            // "Swap sides (tabs on the right)" puts the three mode buttons first.
-            if (PadSettings.bool(PadSettings.SWAP_TABS)) {
+            if (PadSettings.bool(PadSettings.SIDE_BY_SIDE)) {
+                // Side by side: the tabs are plain captions over their panels, and the three buttons sit over the right column.
+                val pageW = ExternalActionBarView.pageWeightNow()
+                val captions = LinearLayout(context).apply {
+                    orientation = HORIZONTAL
+                    layoutParams = LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, pageW)
+                    pageTabs.forEach { tab ->
+                        tab.isClickable = false
+                        (tab.layoutParams as LayoutParams).apply { setMargins(m3(), 0, m3(), 0) }
+                        addView(tab)
+                    }
+                }
+                val modes = LinearLayout(context).apply {
+                    orientation = HORIZONTAL
+                    gravity = Gravity.END or Gravity.CENTER_VERTICAL
+                    layoutParams = LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+                    modeButtons.forEach { addView(it) }
+                }
+                if (PadSettings.bool(PadSettings.SWAP_SIDES)) { addView(modes); addView(captions) } else { addView(captions); addView(modes) }
+            } else if (PadSettings.bool(PadSettings.SWAP_TABS)) {
+                // "Swap sides (tabs on the right)" puts the three mode buttons first.
                 modeButtons.forEach { addView(it) }
                 pageTabs.forEach { addView(it) }
             } else {
@@ -258,6 +277,8 @@ class ExternalActionPad(
         refreshTabs()
     }
 
+    private fun m3() = (3 * density).toInt()
+
     private fun pageTab(title: String, onClick: () -> Unit) = TextView(context).apply {
         layoutParams = LayoutParams(0, (44 * density).toInt(), 1f).apply {
             val m = (3 * density).toInt()
@@ -285,7 +306,7 @@ class ExternalActionPad(
     private fun refreshTabs() {
         val mainVisible = padView.visibility == View.VISIBLE
         pageTabs.forEachIndexed { i, tab ->
-            val active = mainVisible && i == currentPage
+            val active = mainVisible && i == currentPage && !PadSettings.bool(PadSettings.SIDE_BY_SIDE)
             tab.background = theme.buttonBackground(density, 12f, active, muted = true)
             tab.setTextColor(if (active) theme.textPressed else theme.text)
         }
