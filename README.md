@@ -1,7 +1,22 @@
-# AYN Thor WoW Launcher
+# Acore Thor Launcher
 
-> **A fork of [WoW Forever for Android](https://github.com/jaredgei/wow-forever-android) by [jaredgei](https://github.com/jaredgei).** The WoW launcher, the single-container setup, native ARM64 launch and the bundled runtime all come from jaredgei's project, which is itself a fork of GameNative. This fork adds Retail, Classic Era, TBC Anniversary and MoP Classic support, a styled launcher, a second-screen button pad with settings, controller cursor mode and a themed in-game menu for the AYN Thor. Please star and support the original.
+Plays a **self-hosted AzerothCore 3.3.5a realm** on the **AYN Thor** (Snapdragon 8 Gen 2, Adreno 740,
+16 GB, dual screen). The world server runs on the same device under Termux; this app runs the client.
+No Battle.net account, no PC, no Docker.
 
+> A fork of [wyattabuntjer/AYN-Thor-WoW-Launcher](https://github.com/wyattabuntjer/AYN-Thor-WoW-Launcher)
+> (itself a fork of [jaredgei](https://github.com/jaredgei)'s WoW Forever for Android). The launcher
+> shell, the Proton runtime, the second-screen button pad and the cursor mode all come from upstream;
+> this fork adds a local-AzerothCore flavor, writes the client's realmlist, and skips Battle.net client
+> acquisition. Please star and support upstream.
+
+Server half: [`acore-thor-selfhost`](https://github.com/nick-monto/acore-thor-selfhost) — install the
+realm there, then point this app at `127.0.0.1` (auth 3724, world 8085).
+
+**Status:** the local flavor is implemented (flavor, container profile, realmlist plumbing); what is
+*not* verified yet is the 32-bit client booting on a Thor — upstream's Proton ARM64EC + wowbox64 path
+has never been shown running a 3.3.5a client. Treat that as the open gate. Design notes and the device
+runbook live in [`acore-thor-selfhost`](https://github.com/nick-monto/acore-thor-selfhost).
 
 Play **World of Warcraft** on Snapdragon Android handhelds as a normal Android app, with extra work for the dual-screen **AYN Thor**. Pick **Forever**, **Retail** or **Classic** (Classic Era, TBC Anniversary or MoP Classic), press Play, and the game runs.
 
@@ -15,11 +30,28 @@ This uses Blizzard's own **Windows ARM64** WoW clients, so the game itself runs 
 - **Controller mouse mode:** the right stick becomes a cursor on R3, with A/B as clicks, Y/X as scroll up/down and an adjustable speed ramp. R3 toggling can be switched off per game, and then R3 stays a normal button press.
 - **App updates you control:** the app updates from this repo's releases, with an opt-in for beta builds and an option to skip automatic app updates.
 - **World of Warcraft look:** a stone-and-gold launcher and in-game quick menu, with the chosen client named on the Play button and boot screen.
-- **Its own app:** package `app.aynthorwow`, so it installs next to jaredgei's original WoW Forever app, GameNative and Winlator.
+- **Its own app:** package `app.acorethor.launcher`, so it installs next to jaredgei's original WoW Forever app, GameNative and Winlator.
 
 > Unofficial community project. Not affiliated with or endorsed by Blizzard Entertainment. You need your own Battle.net account with access to the client you want to play (the Forever beta needs beta access). This repo and its releases contain **no** Blizzard game files.
 
 ---
+
+## Local realm (AzerothCore flavor)
+
+Pick **AzerothCore** in the flavor selector to play a 3.3.5a realm running on the same device instead
+of a Blizzard realm. Three things change for that flavor:
+
+- **Your client, your files.** Copy a 3.3.5a client (`Wow.exe` + `Data/`, its folder root) anywhere on
+  the device and point the launcher at it — there is no Blizzard download and no `.build.info`.
+- **The realm is written for you.** Each launch rewrites `Data/enUS/realmlist.wtf` and `Config.wtf`'s
+  `realmList` to `127.0.0.1` (auth 3724, world 8085), so the client always points at this device. The
+  account comes from the server console, not Battle.net, so there is no login to configure.
+- **A different container.** It boots under Box64/`wow64Mode` in its own container with D3D9 served by
+  Wine's 32-bit wined3d (the bundled DXVK has no `d3d9`), rather than the ARM64/DXVK profile the
+  Blizzard flavors use.
+
+The server half is [`acore-thor-selfhost`](https://github.com/nick-monto/acore-thor-selfhost): install
+it with `thor-install.sh`, then pick this flavor.
 
 ## Supported devices
 
@@ -47,7 +79,7 @@ You need a PC or Mac with World of Warcraft installed through Battle.net, and an
 
 ### 1. Install the app
 
-Download **WoWLauncher.apk** from the [releases page](https://github.com/wyattabuntjer/AYN-Thor-WoW-Launcher/releases/latest) onto your Android device and install it. If Android asks, allow installs from your browser or file manager.
+Download **ACThorLauncher.apk** from the [releases page](https://github.com/nick-monto/acore-thor-launcher/releases/latest) onto your Android device and install it. If Android asks, allow installs from your browser or file manager.
 
 ### 2. Get the game installed on your PC or Mac
 
@@ -196,13 +228,13 @@ Full third-party license details are in [`THIRD_PARTY_NOTICES`](THIRD_PARTY_NOTI
 - Second-screen button pad with a settings page: switchable button pages, Extra Buttons, layout options, remapping, renaming, recoloring and reordering of every button, profiles, a trackpad scroll area, a Gboard-style keyboard, and trackpad and stick tuning.
 - Right-stick cursor mode on R3 with A/B clicks, Y/X scrolling and a speed ramp.
 - An updater with beta opt-in and a skip-automatic-updates option.
-- Its own package name (`app.aynthorwow`) and an updater that follows this repo's releases.
+- Its own package name (`app.acorethor.launcher`) and an updater that follows this repo's releases.
 
 ### What WoW Forever for Android changes from GameNative
 
 GameNative is a general game library with Steam, GOG, Epic, Amazon, EA and Rockstar stores, mod management, VR support and per-game container settings. This fork turns it into a launcher for one pre-configured container:
 
-- **Standalone identity:** package `app.aynthorwow`, WoW name, icons, banners and splash screen, installable next to GameNative.
+- **Standalone identity:** package `app.acorethor.launcher`, WoW name, icons, banners and splash screen, installable next to GameNative.
 - **Direct launch & instant boot:** the app opens to a WoW splash screen (`ui/screen/wow/WoWForeverScreen.kt`) and automatically boots straight into the game once configured. Holding **Start + Select + L2 + R2** or pressing Back on the loading screen cancels boot to return to the setup screen.
 - **Pre-configured container:** bionic, Proton 11 ARM64EC, Turnip through the Vulkan wrapper, DXVK 2.4.1 aarch64, WINEESYNC off, all 8 cores, 1920x1080, and `G:` mapped to `/storage/emulated/0/WoW Forever`.
 - **Native ARM64 launch:** GameNative wraps every Windows program in `winhandler.exe`, an x86-64 helper that needs x86 emulation. ARM64 executables now launch directly, so the game never goes through FEX, and the working directory is set from the mapped drive.

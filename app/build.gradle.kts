@@ -50,7 +50,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "app.aynthorwow"
+        applicationId = "app.acorethor.launcher"
 
         minSdk = 26
 

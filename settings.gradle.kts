@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "wow-forever-android"
+rootProject.name = "acore-thor-launcher"
 include(":app")
