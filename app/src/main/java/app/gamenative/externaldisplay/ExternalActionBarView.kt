@@ -156,8 +156,8 @@ class ExternalActionBarView(
         pageHost.removeAllViews()
         if (PadSettings.bool(PadSettings.SIDE_BY_SIDE)) {
             // All pages at once, one column each.
-            PAGES.forEach { page ->
-                // Hidden buttons do not count; only the first 8 of the rest fit in a column.
+            sidePages().forEach { page ->
+                // Hidden buttons do not count; only the first 10 of the rest fit in a column.
                 val slots = orderedSlots(page.id, page.slots).filter { !PadSettings.isHidden(it.label) }.take(SIDE_BY_SIDE_MAX)
                 pageHost.addView(
                     group(vertical = true, strong = false).apply {
@@ -408,9 +408,23 @@ class ExternalActionBarView(
 
         /** The page area's share of the width, against 1 for the right column. Side by side is wider, to fit three panels. */
         fun pageWeightNow(): Float =
-            LEFT_WEIGHT * PadSettings.int(PadSettings.PAGE_WIDTH) / 100f * (if (PadSettings.bool(PadSettings.SIDE_BY_SIDE)) SIDE_BY_SIDE_WIDEN else 1f)
+            LEFT_WEIGHT * PadSettings.int(PadSettings.PAGE_WIDTH) / 100f *
+                (if (PadSettings.bool(PadSettings.SIDE_BY_SIDE)) SIDE_BY_SIDE_WIDEN[sidePages().size.coerceIn(1, 3)] else 1f)
 
-        private const val SIDE_BY_SIDE_WIDEN = 1.5f
+        /** Page area width factor for 1, 2 or 3 side-by-side panels (index = count). */
+        private val SIDE_BY_SIDE_WIDEN = floatArrayOf(1f, 1f, 1.2f, 1.5f)
+
+        /** The pages shown side by side: those switched on in settings, or all of them if none is. */
+        private fun sidePages(): List<Page> {
+            val on = PAGES.filter { page ->
+                when (page.id) {
+                    "interface" -> PadSettings.bool(PadSettings.SIDE_SHOW_INTERFACE)
+                    "target" -> PadSettings.bool(PadSettings.SIDE_SHOW_TARGET)
+                    else -> PadSettings.bool(PadSettings.SIDE_SHOW_UTILITY)
+                }
+            }
+            return on.ifEmpty { PAGES }
+        }
 
         /** Most buttons one side-by-side column shows. */
         private const val SIDE_BY_SIDE_MAX = 10
