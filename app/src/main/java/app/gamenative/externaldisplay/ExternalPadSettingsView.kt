@@ -577,7 +577,8 @@ class ExternalPadSettingsView(
             addView(v)
         }
         repeat(filler) {
-            addView(View(context), LinearLayout.LayoutParams(0, 1, 1f).apply { setMargins(dp(3), 0, dp(3), 0) })
+            // Match-parent height like the buttons, or the row would shrink to this spacer's height.
+            addView(View(context), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f).apply { setMargins(dp(3), 0, dp(3), 0) })
         }
     }
 
