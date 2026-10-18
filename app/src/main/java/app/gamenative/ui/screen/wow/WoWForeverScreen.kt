@@ -1367,7 +1367,7 @@ private fun prepareLaunch(context: Context, gameRoot: File, gpu: GpuProfile, onS
         PadSettings.launchProfile(WowFlavor.current.name).takeIf { it > 0 }?.let { PadSettings.loadProfile(it) }
         PadSettings.set(PadSettings.R3_TOGGLE, ButtonPad.r3Toggle(context, WowFlavor.current))
         ensureGameConfig(gameRoot, if (ButtonPad.forceGamepadUi(context, WowFlavor.current)) 0 else 1, gpu.screenSize)
-        if (WowFlavor.current.isLocal) installLocalAddons(context, gameRoot, onStatus)
+        if (WowFlavor.current.isLocal) installLocalAddons(context, WowFlavor.current.clientDir(gameRoot), onStatus)
     } catch (e: Exception) {
         if (e.isPermissionDenied()) throw StorageAccessDeniedException(e)
         throw e
@@ -1657,13 +1657,12 @@ internal fun ensureLocalControllerProfile(context: Context): Int {
  * Idempotent and self-healing: the marker keeps a launch from re-extracting the textures every time, a
  * copy at another version is replaced, and add-ons the player added are left alone.
  */
-private fun installLocalAddons(context: Context, gameRoot: File, onStatus: (String) -> Unit) {
-    val root = WowFlavor.current.clientDir(gameRoot)
-    val marker = File(root, LOCAL_ADDON_MARKER)
+internal fun installLocalAddons(context: Context, clientRoot: File, onStatus: (String) -> Unit) {
+    val marker = File(clientRoot, LOCAL_ADDON_MARKER)
     if (marker.isFile && marker.readText().trim() == LOCAL_ADDON_VERSION) return
 
     onStatus("Installing the controller add-on...")
-    val addOns = File(root, "Interface/AddOns")
+    val addOns = File(clientRoot, "Interface/AddOns")
     addOns.mkdirs()
     check(FileUtils.extractZipFromAssets(context, "bundled_components/$LOCAL_ADDON_ARCHIVE", addOns)) {
         "Could not install $LOCAL_ADDON_ARCHIVE into ${addOns.path}."
