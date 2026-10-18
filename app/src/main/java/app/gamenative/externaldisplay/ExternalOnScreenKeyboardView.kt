@@ -543,8 +543,9 @@ class ExternalOnScreenKeyboardView(
         strong: Boolean = false,
     ): StateListDrawable {
         val density = resources.displayMetrics.density
-        val face = if (highlight) theme.buttonBackground(density, 8f, active = true, emphasized = strong)
-        else theme.buttonBackground(density, 8f, active = false)
+        val edge = PadSettings.int(PadSettings.KB_BORDER) / 100f
+        val face = if (highlight) theme.buttonBackground(density, 8f, active = true, emphasized = strong, edgeLevel = edge)
+        else theme.buttonBackground(density, 8f, active = false, edgeLevel = edge)
         return StateListDrawable().apply {
             addState(intArrayOf(android.R.attr.state_pressed), theme.buttonBackground(density, 8f, active = true))
             addState(intArrayOf(), face)

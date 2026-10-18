@@ -33,6 +33,8 @@ object PadSettings {
     const val SWAP_TABS = "swap_tabs"
     /** Width of the page area against the number block, in percent of the default split. */
     const val PAGE_WIDTH = "page_width"
+    /** Shows Interface, Target and Utility as three single-column panels side by side instead of tabbed pages. */
+    const val SIDE_BY_SIDE = "side_by_side"
     /** Height of the modifier row, in percent of its default. */
     const val MOD_HEIGHT = "mod_height"
     /** Left-to-right order of Shift, Ctrl and Alt on the main pad and the trackpad screen: an index into the six orders. */
@@ -72,6 +74,8 @@ object PadSettings {
     const val HAPTICS = "haptics"
     const val KB_POPUP = "kb_popup"
     const val KB_HEIGHT = "kb_height"
+    /** How strong the outline of the keyboard keys is, in percent. */
+    const val KB_BORDER = "kb_border"
     const val KB_CAPS_MS = "kb_caps_ms"
     const val KB_POPUP_MS = "kb_popup_ms"
     const val DOUBLE_TAP_MS = "double_tap_ms"
@@ -131,6 +135,7 @@ object PadSettings {
         SWAP_SIDES to false,
         SWAP_TABS to false,
         PAGE_WIDTH to 100,
+        SIDE_BY_SIDE to false,
         MOD_HEIGHT to 100,
         MOD_ORDER to 0,
         MOD_GLOW to true,
@@ -154,6 +159,7 @@ object PadSettings {
         HAPTICS to 2,
         KB_POPUP to true,
         KB_HEIGHT to 100,
+        KB_BORDER to 100,
         KB_CAPS_MS to 350,
         KB_POPUP_MS to 50,
         DOUBLE_TAP_MS to 350,
