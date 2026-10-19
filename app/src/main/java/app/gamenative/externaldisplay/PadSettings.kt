@@ -35,6 +35,10 @@ object PadSettings {
     const val PAGE_WIDTH = "page_width"
     /** Shows Interface, Target and Utility as three single-column panels side by side instead of tabbed pages. */
     const val SIDE_BY_SIDE = "side_by_side"
+    /** Which pages show in side-by-side mode (a page can be switched off there). */
+    const val SIDE_SHOW_INTERFACE = "side_show_interface"
+    const val SIDE_SHOW_TARGET = "side_show_target"
+    const val SIDE_SHOW_UTILITY = "side_show_utility"
     /** Height of the modifier row, in percent of its default. */
     const val MOD_HEIGHT = "mod_height"
     /** Left-to-right order of Shift, Ctrl and Alt on the main pad and the trackpad screen: an index into the six orders. */
@@ -136,6 +140,9 @@ object PadSettings {
         SWAP_TABS to false,
         PAGE_WIDTH to 100,
         SIDE_BY_SIDE to false,
+        SIDE_SHOW_INTERFACE to true,
+        SIDE_SHOW_TARGET to true,
+        SIDE_SHOW_UTILITY to true,
         MOD_HEIGHT to 100,
         MOD_ORDER to 0,
         MOD_GLOW to true,
