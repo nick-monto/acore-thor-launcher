@@ -109,7 +109,15 @@ private const val LOCAL_CLIENT_LOCALE = "enUS"
 
 /** Shown when the realm cannot be started or stopped: it runs in Termux, not in this app. */
 private const val TERMUX_REQUIRED =
-    "Termux did not accept the command. Install Termux (and Termux:API, for the wake lock), then set allow-external-apps = true in ~/.termux/termux.properties."
+    "Termux is not installed, and the realm runs in it. Install Termux (and Termux:API, for the wake lock), then start it here."
+
+/** Termux gates its RUN_COMMAND service behind a dangerous permission the user has to grant. */
+private const val TERMUX_PERMISSION_DENIED =
+    "Termux did not grant the run-command permission. Tap Start again and allow it in the dialog, or grant it in Android Settings -> Apps -> AC Thor Launcher -> Permissions."
+
+/** Termux took the call and then refused the command for a reason it does not report back. */
+private const val TERMUX_REFUSED =
+    "Termux accepted the call but refused the command. Check allow-external-apps = true in ~/.termux/termux.properties, then run termux-reload-settings."
 
 /** The container key that selects a pad profile; the X server screen reads it as a string. */
 private const val CONTAINER_EXTRA_PROFILE_ID = "profileId"
@@ -182,39 +190,87 @@ fun WoWForeverScreen(
     var botCount by remember { mutableStateOf(LocalServer.loadBots(context)) }
     var botsDraft by remember { mutableStateOf("") }
     var showBotsDialog by remember { mutableStateOf(false) }
+    var termuxPermission by remember { mutableStateOf(LocalServer.hasRunCommandPermission(context)) }
+    // A start that Termux accepted but never acted on: the command is allowed in, the realm is not
+    // started, and the only cause left is allow-external-apps being off.
+    var startLooksRefused by remember { mutableStateOf(false) }
+    var pendingRunCommand by remember { mutableStateOf<(() -> Unit)?>(null) }
+
+    val runCommandPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        termuxPermission = granted
+        val action = pendingRunCommand
+        pendingRunCommand = null
+        if (granted) {
+            action?.invoke()
+        } else {
+            errorMessage = TERMUX_PERMISSION_DENIED
+        }
+    }
+
+    /**
+     * Termux's RUN_COMMAND permission is dangerous, so startService throws until it is granted - and
+     * the grant only happens if we ask. Ask first, then run the action that was waiting on it.
+     */
+    fun withRunCommand(action: () -> Unit) {
+        if (!LocalServer.hasRunCommandPermission(context)) {
+            termuxPermission = false
+            pendingRunCommand = action
+            runCommandPermission.launch(LocalServer.RUN_COMMAND_PERMISSION)
+            return
+        }
+        termuxPermission = true
+        action()
+    }
+
+    fun reportUnsent(sent: LocalServer.Sent) {
+        errorMessage = when (sent) {
+            LocalServer.Sent.NoTermux -> TERMUX_REQUIRED
+            LocalServer.Sent.PermissionDenied -> TERMUX_PERMISSION_DENIED
+            else -> TERMUX_REFUSED
+        }
+    }
 
     fun applyBots(count: Int) {
-        errorMessage = null
-        if (LocalServer.setBots(context, count)) {
-            botCount = count
-            LocalServer.saveBots(context, count)
-        } else {
-            termuxInstalled = LocalServer.termuxInstalled(context)
-            errorMessage = TERMUX_REQUIRED
+        withRunCommand {
+            errorMessage = null
+            when (val sent = LocalServer.setBots(context, count)) {
+                LocalServer.Sent.Ok -> {
+                    botCount = count
+                    LocalServer.saveBots(context, count)
+                }
+                else -> reportUnsent(sent)
+            }
         }
     }
 
     fun startServer() {
         if (serverBusy) return
-        errorMessage = null
-        if (LocalServer.start(context)) {
-            serverPendingIsStart = true
-            serverPendingAt = System.currentTimeMillis()
-        } else {
-            termuxInstalled = LocalServer.termuxInstalled(context)
-            errorMessage = TERMUX_REQUIRED
+        withRunCommand {
+            errorMessage = null
+            when (val sent = LocalServer.start(context)) {
+                LocalServer.Sent.Ok -> {
+                    startLooksRefused = false
+                    serverPendingIsStart = true
+                    serverPendingAt = System.currentTimeMillis()
+                }
+                else -> reportUnsent(sent)
+            }
         }
     }
 
     fun stopServer() {
         if (serverBusy) return
-        errorMessage = null
-        if (LocalServer.stop(context)) {
-            serverPendingIsStart = false
-            serverPendingAt = System.currentTimeMillis()
-        } else {
-            termuxInstalled = LocalServer.termuxInstalled(context)
-            errorMessage = TERMUX_REQUIRED
+        withRunCommand {
+            errorMessage = null
+            when (val sent = LocalServer.stop(context)) {
+                LocalServer.Sent.Ok -> {
+                    serverPendingIsStart = false
+                    serverPendingAt = System.currentTimeMillis()
+                }
+                else -> reportUnsent(sent)
+            }
         }
     }
 
@@ -224,6 +280,15 @@ fun WoWForeverScreen(
             while (true) {
                 val probed = withContext(Dispatchers.IO) { LocalServer.probe() }
                 serverStatus = probed
+                termuxPermission = LocalServer.hasRunCommandPermission(context)
+                // Accepted by Termux, no port after half a minute: allow-external-apps is off, which
+                // Termux reports to nobody. Say so instead of looking like a slow start.
+                if (serverPendingIsStart && serverPendingAt > 0L && !probed.auth &&
+                    System.currentTimeMillis() - serverPendingAt > 30_000L
+                ) {
+                    startLooksRefused = true
+                }
+                if (probed.auth) startLooksRefused = false
                 if (serverPendingAt > 0L) {
                     // A start is done when the logon port opens; a stop is done when it closes. The
                     // deadline is for the rest: the first start after an update imports SQL for a long
@@ -673,6 +738,15 @@ fun WoWForeverScreen(
                                 ready = termuxInstalled,
                                 warning = !termuxInstalled,
                             )
+                            CheckItem(
+                                label = when {
+                                    !termuxInstalled -> "Run-command permission (waiting for Termux)"
+                                    termuxPermission -> "Run-command permission (granted)"
+                                    else -> "Run-command permission (tapping Start asks for it)"
+                                },
+                                ready = termuxPermission,
+                                warning = termuxInstalled && !termuxPermission,
+                            )
                         }
 
                         Spacer(modifier = Modifier.height(14.dp))
@@ -721,8 +795,12 @@ fun WoWForeverScreen(
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
                             text = when {
+                                startLooksRefused ->
+                                    "Termux took the command but nothing is listening. Set allow-external-apps = true in ~/.termux/termux.properties and run termux-reload-settings, then try again."
                                 !termuxInstalled ->
                                     "The realm runs in Termux, so install Termux (and Termux:API for the wake lock) and set allow-external-apps = true, then start it here."
+                                !termuxPermission ->
+                                    "Tapping Start asks Android for Termux's run-command permission. Without it the realm cannot be started from here, though it can still be started in Termux."
                                 serverStatus.world ->
                                     "Both servers are up. The client is pointed at $LOCAL_REALM_ADDRESS:${LocalServer.AUTH_PORT}."
                                 serverStatus.auth ->

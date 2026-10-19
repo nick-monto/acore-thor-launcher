@@ -2,6 +2,7 @@ package app.gamenative.ui.screen.wow
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import app.gamenative.PrefManager
 import java.net.InetSocketAddress
 import java.net.Socket
@@ -13,9 +14,15 @@ import timber.log.Timber
  * One Android app cannot run or signal another app's process, so control goes through Termux's
  * documented RUN_COMMAND service and one script: the installer leaves `wow-server.sh` in Termux's
  * home next to `start-wow-server.sh`/`stop-wow-server.sh`, and that script reads the install's own
- * `state.env` to find the rootfs and config directory. Termux only accepts the command with
- * `allow-external-apps = true` in `~/.termux/termux.properties`, which is why the screen says so
- * when a command produces no effect.
+ * `state.env` to find the rootfs and config directory.
+ *
+ * Two separate Termux-side switches have to be on, and they fail differently:
+ *
+ * - `com.termux.permission.RUN_COMMAND` is declared by Termux as a *dangerous* permission and gates
+ *   `RunCommandService`. Declaring it in the manifest is not enough: the app has to ask for it at
+ *   runtime, or startService throws SecurityException.
+ * - `allow-external-apps = true` in `~/.termux/termux.properties`. Termux accepts the call without it
+ *   and refuses the command quietly, so the only symptom is that no port ever opens.
  *
  * Status is never taken from the intent. It is a probe of the logon and world ports, which is the
  * only answer that stays true when the realm was started from a Termux session instead, is still
@@ -25,6 +32,9 @@ object LocalServer {
     const val ADDRESS = "127.0.0.1"
     const val AUTH_PORT = 3724
     const val WORLD_PORT = 8085
+
+    /** Declared by Termux, dangerous, so it must be granted at runtime before anything is sent. */
+    const val RUN_COMMAND_PERMISSION = "com.termux.permission.RUN_COMMAND"
 
     /** What the installer configures when no bot count is given. */
     const val DEFAULT_BOTS = 50
@@ -62,6 +72,9 @@ object LocalServer {
         }
     }
 
+    /** Why a command did not reach Termux. Each one needs different words in the UI. */
+    enum class Sent { Ok, NoTermux, PermissionDenied, Refused }
+
     fun termuxInstalled(context: Context): Boolean = try {
         context.packageManager.getPackageInfo(TERMUX_PACKAGE, 0)
         true
@@ -69,16 +82,18 @@ object LocalServer {
         false
     }
 
-    /** True when Termux accepted the command. Whether it worked is what the port probe answers. */
-    fun start(context: Context): Boolean = run(context, START_SCRIPT, background = true)
+    fun hasRunCommandPermission(context: Context): Boolean =
+        context.checkSelfPermission(RUN_COMMAND_PERMISSION) == PackageManager.PERMISSION_GRANTED
 
-    fun stop(context: Context): Boolean = run(context, STOP_SCRIPT, background = false)
+    fun start(context: Context): Sent = run(context, START_SCRIPT, background = true)
+
+    fun stop(context: Context): Sent = run(context, STOP_SCRIPT, background = false)
 
     /**
      * Set the random bot count. The world reads it at its next start, so this does not restart
      * anything: the panel's Start/Restart button is how a change reaches a running realm.
      */
-    fun setBots(context: Context, count: Int): Boolean =
+    fun setBots(context: Context, count: Int): Sent =
         run(context, CONTROL_SCRIPT, extra = "bots ${count.coerceIn(0, MAX_BOTS)}", background = true)
 
     fun loadBots(context: Context): Int = PrefManager.getFloat(PREF_BOTS, DEFAULT_BOTS.toFloat()).toInt()
@@ -94,7 +109,10 @@ object LocalServer {
         false
     }
 
-    private fun run(context: Context, script: String, extra: String = "", background: Boolean): Boolean {
+    private fun run(context: Context, script: String, extra: String = "", background: Boolean): Sent {
+        if (!termuxInstalled(context)) return Sent.NoTermux
+        if (!hasRunCommandPermission(context)) return Sent.PermissionDenied
+
         val command = if (extra.isEmpty()) script else "$script $extra"
         val intent = Intent(ACTION_RUN_COMMAND).apply {
             setClassName(TERMUX_PACKAGE, TERMUX_SERVICE)
@@ -108,10 +126,13 @@ object LocalServer {
         }
         return try {
             context.startService(intent)
-            true
+            Sent.Ok
+        } catch (e: SecurityException) {
+            Timber.w(e, "Termux refused %s: RUN_COMMAND permission is not granted", command)
+            Sent.PermissionDenied
         } catch (e: Exception) {
             Timber.w(e, "Termux RUN_COMMAND failed for %s", command)
-            false
+            Sent.Refused
         }
     }
 }
