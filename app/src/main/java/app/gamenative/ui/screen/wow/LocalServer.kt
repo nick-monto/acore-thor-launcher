@@ -53,6 +53,8 @@ object LocalServer {
     private const val EXTRA_WORKDIR = "com.termux.RUN_COMMAND_WORKDIR"
     private const val EXTRA_BACKGROUND = "com.termux.RUN_COMMAND_BACKGROUND"
     private const val EXTRA_SESSION_ACTION = "com.termux.RUN_COMMAND_SESSION_ACTION"
+    private const val EXTRA_COMMAND_LABEL = "com.termux.RUN_COMMAND_COMMAND_LABEL"
+    private const val EXTRA_COMMAND_DESCRIPTION = "com.termux.RUN_COMMAND_COMMAND_DESCRIPTION"
 
     private const val CONTROL_SCRIPT = "$TERMUX_HOME/wow-server.sh"
     private const val START_SCRIPT = "$TERMUX_HOME/start-wow-server.sh"
@@ -85,16 +87,27 @@ object LocalServer {
     fun hasRunCommandPermission(context: Context): Boolean =
         context.checkSelfPermission(RUN_COMMAND_PERMISSION) == PackageManager.PERMISSION_GRANTED
 
-    fun start(context: Context): Sent = run(context, START_SCRIPT, background = true)
+    fun start(context: Context): Sent = run(
+        context, START_SCRIPT, background = true,
+        label = "Start the WoW realm",
+        description = "Runs `~/start-wow-server.sh`: database, authserver and worldserver.",
+    )
 
-    fun stop(context: Context): Sent = run(context, STOP_SCRIPT, background = false)
+    fun stop(context: Context): Sent = run(
+        context, STOP_SCRIPT, background = false,
+        label = "Stop the WoW realm",
+        description = "Runs `~/stop-wow-server.sh`: stops both servers and the database.",
+    )
 
     /**
      * Set the random bot count. The world reads it at its next start, so this does not restart
      * anything: the panel's Start/Restart button is how a change reaches a running realm.
      */
-    fun setBots(context: Context, count: Int): Sent =
-        run(context, CONTROL_SCRIPT, extra = "bots ${count.coerceIn(0, MAX_BOTS)}", background = true)
+    fun setBots(context: Context, count: Int): Sent = run(
+        context, CONTROL_SCRIPT, extra = "bots ${count.coerceIn(0, MAX_BOTS)}", background = true,
+        label = "Set the realm's bot count",
+        description = "Runs `~/wow-server.sh bots N`, which edits playerbots.conf inside the rootfs.",
+    )
 
     fun loadBots(context: Context): Int = PrefManager.getFloat(PREF_BOTS, DEFAULT_BOTS.toFloat()).toInt()
 
@@ -109,7 +122,14 @@ object LocalServer {
         false
     }
 
-    private fun run(context: Context, script: String, extra: String = "", background: Boolean): Sent {
+    private fun run(
+        context: Context,
+        script: String,
+        extra: String = "",
+        background: Boolean,
+        label: String,
+        description: String,
+    ): Sent {
         if (!termuxInstalled(context)) return Sent.NoTermux
         if (!hasRunCommandPermission(context)) return Sent.PermissionDenied
 
@@ -117,12 +137,18 @@ object LocalServer {
         val intent = Intent(ACTION_RUN_COMMAND).apply {
             setClassName(TERMUX_PACKAGE, TERMUX_SERVICE)
             putExtra(EXTRA_PATH, TERMUX_BASH)
-            putExtra(EXTRA_ARGUMENTS, "-l -c \"$command\"")
+            // A String[] of argv, not one string to be split: Termux passes these straight to exec,
+            // so quoting inside a single string would reach bash as literal quote characters and the
+            // script path would never resolve.
+            putExtra(EXTRA_ARGUMENTS, arrayOf("-l", "-c", command))
             putExtra(EXTRA_WORKDIR, TERMUX_HOME)
             putExtra(EXTRA_BACKGROUND, background)
             // 0: do not switch Termux to the new session. The server runs out of sight; a stop or a
             // bot count is a short command whose output goes to the Termux notification.
             putExtra(EXTRA_SESSION_ACTION, 0)
+            // Termux shows these in its failure popup, which is the only place the reason appears.
+            putExtra(EXTRA_COMMAND_LABEL, label)
+            putExtra(EXTRA_COMMAND_DESCRIPTION, description)
         }
         return try {
             context.startService(intent)
