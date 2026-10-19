@@ -17,8 +17,6 @@
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- Termux's RUN_COMMAND service is how this app starts and stops the self-hosted realm. -->
-    <uses-permission android:name="com.termux.permission.RUN_COMMAND" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.READ_LOGS" />
     <uses-permission android:name="android.permission.VIBRATE" />
@@ -28,7 +26,7 @@
     <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION" tools:node="remove" />
     <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" tools:node="remove" />
 
-    <!-- Needed on Android 11+ to see whether Termux is installed before offering to start the server. -->
+    <!-- Needed on Android 11+ to report whether the realm's Termux is installed at all. -->
     <queries>
         <package android:name="com.termux" />
     </queries>

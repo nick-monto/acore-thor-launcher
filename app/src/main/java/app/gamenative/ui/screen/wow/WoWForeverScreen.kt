@@ -37,7 +37,6 @@ import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -107,18 +106,6 @@ private const val LOCAL_REALM_ADDRESS = "127.0.0.1"
 /** The locale folder the local realm's realmlist.wtf is written into. */
 private const val LOCAL_CLIENT_LOCALE = "enUS"
 
-/** Shown when the realm cannot be started or stopped: it runs in Termux, not in this app. */
-private const val TERMUX_REQUIRED =
-    "Termux is not installed, and the realm runs in it. Install Termux (and Termux:API, for the wake lock), then start it here."
-
-/** Termux gates its RUN_COMMAND service behind a dangerous permission the user has to grant. */
-private const val TERMUX_PERMISSION_DENIED =
-    "Termux did not grant the run-command permission. Tap Start again and allow it in the dialog, or grant it in Android Settings -> Apps -> AC Thor Launcher -> Permissions."
-
-/** Termux took the call and then refused the command for a reason it does not report back. */
-private const val TERMUX_REFUSED =
-    "Termux accepted the call but refused the command. Check allow-external-apps = true in ~/.termux/termux.properties, then run termux-reload-settings."
-
 /** The container key that selects a pad profile; the X server screen reads it as a string. */
 private const val CONTAINER_EXTRA_PROFILE_ID = "profileId"
 
@@ -181,123 +168,25 @@ fun WoWForeverScreen(
     // screen is up, and let a start or stop settle on what the ports say rather than on the intent.
     var termuxInstalled by remember { mutableStateOf(true) }
     var serverStatus by remember { mutableStateOf(LocalServer.Status()) }
-    var serverPendingAt by remember { mutableStateOf(0L) }
-    var serverPendingIsStart by remember { mutableStateOf(false) }
-    val serverBusy = serverPendingAt > 0L
 
-    // The bot count is the launcher's own record of what it last wrote into the realm's config: the
-    // rootfs belongs to Termux, so there is nothing here to read it back from.
+    // The realm's configured bot count, as recorded here rather than read from the realm: the rootfs
+    // belongs to Termux, so the panel can only state what the launcher was told.
     var botCount by remember { mutableStateOf(LocalServer.loadBots(context)) }
     var botsDraft by remember { mutableStateOf("") }
     var showBotsDialog by remember { mutableStateOf(false) }
-    var termuxPermission by remember { mutableStateOf(LocalServer.hasRunCommandPermission(context)) }
-    // A start that Termux accepted but never acted on: the command is allowed in, the realm is not
-    // started, and the only cause left is allow-external-apps being off.
-    var startLooksRefused by remember { mutableStateOf(false) }
-    var pendingRunCommand by remember { mutableStateOf<(() -> Unit)?>(null) }
 
-    val runCommandPermission = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) { granted ->
-        termuxPermission = granted
-        val action = pendingRunCommand
-        pendingRunCommand = null
-        if (granted) {
-            action?.invoke()
-        } else {
-            errorMessage = TERMUX_PERMISSION_DENIED
-        }
+    fun recordBots(count: Int) {
+        val clamped = count.coerceIn(0, LocalServer.MAX_BOTS)
+        botCount = clamped
+        LocalServer.saveBots(context, clamped)
     }
 
-    /**
-     * Termux's RUN_COMMAND permission is dangerous, so startService throws until it is granted - and
-     * the grant only happens if we ask. Ask first, then run the action that was waiting on it.
-     */
-    fun withRunCommand(action: () -> Unit) {
-        if (!LocalServer.hasRunCommandPermission(context)) {
-            termuxPermission = false
-            pendingRunCommand = action
-            runCommandPermission.launch(LocalServer.RUN_COMMAND_PERMISSION)
-            return
-        }
-        termuxPermission = true
-        action()
-    }
-
-    fun reportUnsent(sent: LocalServer.Sent) {
-        errorMessage = when (sent) {
-            LocalServer.Sent.NoTermux -> TERMUX_REQUIRED
-            LocalServer.Sent.PermissionDenied -> TERMUX_PERMISSION_DENIED
-            else -> TERMUX_REFUSED
-        }
-    }
-
-    fun applyBots(count: Int) {
-        withRunCommand {
-            errorMessage = null
-            when (val sent = LocalServer.setBots(context, count)) {
-                LocalServer.Sent.Ok -> {
-                    botCount = count
-                    LocalServer.saveBots(context, count)
-                }
-                else -> reportUnsent(sent)
-            }
-        }
-    }
-
-    fun startServer() {
-        if (serverBusy) return
-        withRunCommand {
-            errorMessage = null
-            when (val sent = LocalServer.start(context)) {
-                LocalServer.Sent.Ok -> {
-                    startLooksRefused = false
-                    serverPendingIsStart = true
-                    serverPendingAt = System.currentTimeMillis()
-                }
-                else -> reportUnsent(sent)
-            }
-        }
-    }
-
-    fun stopServer() {
-        if (serverBusy) return
-        withRunCommand {
-            errorMessage = null
-            when (val sent = LocalServer.stop(context)) {
-                LocalServer.Sent.Ok -> {
-                    serverPendingIsStart = false
-                    serverPendingAt = System.currentTimeMillis()
-                }
-                else -> reportUnsent(sent)
-            }
-        }
-    }
-
+    // Nothing here starts anything, so there is no command to wait on: the ports are the whole truth.
     if (flavor.isLocal) {
         LaunchedEffect(flavor) {
             termuxInstalled = LocalServer.termuxInstalled(context)
             while (true) {
-                val probed = withContext(Dispatchers.IO) { LocalServer.probe() }
-                serverStatus = probed
-                termuxPermission = LocalServer.hasRunCommandPermission(context)
-                // Accepted by Termux, no port after half a minute: allow-external-apps is off, which
-                // Termux reports to nobody. Say so instead of looking like a slow start.
-                if (serverPendingIsStart && serverPendingAt > 0L && !probed.auth &&
-                    System.currentTimeMillis() - serverPendingAt > 30_000L
-                ) {
-                    startLooksRefused = true
-                }
-                if (probed.auth) startLooksRefused = false
-                if (serverPendingAt > 0L) {
-                    // A start is done when the logon port opens; a stop is done when it closes. The
-                    // deadline is for the rest: the first start after an update imports SQL for a long
-                    // time, and a command Termux silently refused would otherwise spin forever.
-                    val settled = if (serverPendingIsStart) probed.running else !probed.running
-                    if (settled || System.currentTimeMillis() - serverPendingAt > 180_000L) {
-                        serverPendingAt = 0L
-                    }
-                }
+                serverStatus = withContext(Dispatchers.IO) { LocalServer.probe() }
                 delay(3000)
             }
         }
@@ -738,30 +627,20 @@ fun WoWForeverScreen(
                                 ready = termuxInstalled,
                                 warning = !termuxInstalled,
                             )
-                            CheckItem(
-                                label = when {
-                                    !termuxInstalled -> "Run-command permission (waiting for Termux)"
-                                    termuxPermission -> "Run-command permission (granted)"
-                                    else -> "Run-command permission (tapping Start asks for it)"
-                                },
-                                ready = termuxPermission,
-                                warning = termuxInstalled && !termuxPermission,
-                            )
                         }
 
                         Spacer(modifier = Modifier.height(14.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "Random bots: $botCount",
+                                text = "Configured bots: $botCount",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = WowCream,
                             )
                             Spacer(modifier = Modifier.weight(1f))
                             LinkButton(
-                                text = "Change",
+                                text = "Set",
                                 icon = Icons.Default.Settings,
-                                enabled = !serverBusy && termuxInstalled,
                                 onClick = {
                                     botsDraft = botCount.toString()
                                     showBotsDialog = true
@@ -773,42 +652,16 @@ fun WoWForeverScreen(
                         HorizontalDivider(color = WowFrameInner)
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            PrimaryButton(
-                                text = when {
-                                    serverBusy -> "WORKING..."
-                                    serverStatus.running -> "RESTART SERVER"
-                                    else -> "START SERVER"
-                                },
-                                icon = Icons.Default.PlayArrow,
-                                enabled = !serverBusy && !isLaunching,
-                                onClick = { startServer() },
-                            )
-                            LinkButton(
-                                text = "Stop",
-                                icon = Icons.Default.Stop,
-                                enabled = !serverBusy && serverStatus.running,
-                                onClick = { stopServer() },
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(10.dp))
                         Text(
                             text = when {
-                                startLooksRefused ->
-                                    "Termux took the command but nothing is listening. Set allow-external-apps = true in ~/.termux/termux.properties and run termux-reload-settings, then try again."
                                 !termuxInstalled ->
-                                    "The realm runs in Termux, so install Termux (and Termux:API for the wake lock) and set allow-external-apps = true, then start it here."
-                                !termuxPermission ->
-                                    "Tapping Start asks Android for Termux's run-command permission. Without it the realm cannot be started from here, though it can still be started in Termux."
+                                    "The realm runs in Termux, which is not installed on this device. Install Termux (and Termux:API, for the wake lock), run the installer inside it, then start the realm there with ~/start-wow-server.sh."
                                 serverStatus.world ->
-                                    "Both servers are up. The client is pointed at $LOCAL_REALM_ADDRESS:${LocalServer.AUTH_PORT}."
+                                    "Both servers are up, and the client is pointed at $LOCAL_REALM_ADDRESS:${LocalServer.AUTH_PORT}. The realm is started and stopped in Termux: ~/start-wow-server.sh, ~/stop-wow-server.sh."
                                 serverStatus.auth ->
                                     "The logon server is up and the world is still starting. Right after a client update that import can take a while."
-                                serverPendingAt > 0L && serverPendingIsStart ->
-                                    "Asked Termux to start the realm. Starting is slower than restarting."
                                 else ->
-                                    "Start the realm before playing. It keeps running in Termux while you play, and Stop shuts down both servers and the database."
+                                    "The realm is stopped. Start it in Termux with ~/start-wow-server.sh - or let a script in ~/.termux/boot/ start it at boot - then press Play."
                             },
                             fontSize = 11.sp,
                             color = WowSubtle,
@@ -1070,13 +923,15 @@ fun WoWForeverScreen(
     if (showBotsDialog) {
         AlertDialog(
             onDismissRequest = { showBotsDialog = false },
-            title = { Text(text = "Random Bots", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = WowGold) },
+            title = { Text(text = "Configured Bots", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = WowGold) },
             text = {
                 Column {
                     Text(
-                        text = "How many random player bots the world loads. Each bot is a real player " +
-                            "session, so a phone-sized realm is happiest in the tens. The realm reads this " +
-                            "at its next world start, so restart it to apply a change.",
+                        text = "How many random bots the realm was configured with. The installer sets " +
+                            "it with --bots, and the world reads it when it starts; each bot is a real " +
+                            "player session, so a phone-sized realm is happiest in the tens. This is only " +
+                            "the launcher's note of the number: to change the realm, re-run the installer " +
+                            "or run ~/wow-server.sh bots N in Termux.",
                         fontSize = 13.sp,
                         color = WowCream,
                         lineHeight = 18.sp,
@@ -1091,7 +946,7 @@ fun WoWForeverScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "0 turns random bots off. The guest script refuses more than ${LocalServer.MAX_BOTS}.",
+                        text = "0 means random bots are off. The guest script refuses more than ${LocalServer.MAX_BOTS}.",
                         fontSize = 11.sp,
                         color = WowSubtle,
                     )
@@ -1101,12 +956,12 @@ fun WoWForeverScreen(
                 Button(
                     onClick = {
                         showBotsDialog = false
-                        botsDraft.toIntOrNull()?.let { applyBots(it.coerceIn(0, LocalServer.MAX_BOTS)) }
+                        botsDraft.toIntOrNull()?.let { recordBots(it) }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = WowBronze, contentColor = Color.White),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text("APPLY", fontWeight = FontWeight.Bold)
+                    Text("SAVE", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {

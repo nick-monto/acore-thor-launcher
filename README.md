@@ -26,7 +26,7 @@ This uses Blizzard's own **Windows ARM64** WoW clients, so the game itself runs 
 ### Highlights of this fork
 
 - **Five clients in one app:** Forever (beta), Retail, Classic Era, TBC Anniversary and MoP Classic, each with its own game folder, in-app updates and Play button.
-- **Server control for the local flavor:** the AzerothCore panel reports whether the realm's two ports are actually listening, starts, restarts or stops it through Termux, and sets the random bot count, so a self-hosted realm needs no terminal.
+- **Server status for the local flavor:** the AzerothCore panel reports whether the realm's two ports are actually listening and how many bots it was configured with. Starting the realm stays in Termux: the launcher deliberately holds no channel into it.
 - **Per-game switches on the main screen:** the Thor button pad, forcing WoW's gamepad UI, and R3 mouse/camera toggling can each be set separately for every client.
 - **Thor second-screen button pad:** a touch pad on the bottom screen with a trackpad, keyboard, hotbar-style buttons, three switchable pages of common shortcuts (Interface, Target and Utility), modifier keys, optional Extra Buttons, a scroll area, a Gboard-style keyboard, and a full settings page. Every button can be remapped (including to a key with Shift, Ctrl or Alt), renamed, recolored, reordered and hidden. See [The Thor button pad](#the-thor-button-pad).
 - **Controller mouse mode:** the right stick becomes a cursor on R3, with A/B as clicks, Y/X as scroll up/down and an adjustable speed ramp. R3 toggling can be switched off per game, and then R3 stays a normal button press.
@@ -68,17 +68,19 @@ of a Blizzard realm. Six things change for that flavor:
   outside it they send ConsolePort's keys. Stick speed is adjustable in both: the profile's cursor speed
   for the plain stick, and the R3 section of the pad settings for cursor mode.
 
-- **The realm is started from here.** A **LOCAL SERVER** panel shows what is listening on
-  `127.0.0.1:3724` and `127.0.0.1:8085` and starts, restarts or stops the realm through Termux, which
-  is where the realm runs: the installer leaves `start-wow-server.sh` and `stop-wow-server.sh` in
-  Termux's home, and the panel sends them through Termux's `RUN_COMMAND` service. That service is off
-  by default, so Termux needs `allow-external-apps = true` in `~/.termux/termux.properties`; the panel
-  says so when a start produces no port. Status is a port probe rather than a guess about what was
-  asked for, so a realm started by hand in Termux shows up as running, and Stop stops that one too.
-- **The bot count is a setting, not a file edit.** The same panel shows how many random player bots
-  the world loads and lets you change it; the launcher hands the number to the realm through the same
-  Termux channel, and the realm applies it at its next world start. Each bot is a real player session,
-  so a phone-sized realm is happiest in the tens — 0 turns them off.
+- **The realm is reported, not driven.** A **LOCAL SERVER** panel shows what is listening on
+  `127.0.0.1:3724` and `127.0.0.1:8085`, and it never starts or stops the realm. One Android app
+  cannot run another app's process, and the only channel that would allow it — Termux's `RUN_COMMAND`
+  service — needs `allow-external-apps = true` in `~/.termux/termux.properties`, which is the switch
+  that lets *any* app run commands in Termux. This fork leaves that switch off, so the realm is
+  started in Termux instead: `~/start-wow-server.sh`, or a script in `~/.termux/boot/` to have it up
+  after every reboot. Status is a port probe rather than a guess about what was asked for, so however
+  the realm was started, the panel reports the truth.
+- **The bot count is stated, not sent.** The same panel shows how many random player bots the realm
+  was configured with — the number the installer was given with `--bots`. Changing it belongs to the
+  installer or to Termux (`~/wow-server.sh bots N`); the panel only records it, so the number can be
+  read without a terminal. Each bot is a real player session, so a phone-sized realm is happiest in
+  the tens — 0 turns them off.
 
 The server half is [`acore-thor-selfhost`](https://github.com/nick-monto/acore-thor-selfhost): install
 it with `thor-install.sh`, then pick this flavor.
