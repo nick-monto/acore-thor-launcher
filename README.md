@@ -26,7 +26,7 @@ This uses Blizzard's own **Windows ARM64** WoW clients, so the game itself runs 
 ### Highlights of this fork
 
 - **Five clients in one app:** Forever (beta), Retail, Classic Era, TBC Anniversary and MoP Classic, each with its own game folder, in-app updates and Play button.
-- **Server status for the local flavor:** the AzerothCore panel reports whether the realm's two ports are actually listening and how many bots it was configured with. Starting the realm stays in Termux: the launcher deliberately holds no channel into it.
+- **Server status for the local flavor:** the AzerothCore panel reports whether the realm's two ports are actually listening. Starting the realm stays in Termux: the launcher deliberately holds no channel into it.
 - **Per-game switches on the main screen:** the Thor button pad, forcing WoW's gamepad UI, and R3 mouse/camera toggling can each be set separately for every client.
 - **Thor second-screen button pad:** a touch pad on the bottom screen with a trackpad, keyboard, hotbar-style buttons, three switchable pages of common shortcuts (Interface, Target and Utility), modifier keys, optional Extra Buttons, a scroll area, a Gboard-style keyboard, and a full settings page. Every button can be remapped (including to a key with Shift, Ctrl or Alt), renamed, recolored, reordered and hidden. See [The Thor button pad](#the-thor-button-pad).
 - **Controller mouse mode:** the right stick becomes a cursor on R3, with A/B as clicks, Y/X as scroll up/down and an adjustable speed ramp. R3 toggling can be switched off per game, and then R3 stays a normal button press.
@@ -76,11 +76,9 @@ of a Blizzard realm. Six things change for that flavor:
   started in Termux instead: `~/start-wow-server.sh`, or a script in `~/.termux/boot/` to have it up
   after every reboot. Status is a port probe rather than a guess about what was asked for, so however
   the realm was started, the panel reports the truth.
-- **The bot count is stated, not sent.** The same panel shows how many random player bots the realm
-  was configured with — the number the installer was given with `--bots`. Changing it belongs to the
-  installer or to Termux (`~/wow-server.sh bots N`); the panel only records it, so the number can be
-  read without a terminal. Each bot is a real player session, so a phone-sized realm is happiest in
-  the tens — 0 turns them off.
+- **Bot count lives on the server, not in the launcher.** Set it in Termux with
+  `~/wow-server.sh bots N` and restart the realm; the panel does not read or change it. Each bot is a
+  real player session, so a phone-sized realm is happiest in the tens — 0 turns them off.
 
 The server half is [`acore-thor-selfhost`](https://github.com/nick-monto/acore-thor-selfhost): install
 it with `thor-install.sh`, then pick this flavor.

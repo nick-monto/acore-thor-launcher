@@ -27,7 +27,6 @@ import app.gamenative.ui.theme.WowTitle
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
@@ -48,7 +47,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -177,18 +175,6 @@ fun WoWForeverScreen(
     // screen is up, and let a start or stop settle on what the ports say rather than on the intent.
     var termuxInstalled by remember { mutableStateOf(true) }
     var serverStatus by remember { mutableStateOf(LocalServer.Status()) }
-
-    // The realm's configured bot count, as recorded here rather than read from the realm: the rootfs
-    // belongs to Termux, so the panel can only state what the launcher was told.
-    var botCount by remember { mutableStateOf(LocalServer.loadBots(context)) }
-    var botsDraft by remember { mutableStateOf("") }
-    var showBotsDialog by remember { mutableStateOf(false) }
-
-    fun recordBots(count: Int) {
-        val clamped = count.coerceIn(0, LocalServer.MAX_BOTS)
-        botCount = clamped
-        LocalServer.saveBots(context, clamped)
-    }
 
     // Nothing here starts anything, so there is no command to wait on: the ports are the whole truth.
     if (flavor.isLocal) {
@@ -672,25 +658,6 @@ fun WoWForeverScreen(
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(14.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "Configured bots: $botCount",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = WowCream,
-                            )
-                            Spacer(modifier = Modifier.weight(1f))
-                            LinkButton(
-                                text = "Set",
-                                icon = Icons.Default.Settings,
-                                onClick = {
-                                    botsDraft = botCount.toString()
-                                    showBotsDialog = true
-                                },
-                            )
-                        }
-
                         Spacer(modifier = Modifier.height(16.dp))
                         HorizontalDivider(color = WowFrameInner)
                         Spacer(modifier = Modifier.height(12.dp))
@@ -1005,61 +972,6 @@ fun WoWForeverScreen(
                     }
                 }
             },
-        )
-    }
-
-    if (showBotsDialog) {
-        AlertDialog(
-            onDismissRequest = { showBotsDialog = false },
-            title = { Text(text = "Configured Bots", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = WowGold) },
-            text = {
-                Column {
-                    Text(
-                        text = "How many random bots the realm was configured with. The installer sets " +
-                            "it with --bots, and the world reads it when it starts; each bot is a real " +
-                            "player session, so a phone-sized realm is happiest in the tens. This is only " +
-                            "the launcher's note of the number: to change the realm, re-run the installer " +
-                            "or run ~/wow-server.sh bots N in Termux.",
-                        fontSize = 13.sp,
-                        color = WowCream,
-                        lineHeight = 18.sp,
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = botsDraft,
-                        onValueChange = { entered -> botsDraft = entered.filter { it.isDigit() }.take(4) },
-                        singleLine = true,
-                        label = { Text("Bots", color = WowMuted) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "0 means random bots are off. The guest script refuses more than ${LocalServer.MAX_BOTS}.",
-                        fontSize = 11.sp,
-                        color = WowSubtle,
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showBotsDialog = false
-                        botsDraft.toIntOrNull()?.let { recordBots(it) }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = WowBronze, contentColor = Color.White),
-                    shape = RoundedCornerShape(10.dp)
-                ) {
-                    Text("SAVE", fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showBotsDialog = false }) {
-                    Text("CANCEL", color = WowMuted)
-                }
-            },
-            containerColor = WowStoneTop,
-            shape = RoundedCornerShape(10.dp),
-            modifier = Modifier.border(3.dp, WowFrame, RoundedCornerShape(10.dp)),
         )
     }
 
