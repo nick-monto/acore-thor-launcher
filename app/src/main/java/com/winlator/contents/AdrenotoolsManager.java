@@ -186,7 +186,14 @@ public class AdrenotoolsManager {
     }
 
     public void setDriverById(EnvVars envVars, ImageFs imagefs, String adrenotoolsDriverId) {
-        if (extractDriverFromResources(adrenotoolsDriverId) || enumarateInstalledDrivers().contains(adrenotoolsDriverId)) {
+        // Check the installed directory before looking for a bundled .tzst. The resource path
+        // deletes the destination before extracting, so doing it first destroys a driver that was
+        // just installed from a zip (the bundled Turnip packages and user imports both live here).
+        boolean installed = adrenotoolsDriverId != null && enumarateInstalledDrivers().contains(adrenotoolsDriverId);
+        if (!installed && adrenotoolsDriverId != null && !adrenotoolsDriverId.equalsIgnoreCase(DefaultVersion.WRAPPER)) {
+            installed = extractDriverFromResources(adrenotoolsDriverId);
+        }
+        if (installed) {
             String driverPath = adrenotoolsContentDir.getAbsolutePath() + "/" + adrenotoolsDriverId + "/";
             if (!getLibraryName(adrenotoolsDriverId).equals("")) {
                 envVars.put("ADRENOTOOLS_DRIVER_PATH", driverPath);

@@ -132,6 +132,15 @@ fun WoWForeverScreen(
     val scope = rememberCoroutineScope()
     val gpu = remember { GpuProfile.detect(context) }
 
+    // null means "auto": the driver matched to the detected GPU. A custom id is persisted, but
+    // resolve() falls back to auto if the imported driver was removed or needs a newer API.
+    var driverSelection by remember { mutableStateOf(GraphicsDriverStore.selected(context)) }
+    var customDrivers by remember { mutableStateOf(GraphicsDriverStore.customDrivers(context)) }
+    var showDriverDialog by remember { mutableStateOf(false) }
+    var isImportingDriver by remember { mutableStateOf(false) }
+    var driverMessage by remember { mutableStateOf<String?>(null) }
+    var driverError by remember { mutableStateOf<String?>(null) }
+
     var flavor by remember { mutableStateOf(WowFlavor.load(context)) }
     var buttonPad by remember { mutableStateOf(ButtonPad.isEnabled(context, flavor)) }
     var r3Toggle by remember { mutableStateOf(ButtonPad.r3Toggle(context, flavor)) }
@@ -309,7 +318,8 @@ fun WoWForeverScreen(
         launchJob = scope.launch {
             try {
                 val containerId = withContext(Dispatchers.IO) {
-                    prepareLaunch(context, File(gamePath), gpu) { msg ->
+                    val launchGpu = gpu.withDriver(GraphicsDriverStore.resolve(context, gpu.driver))
+                    prepareLaunch(context, File(gamePath), launchGpu) { msg ->
                         scope.launch(Dispatchers.Main) { statusText = msg }
                     }
                 }
@@ -385,6 +395,27 @@ fun WoWForeverScreen(
         }
     }
 
+    val driverPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        isImportingDriver = true
+        driverMessage = null
+        driverError = null
+        scope.launch {
+            try {
+                val driver = withContext(Dispatchers.IO) { GraphicsDriverStore.import(context, uri) }
+                customDrivers = GraphicsDriverStore.customDrivers(context)
+                GraphicsDriverStore.select(context, driver.id)
+                driverSelection = driver.id
+                driverMessage = "Installed ${driver.name}."
+            } catch (e: Exception) {
+                Timber.e(e, "Error importing custom graphics driver")
+                driverError = e.message ?: "Could not import the driver."
+            } finally {
+                isImportingDriver = false
+            }
+        }
+    }
+
     // A local client carries no .build.info: its binary plus Data/ are the whole readiness test.
     val filesMissing = if (flavor.isLocal) {
         !(files.exeExists && files.dataExists)
@@ -395,6 +426,9 @@ fun WoWForeverScreen(
     // The game won't start until auto-login is set up or switched off.
     val canPlay = canUpdate && loginReady && files.hasStorageAccess
     val busy = isLaunching || isUpdating
+    val driverLabel = driverSelection
+        ?.let { id -> customDrivers.firstOrNull { it.id == id }?.name }
+        ?: "Auto"
 
     fun performUpdate() {
         val target = versionStatus ?: return
@@ -500,6 +534,15 @@ fun WoWForeverScreen(
                 WowDivider()
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(text = "${gpu.edition} Edition", fontSize = 11.sp, color = WowSubtle)
+                DriverChoiceLink(
+                    label = driverLabel,
+                    enabled = !busy,
+                    onClick = {
+                        driverMessage = null
+                        driverError = null
+                        showDriverDialog = true
+                    },
+                )
                 Spacer(modifier = Modifier.height(12.dp))
                 FlavorSelector(selected = flavor, enabled = !isLaunching && !isUpdating, onSelect = { selectFlavor(it) })
                 LaunchSwitches(
@@ -920,6 +963,51 @@ fun WoWForeverScreen(
         )
     }
 
+    if (showDriverDialog) {
+        GraphicsDriverDialog(
+            gpu = gpu,
+            selectedId = driverSelection,
+            customDrivers = customDrivers,
+            importing = isImportingDriver,
+            message = driverMessage,
+            error = driverError,
+            onDismiss = { showDriverDialog = false },
+            onSelectAuto = {
+                GraphicsDriverStore.select(context, null)
+                driverSelection = null
+                driverMessage = "Using the automatic driver."
+                driverError = null
+            },
+            onSelect = { driver ->
+                GraphicsDriverStore.select(context, driver.id)
+                driverSelection = driver.id
+                driverMessage = "Using ${driver.name}."
+                driverError = null
+            },
+            onImport = {
+                driverMessage = null
+                driverError = null
+                driverPicker.launch(
+                    arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream"),
+                )
+            },
+            onRemove = { driver ->
+                scope.launch {
+                    try {
+                        withContext(Dispatchers.IO) { GraphicsDriverStore.remove(context, driver.id) }
+                        customDrivers = GraphicsDriverStore.customDrivers(context)
+                        if (driverSelection == driver.id) driverSelection = null
+                        driverMessage = "Removed ${driver.name}."
+                        driverError = null
+                    } catch (e: Exception) {
+                        Timber.e(e, "Error removing custom graphics driver")
+                        driverError = e.message ?: "Could not remove the driver."
+                    }
+                }
+            },
+        )
+    }
+
     if (showBotsDialog) {
         AlertDialog(
             onDismissRequest = { showBotsDialog = false },
@@ -1288,6 +1376,173 @@ private fun LaunchSwitches(
 }
 
 @Composable
+private fun DriverChoiceLink(label: String, enabled: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .alpha(if (enabled) 1f else 0.5f)
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            Icons.Default.Settings,
+            contentDescription = null,
+            modifier = Modifier.size(12.dp),
+            tint = WowFrame,
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(text = "Driver: $label", fontSize = 11.sp, color = WowGold)
+    }
+}
+
+@Composable
+private fun DriverOption(
+    selected: Boolean,
+    title: String,
+    subtitle: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    trailing: (@Composable () -> Unit)? = null,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = selected, onClick = null, enabled = enabled)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, fontSize = 13.sp, color = WowCream)
+            if (subtitle.isNotBlank()) {
+                Text(text = subtitle, fontSize = 11.sp, color = WowSubtle, lineHeight = 15.sp)
+            }
+        }
+        trailing?.invoke()
+    }
+}
+
+@Composable
+private fun GraphicsDriverDialog(
+    gpu: GpuProfile,
+    selectedId: String?,
+    customDrivers: List<InstalledGraphicsDriver>,
+    importing: Boolean,
+    message: String?,
+    error: String?,
+    onDismiss: () -> Unit,
+    onSelectAuto: () -> Unit,
+    onSelect: (InstalledGraphicsDriver) -> Unit,
+    onImport: () -> Unit,
+    onRemove: (InstalledGraphicsDriver) -> Unit,
+) {
+    val selectedIsCustom = customDrivers.any { it.id == selectedId }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = "Graphics Driver", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = WowGold) },
+        text = {
+            Column(
+                modifier = Modifier
+                    .heightIn(max = 430.dp)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                Text(
+                    text = "The automatic choice is the Turnip build matched to this device. " +
+                        "You can import an Adrenotools or .adpkg.zip driver package to try another build; " +
+                        "the archive must contain meta.json and its library at the root.",
+                    fontSize = 12.sp,
+                    color = WowCream,
+                    lineHeight = 17.sp,
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+
+                DriverOption(
+                    selected = !selectedIsCustom,
+                    title = "Auto (recommended)",
+                    subtitle = "${gpu.driver} · ${gpu.label}",
+                    enabled = !importing,
+                    onClick = onSelectAuto,
+                )
+
+                customDrivers.forEach { driver ->
+                    DriverOption(
+                        selected = selectedId == driver.id,
+                        title = driver.name,
+                        subtitle = listOfNotNull(
+                            driver.version.takeIf { it.isNotBlank() },
+                            "API ${driver.minApi}".takeIf { driver.minApi > 0 },
+                        ).joinToString(" · "),
+                        enabled = !importing,
+                        onClick = { onSelect(driver) },
+                        trailing = {
+                            TextButton(
+                                onClick = { onRemove(driver) },
+                                enabled = !importing,
+                            ) {
+                                Text(text = "REMOVE", fontSize = 10.sp, color = WowError)
+                            }
+                        },
+                    )
+                }
+
+                if (customDrivers.isEmpty()) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "No custom drivers imported yet.",
+                        fontSize = 11.sp,
+                        color = WowSubtle,
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = "A custom driver keeps this device's ${gpu.tuDebug} TU_DEBUG and " +
+                        "${gpu.screenSize} screen size. An incompatible driver can prevent the " +
+                        "game from starting; choose Auto to recover.",
+                    fontSize = 11.sp,
+                    color = WowSubtle,
+                    lineHeight = 15.sp,
+                )
+
+                message?.let {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(text = it, fontSize = 11.sp, color = Color(0xFF9BD18A), lineHeight = 15.sp)
+                }
+                error?.let {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(text = it, fontSize = 11.sp, color = WowError, lineHeight = 15.sp)
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onImport,
+                enabled = !importing,
+                colors = ButtonDefaults.buttonColors(containerColor = WowBronze, contentColor = Color.White),
+                shape = RoundedCornerShape(10.dp),
+            ) {
+                Icon(Icons.Default.FolderOpen, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = if (importing) "IMPORTING…" else "IMPORT DRIVER",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !importing) {
+                Text(text = "CLOSE", color = WowMuted)
+            }
+        },
+        containerColor = WowStoneTop,
+        shape = RoundedCornerShape(10.dp),
+        modifier = Modifier.border(3.dp, WowFrame, RoundedCornerShape(10.dp)),
+    )
+}
+
+@Composable
 private fun FlavorSelector(selected: WowFlavor, enabled: Boolean, onSelect: (WowFlavor) -> Unit) {
     // Top row: Forever, Retail, Classic. The second row carries the three Classic products when a
     // Classic flavor is selected, and the local realm otherwise, so every flavor stays one tap away.
@@ -1481,8 +1736,6 @@ private class StorageAccessDeniedException(cause: Throwable) : Exception(cause)
 private fun Throwable.isPermissionDenied() =
     message?.let { "EPERM" in it || "Operation not permitted" in it } == true
 
-private const val DEFAULT_DRIVER = "Turnip-WoW-scheduler-test"
-private const val ADRENO_8XX_DRIVER = "Turnip-V32-RP6sched"
 private const val PROTON_VERSION = "proton-11.0-90624-arm64ec"
 private const val DXVK_VERSION = "2.4.1-wow-aarch64-test"
 
@@ -1495,11 +1748,14 @@ private const val WINCOMPONENTS_OFF =
         "directplay=0,vcrun2010=0,wmdecoder=0,opengl=0"
 
 private data class GpuProfile(val driver: String, val tuDebug: String, val screenSize: String, val label: String, val edition: String) {
+    /** Keep the detected GPU flags and screen size, but use a user-selected driver id. */
+    fun withDriver(driver: String) = copy(driver = driver)
+
     companion object {
         fun detect(context: Context) = if (isAdreno8xxDevice(context)) {
-            GpuProfile(ADRENO_8XX_DRIVER, "noconform,sysmem", "1280x720", "Adreno 8xx", "Snapdragon 8 Elite / Adreno 8xx")
+            GpuProfile(BUNDLED_TURNIP_8XX, "noconform,sysmem", "1280x720", "Adreno 8xx", "Snapdragon 8 Elite / Adreno 8xx")
         } else {
-            GpuProfile(DEFAULT_DRIVER, "noconform", "1920x1080", "Adreno 740", "Snapdragon 8 Series / Adreno 740")
+            GpuProfile(BUNDLED_TURNIP_740, "noconform", "1920x1080", "Adreno 740", "Snapdragon 8 Series / Adreno 740")
         }
 
         private fun isAdreno8xxDevice(context: Context): Boolean {
@@ -1911,8 +2167,8 @@ private fun writeLocalRealmList(clientDir: File) {
 }
 
 private fun installBundledComponents(context: Context, onStatus: (String) -> Unit) {
-    installDriver(context, DEFAULT_DRIVER, "turnip-wow-scheduler-test.zip", onStatus)
-    installDriver(context, ADRENO_8XX_DRIVER, "turnip-V32-RP6sched.zip", onStatus)
+    installDriver(context, BUNDLED_TURNIP_740, "turnip-wow-scheduler-test.zip", onStatus)
+    installDriver(context, BUNDLED_TURNIP_8XX, "turnip-V32-RP6sched.zip", onStatus)
 
     val protonDir = File(ImageFs.getSharedProtonDir(context), PROTON_VERSION)
     if (!File(protonDir, "profile.json").exists() || !File(protonDir, "bin/wine").exists()) {

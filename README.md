@@ -99,6 +99,7 @@ it with `thor-install.sh`, then pick this flavor.
 Requirements:
 
 - Snapdragon 8 series (Adreno 7xx or Adreno 8xx). The app bundles both the Adreno 740 driver and the Turnip v32 driver for Snapdragon 8 Elite / Adreno 8xx, automatically detecting the GPU and applying the optimal driver and environment flags.
+- The launcher's **Driver:** link lets you import and select a custom Adrenotools or `.adpkg.zip` driver package containing `meta.json` and its library at the archive root. **Auto** returns to the tested driver; a custom driver keeps the detected device's `TU_DEBUG` flags and resolution.
 - Android 10 or newer, 64-bit.
 - About **80 GB** free for the game data (internal storage or SD card), plus about 4 GB of internal storage for the app and its Windows environment.
 - A Mac or PC with the client you want installed through Battle.net, to copy the game data from (one-time).
