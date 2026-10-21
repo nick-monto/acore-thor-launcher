@@ -76,9 +76,10 @@ of a Blizzard realm. Six things change for that flavor:
   started in Termux instead: `~/start-wow-server.sh`, or a script in `~/.termux/boot/` to have it up
   after every reboot. Status is a port probe rather than a guess about what was asked for, so however
   the realm was started, the panel reports the truth.
-- **Bot count lives on the server, not in the launcher.** Set it in Termux with
-  `~/wow-server.sh bots N` and restart the realm; the panel does not read or change it. Each bot is a
-  real player session, so a phone-sized realm is happiest in the tens — 0 turns them off.
+- **Bot count lives on the server, not in the launcher.** Stop the realm if it is running, then start
+  it in Termux with `~/start-wow-server.sh --bots N`; the flag sets the count before the world reads
+  it, and the panel does not read or change it. Each bot is a real player session, so a phone-sized
+  realm is happiest in the tens — 0 turns them off.
 
 The server half is [`acore-thor-selfhost`](https://github.com/nick-monto/acore-thor-selfhost): install
 it with `thor-install.sh`, then pick this flavor.
