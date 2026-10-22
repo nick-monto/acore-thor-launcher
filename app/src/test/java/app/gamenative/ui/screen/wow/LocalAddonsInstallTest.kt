@@ -42,7 +42,7 @@ class LocalAddonsInstallTest {
                 root.resolve("Interface/AddOns/$name/$name.toc").isFile,
             )
         }
-        assertEquals("1.5.0-rc2 1", root.resolve(".consoleport-version").readText().trim())
+        assertEquals("1.5.0-rc2-thor1 2", root.resolve(".consoleport-version").readText().trim())
 
         // ThorPad, which hands ConsolePort the pad's keys so nobody has to calibrate it.
         assertTrue(

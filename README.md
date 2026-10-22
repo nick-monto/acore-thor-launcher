@@ -56,17 +56,37 @@ of a Blizzard realm. Six things change for that flavor:
 - **The pad arrives as keys.** A 3.3.5a client has no gamepad support at all, so the launcher installs
   [ConsolePortLK](https://github.com/leoaviana/ConsolePortLK) — the Wrath backport of ConsolePort — into
   the client's `Interface/AddOns`, and gives the container a pad profile that sends the keys and pointer
-  motion it expects: face buttons and D-pad on F1-F12, shoulders and triggers on shift/control plus
-  F7/F8, the left stick on WASD, and the right stick on relative pointer motion, which turns the camera
-  while ConsolePort holds mouse look. The launcher also installs **ThorPad**, its own add-on, which hands
-  ConsolePort those keys on the first login: the pad is mapped without calibrating anything, the prompts
-  are Xbox ones (this pad's face buttons), and Wrath's F1-F4 "target party member" defaults are cleared
-  where the D-pad would otherwise fire them too. `/thorpad` reports what is bound; `/cp` still lets you
-  change all of it. The right stick drives the pointer in both modes, because injected
-  pointer motion is the only thing a 3.3.5a client can turn a camera with — so R3 changes what the face
-  buttons do rather than whether the stick works: in cursor mode A/B click and Y/X scroll the interface,
-  outside it they send ConsolePort's keys. Stick speed is adjustable in both: the profile's cursor speed
-  for the plain stick, and the R3 section of the pad settings for cursor mode.
+  motion it expects: face buttons and D-pad on F1-F12, the shoulders on F7/F8, the triggers on
+  shift/control, the left stick on WASD, and the right stick on relative pointer motion, which turns the
+  camera while ConsolePort holds mouse look. The launcher also installs **ThorPad**, its own add-on,
+  which hands ConsolePort those keys on the first login: the pad is mapped without calibrating anything,
+  Wrath's F1-F4 "target party member" defaults are cleared where the D-pad would otherwise fire them
+  too, and the controller is the **Switch** one, because this pad's buttons sit where a Nintendo pad's
+  do — Y on the left, X on top, A on the right, B at the bottom — so the prompts are drawn where the
+  labels are. `/thorpad` reports the keys and the controller type; `/cp` still lets you change all of it.
+
+  The pad defaults that differ from upstream, both in the bundled add-on and applied once to an account
+  that already played:
+
+  | Button | Action |
+  | --- | --- |
+  | L1 | Target previous enemy |
+  | R1 | Target nearest enemy |
+  | L3 | Jump |
+  | R3 | Clear target |
+
+  The add-on is not shipped as its author built it: `tools/fetch_components.sh` downloads the pinned
+  release and applies `tools/consoleportlk-thor1.patch`, which carries those defaults, so refreshing
+  the add-on re-applies them instead of quietly reverting to the upstream bindings.
+
+  Shift and control therefore sit on the triggers, where ConsolePort expects its two modifiers, so
+  L2+R1 is ConsolePort's "shift + right shoulder" and the action slots the shoulders used to hold
+  (action buttons 4 and 5, and 10 on shift+L3) are still on the bars. The right stick drives the
+  pointer in both modes, because injected pointer motion is the only thing a 3.3.5a client can turn a
+  camera with — so R3 changes what the face buttons do rather than whether the stick works: in cursor
+  mode A/B click and Y/X scroll the interface, outside it they send ConsolePort's keys. Stick speed is
+  adjustable in both: the profile's cursor speed for the plain stick, and the R3 section of the pad
+  settings for cursor mode.
 
   ConsolePort has its own cursor and camera handling on that same stick, so the launcher's R3 cursor
   mode starts **off** for the local realm: R3 then reaches the game as a normal button press and the

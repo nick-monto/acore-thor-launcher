@@ -152,7 +152,7 @@ class ExternalPadSettingsView(
                 ),
             )
             addView(
-                note("Off: R3 is a normal button press and the right stick stays the camera, so ConsolePort gets both. The launcher's main screen carries the same switch, and it is off for the local realm to begin with because ConsolePort drives the stick and R3 itself."),
+                note("Off: R3 is a normal button press (ConsolePort binds it to clear the target on the local realm) and the right stick stays the camera, so ConsolePort gets both. The launcher's main screen carries the same switch, and it is off for the local realm to begin with because ConsolePort drives the stick and R3 itself."),
             )
             details.visibility = if (PadSettings.bool(PadSettings.R3_TOGGLE)) View.VISIBLE else View.GONE
             details.apply {

@@ -108,13 +108,13 @@ private const val LOCAL_CLIENT_LOCALE = "enUS"
 private const val CONTAINER_EXTRA_PROFILE_ID = "profileId"
 
 /** The controller add-on the launcher installs for the local realm, and the version it installs. */
-private const val LOCAL_ADDON_ARCHIVE = "ConsolePortLK-1.5.0-rc2.zip"
-private const val LOCAL_ADDON_VERSION = "1.5.0-rc2"
+private const val LOCAL_ADDON_ARCHIVE = "ConsolePortLK-1.5.0-rc2-thor1.zip"
+private const val LOCAL_ADDON_VERSION = "1.5.0-rc2-thor1"
 
 /** This project's own companion add-on, which hands ConsolePort the pad's keys. */
 private const val LOCAL_PAD_ADDON = "thorpad"
 private const val LOCAL_PAD_ADDON_FOLDER = "ThorPad"
-private const val LOCAL_PAD_ADDON_VERSION = "1"
+private const val LOCAL_PAD_ADDON_VERSION = "2"
 
 /** Marks the client root as carrying [LOCAL_ADDON_VERSION], so a launch does not re-extract it. */
 private const val LOCAL_ADDON_MARKER = ".consoleport-version"
@@ -1934,16 +1934,25 @@ private val LEGACY_CONFIG_VALUES = mapOf(
  * the pad cannot reach the client as a pad: it has to arrive as keys and pointer motion, which is what
  * ConsolePortLK (the ConsolePort backport installed into Interface/AddOns) expects. The mapping is the
  * one WoWpadX, the mapper that add-on was built against, sends - face buttons and D-pad on F1-F12, the
- * shoulders and triggers on shift/control plus F7/F8, the left stick on WASD, and the right stick on
+ * shoulders on F7/F8, the triggers on shift/control, the left stick on WASD, and the right stick on
  * relative pointer motion, which turns the camera while ConsolePort holds mouse look for us.
+ *
+ * F7/F8 are ConsolePort's two shoulder buttons, so they carry the pad's shoulders (L1/R1); shift and
+ * control are its two modifiers, which the triggers hold. Anything else would make ConsolePort draw
+ * "L1" on a prompt for a button on the right hand.
  *
  * The codes come from the app's own axis convention rather than literals, and the profile is only ever
  * written when a profile of this name does not exist yet: after the first launch it belongs to the
- * player, who binds its keys to ConsolePort's buttons once with /cp and may edit it freely.
+ * player, who binds its keys to ConsolePort's buttons once with /cp and may edit it freely. The one
+ * exception is a profile whose four shoulders still hold exactly what this function shipped: that is
+ * the installed layout, not the player's, and it is corrected once in place.
  */
 internal fun ensureLocalControllerProfile(context: Context): Int {
     val manager = InputControlsManager(context)
-    manager.profiles.firstOrNull { it.name == LOCAL_CONTROLLER_PROFILE }?.let { return it.id }
+    manager.profiles.firstOrNull { it.name == LOCAL_CONTROLLER_PROFILE }?.let { installed ->
+        migrateShoulderKeys(installed)
+        return installed.id
+    }
 
     val id = (manager.profiles.maxOfOrNull { it.id } ?: 0) + 1
     val profile = ControlsProfile(context, id)
@@ -1975,10 +1984,7 @@ internal fun ensureLocalControllerProfile(context: Context): Int {
     bind(KeyEvent.KEYCODE_BUTTON_START, Binding.KEY_F6)
     bind(KeyEvent.KEYCODE_BUTTON_MODE, Binding.KEY_KP_MULTIPLY)
 
-    bind(KeyEvent.KEYCODE_BUTTON_L1, Binding.KEY_SHIFT_L)
-    bind(KeyEvent.KEYCODE_BUTTON_R1, Binding.KEY_F7)
-    bind(KeyEvent.KEYCODE_BUTTON_L2, Binding.KEY_CTRL_L)
-    bind(KeyEvent.KEYCODE_BUTTON_R2, Binding.KEY_F8)
+    for ((keyCode, binding) in THOR_SHOULDER_KEYS) bind(keyCode, binding)
 
     bind(axis(MotionEvent.AXIS_Y, -1), Binding.KEY_W)
     bind(axis(MotionEvent.AXIS_Y, 1), Binding.KEY_S)
@@ -2022,6 +2028,47 @@ internal fun installLocalAddons(context: Context, clientRoot: File, onStatus: (S
         "Could not install $LOCAL_PAD_ADDON_FOLDER into ${addOns.path}."
     }
     marker.writeText("$installed\n")
+}
+
+/**
+ * The pad's shoulders, as ConsolePortLK numbers them: L1/R1 are its two shoulder buttons (F7/F8) and
+ * L2/R2 are its shift and control modifiers, which is the layout it draws in a prompt. The face
+ * buttons, D-pad and sticks are positional and need no translation.
+ */
+private val THOR_SHOULDER_KEYS = linkedMapOf(
+    KeyEvent.KEYCODE_BUTTON_L1 to Binding.KEY_F7,
+    KeyEvent.KEYCODE_BUTTON_R1 to Binding.KEY_F8,
+    KeyEvent.KEYCODE_BUTTON_L2 to Binding.KEY_SHIFT_L,
+    KeyEvent.KEYCODE_BUTTON_R2 to Binding.KEY_CTRL_L,
+)
+
+/** What those four shoulders held before the layout was corrected, so a stock profile can be fixed. */
+private val LEGACY_SHOULDER_KEYS = mapOf(
+    KeyEvent.KEYCODE_BUTTON_L1 to Binding.KEY_SHIFT_L,
+    KeyEvent.KEYCODE_BUTTON_R1 to Binding.KEY_F7,
+    KeyEvent.KEYCODE_BUTTON_L2 to Binding.KEY_CTRL_L,
+    KeyEvent.KEYCODE_BUTTON_R2 to Binding.KEY_F8,
+)
+
+/**
+ * Corrects a profile this launcher wrote before the shoulder layout was fixed, in place: the player's
+ * own profile is never rewritten, so this only runs when all four shoulders still hold exactly what
+ * was installed. Signs are left alone, so a pad the player has added stays where it is.
+ */
+private fun migrateShoulderKeys(profile: ControlsProfile) {
+    val pad = profile.loadControllers().firstOrNull { it.id == "*" } ?: return
+    val bindings = pad.getControllerBindings()
+    val held = bindings.associate { it.getKeyCodeForAxis() to it.getBinding() }
+    if (LEGACY_SHOULDER_KEYS.any { (keyCode, binding) -> held[keyCode] != binding }) return
+
+    bindings.filter { it.getKeyCodeForAxis() in THOR_SHOULDER_KEYS }.forEach { pad.removeControllerBinding(it) }
+    for ((keyCode, binding) in THOR_SHOULDER_KEYS) {
+        val entry = ExternalControllerBinding()
+        entry.setKeyCode(keyCode)
+        entry.setBinding(binding)
+        pad.addControllerBinding(entry)
+    }
+    profile.save()
 }
 
 /** [gamepadMode]: 0 = force gamepad UI on, 1 = leave the player's lines alone, 2 = force off. */

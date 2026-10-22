@@ -54,10 +54,63 @@ class LocalPadProfileTest {
         assertEquals(Binding.KEY_F5, keys[KeyEvent.KEYCODE_BUTTON_SELECT])
         assertEquals(Binding.KEY_F6, keys[KeyEvent.KEYCODE_BUTTON_START])
         assertEquals(Binding.KEY_KP_MULTIPLY, keys[KeyEvent.KEYCODE_BUTTON_MODE])
-        assertEquals(Binding.KEY_SHIFT_L, keys[KeyEvent.KEYCODE_BUTTON_L1])
-        assertEquals(Binding.KEY_F7, keys[KeyEvent.KEYCODE_BUTTON_R1])
-        assertEquals(Binding.KEY_CTRL_L, keys[KeyEvent.KEYCODE_BUTTON_L2])
-        assertEquals(Binding.KEY_F8, keys[KeyEvent.KEYCODE_BUTTON_R2])
+        // ConsolePort's two shoulder buttons are F7/F8 and its two modifiers are shift/control, so the
+        // pad's shoulders carry the first pair and its triggers the second: a prompt that says "L1"
+        // must be the button on the left hand.
+        assertEquals(Binding.KEY_F7, keys[KeyEvent.KEYCODE_BUTTON_L1])
+        assertEquals(Binding.KEY_F8, keys[KeyEvent.KEYCODE_BUTTON_R1])
+        assertEquals(Binding.KEY_SHIFT_L, keys[KeyEvent.KEYCODE_BUTTON_L2])
+        assertEquals(Binding.KEY_CTRL_L, keys[KeyEvent.KEYCODE_BUTTON_R2])
+    }
+
+    /** Rewrites the installed profile's controller bindings, the way an older launcher left them. */
+    private fun rewriteBindings(context: Context, id: Int, entries: Map<Int, Binding>) {
+        val profile = ControlsProfile(context, id)
+        profile.setName("Thor Controller (3.3.5a)")
+        val pad = profile.addController("*")
+        entries.forEach { (keyCode, binding) ->
+            // A controller binding refuses to be added twice for one key, so replace what is there.
+            pad.getControllerBinding(keyCode)?.let { pad.removeControllerBinding(it) }
+            val entry = ExternalControllerBinding()
+            entry.setKeyCode(keyCode)
+            entry.setBinding(binding)
+            pad.addControllerBinding(entry)
+        }
+        profile.save()
+    }
+
+    /** Reads the profile the way a launch does: a new manager, off disk. */
+    private fun bindingsOnDisk(context: Context, id: Int): Map<Int, Binding> =
+        bindings(InputControlsManager(context).getProfile(id)!!)
+
+    @Test
+    fun `a profile from before the shoulder fix is corrected once, and a player's own is not`() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val id = ensureLocalControllerProfile(context)
+
+        // What the launcher shipped before: the two button shoulders on the right hand, shift and
+        // control on the left. A prompt that says "L1" was reaching the right shoulder.
+        rewriteBindings(
+            context, id, mapOf(
+                KeyEvent.KEYCODE_BUTTON_L1 to Binding.KEY_SHIFT_L,
+                KeyEvent.KEYCODE_BUTTON_R1 to Binding.KEY_F7,
+                KeyEvent.KEYCODE_BUTTON_L2 to Binding.KEY_CTRL_L,
+                KeyEvent.KEYCODE_BUTTON_R2 to Binding.KEY_F8,
+            ),
+        )
+
+        assertEquals(id, ensureLocalControllerProfile(context))
+        val fixed = bindingsOnDisk(context, id)
+        assertEquals(Binding.KEY_F7, fixed[KeyEvent.KEYCODE_BUTTON_L1])
+        assertEquals(Binding.KEY_F8, fixed[KeyEvent.KEYCODE_BUTTON_R1])
+        assertEquals(Binding.KEY_SHIFT_L, fixed[KeyEvent.KEYCODE_BUTTON_L2])
+        assertEquals(Binding.KEY_CTRL_L, fixed[KeyEvent.KEYCODE_BUTTON_R2])
+
+        // Any other shoulder layout is the player's, so a launch leaves it exactly as it is.
+        rewriteBindings(context, id, mapOf(KeyEvent.KEYCODE_BUTTON_L1 to Binding.KEY_F5))
+
+        assertEquals(id, ensureLocalControllerProfile(context))
+        assertEquals(Binding.KEY_F5, bindingsOnDisk(context, id)[KeyEvent.KEYCODE_BUTTON_L1])
     }
 
     @Test
