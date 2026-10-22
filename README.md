@@ -27,9 +27,9 @@ This uses Blizzard's own **Windows ARM64** WoW clients, so the game itself runs 
 
 - **Five clients in one app:** Forever (beta), Retail, Classic Era, TBC Anniversary and MoP Classic, each with its own game folder, in-app updates and Play button.
 - **Server status for the local flavor:** the AzerothCore panel reports whether the realm's two ports are actually listening. Starting the realm stays in Termux: the launcher deliberately holds no channel into it.
-- **Per-game switches on the main screen:** the Thor button pad, forcing WoW's gamepad UI, and R3 mouse/camera toggling can each be set separately for every client.
+- **Per-game switches on the main screen:** the Thor button pad, forcing WoW's gamepad UI, and R3 mouse/camera toggling can each be set separately for every client. The local realm starts with R3 toggling **off**, because its client runs ConsolePort, which already drives the right stick and R3 itself.
 - **Thor second-screen button pad:** a touch pad on the bottom screen with a trackpad, keyboard, hotbar-style buttons, three switchable pages of common shortcuts (Interface, Target and Utility), modifier keys, optional Extra Buttons, a scroll area, a Gboard-style keyboard, and a full settings page. Every button can be remapped (including to a key with Shift, Ctrl or Alt), renamed, recolored, reordered and hidden. See [The Thor button pad](#the-thor-button-pad).
-- **Controller mouse mode:** the right stick becomes a cursor on R3, with A/B as clicks, Y/X as scroll up/down and an adjustable speed ramp. R3 toggling can be switched off per game, and then R3 stays a normal button press.
+- **Controller mouse mode:** the right stick becomes a cursor on R3, with A/B as clicks, Y/X as scroll up/down and an adjustable speed ramp. It can be switched off per game on the main screen and in the pad settings, and then R3 stays a normal button press.
 - **App updates you control:** the app updates from this repo's releases, with an opt-in for beta builds and an option to skip automatic app updates.
 - **World of Warcraft look:** a stone-and-gold launcher and in-game quick menu, with the chosen client named on the Play button and boot screen.
 - **Its own app:** package `app.acorethor.launcher`, so it installs next to jaredgei's original WoW Forever app, GameNative and Winlator.
@@ -67,6 +67,12 @@ of a Blizzard realm. Six things change for that flavor:
   buttons do rather than whether the stick works: in cursor mode A/B click and Y/X scroll the interface,
   outside it they send ConsolePort's keys. Stick speed is adjustable in both: the profile's cursor speed
   for the plain stick, and the R3 section of the pad settings for cursor mode.
+
+  ConsolePort has its own cursor and camera handling on that same stick, so the launcher's R3 cursor
+  mode starts **off** for the local realm: R3 then reaches the game as a normal button press and the
+  stick stays the camera. Turn it back on with the **R3 toggles mouse / camera** switch on the main
+  screen, or the identically named switch at the top of the pad's settings page, which takes effect
+  without leaving the game. Two cursor modes on one stick is what makes R3 feel broken here.
 
 - **The realm is reported, not driven.** A **LOCAL SERVER** panel shows what is listening on
   `127.0.0.1:3724` and `127.0.0.1:8085`, and it never starts or stops the realm. One Android app
@@ -153,7 +159,8 @@ Pick your game at the top of the screen (**Classic** opens Classic Era, TBC Anni
 ### Controls and signing in
 
 - **Cursor mode (R3):** click the right stick to turn it into a mouse cursor. **A** and **B** click (left/right, or swapped, or off in the pad settings). **Y** and **X** scroll up and down, with a scroll speed setting and an invert option. Speed, ramp and deadzone are adjustable. Click R3 again to go back to normal camera control.
-  - The **R3 toggles mouse / camera** switch on the main screen turns this off per game. With it off, R3 is a regular button press, and the R3 section of the pad settings is hidden. Profiles can't change this switch during play.
+  - The **R3 toggles mouse / camera** switch turns this off per game. It is on the main screen, and again at the top of the pad's **Right-stick cursor (R3)** section, where it applies immediately during play with no trip back to the launcher. With it off, R3 is a regular button press and the cursor tuning rows are hidden. Profiles can't change this switch.
+  - It is off to begin with for the local realm, whose client runs ConsolePort: ConsolePort drives the right stick and R3 itself, and the two cursor modes fight over the same stick.
 - **Controller:** built-in handheld controllers work in-game. WoW's own gamepad mode handles the mapping.
 - **In-game menu:** press Back (the button or the back swipe gesture) to open the sidebar. It has **Keyboard**, on-screen controls, performance overlay and **Exit**.
 - **Keyboard:** the sidebar's **Keyboard** opens the Android keyboard. On dual-screen devices like the Thor it appears on the bottom screen. Symbols like `@` work, and so does pasting. The button pad also has its own on-screen keyboard laid out like Gboard (number row, QWERTY, a `?123` symbols page, `/` on the main page for chat commands).
@@ -182,7 +189,7 @@ On the AYN Thor the bottom screen shows a touch pad while you play. The tab bar 
   - which number block, modifier keys and Extra Buttons are shown, and per-button show, hide and reorder controls
   - label size, number emphasis, haptics and double-tap lock time
   - trackpad speed, acceleration, tap-to-click and the scroll area
-  - right-stick cursor speed, ramp, deadzone, A/B click mode and Y/X scroll (shown only when R3 toggling is on)
+  - right-stick cursor: the R3 on/off switch, then speed, ramp, deadzone, A/B click mode and Y/X scroll (the tuning rows show only when R3 toggling is on)
   - **remap, rename and recolor:** tap any page, number or Extra button to choose the key it sends (optionally with Shift, Ctrl or Alt), give it a new name (up to 12 characters) typed on the on-screen keyboard, or change its trim color. Shift, Ctrl, Alt and the trackpad click buttons are fixed. Use the reset buttons in that screen to undo. A button layout can also be exported to a file and imported back.
   - three saved profiles (with Save / Overwrite), backup to the clipboard, and reset
   - which client launches next, and a helper for `Config.wtf`

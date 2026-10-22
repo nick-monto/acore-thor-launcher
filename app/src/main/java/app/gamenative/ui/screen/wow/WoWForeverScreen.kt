@@ -332,6 +332,11 @@ fun WoWForeverScreen(
         checkFiles()
         isLaunching = false
         statusText = READY_STATUS
+        // The pad settings carry the same per-game switches, and they can be flipped during play: read
+        // them again so the main screen does not show a value that is no longer true.
+        buttonPad = ButtonPad.isEnabled(context, flavor)
+        forceGamepadUi = ButtonPad.forceGamepadUi(context, flavor)
+        r3Toggle = ButtonPad.r3Toggle(context, flavor)
         if (versionStatus == null && !WoWLauncherState.shouldAutoLaunch) {
             checkVersionStatus()
         }
@@ -1608,8 +1613,12 @@ private fun CheckItem(label: String, ready: Boolean, warning: Boolean = false) {
     }
 }
 
-/** The 12-button action bar pad on the second display. On by default; the launcher switch turns it off. */
-private object ButtonPad {
+/**
+ * The per-game switches: the action bar pad on the second display, forcing WoW's gamepad UI, and R3
+ * mouse/camera toggling. The launcher's main screen and the in-game pad settings both read and write
+ * them.
+ */
+internal object ButtonPad {
     private const val PREFS = "wow_forever"
 
     // Per game, so each flavor remembers its own switches. The pad is on for every game by default.
@@ -1628,9 +1637,14 @@ private object ButtonPad {
 
     private fun r3Key(flavor: WowFlavor) = "r3_toggle_${flavor.name}"
 
-    /** Whether R3 switches between mouse and camera for this game. On by default. */
+    /**
+     * Whether R3 switches between camera and the launcher's cursor for this game. Off for the local
+     * realm by default: its client runs ConsolePort, which drives the right stick and R3 itself, and two
+     * cursor modes fighting over the same stick is what made R3 feel broken there. Any other game keeps
+     * it on, since nothing else provides a cursor.
+     */
     fun r3Toggle(context: Context, flavor: WowFlavor) =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(r3Key(flavor), true)
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(r3Key(flavor), !flavor.isLocal)
 
     /** Saves the choice for [flavor] and, since the controller reads the pad setting, applies it now. */
     fun setR3Toggle(context: Context, flavor: WowFlavor, enabled: Boolean) {

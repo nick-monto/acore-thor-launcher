@@ -13,6 +13,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.TextView
+import app.gamenative.ui.screen.wow.ButtonPad
 import app.gamenative.ui.screen.wow.GamePath
 import app.gamenative.ui.screen.wow.WowFlavor
 import com.winlator.xserver.XKeycode
@@ -135,9 +136,26 @@ class ExternalPadSettingsView(
             addView(cycleRow("Scroll area side", PadSettings.SCROLLBAR_SIDE, listOf("Right", "Left")))
             addView(sliderRow("Scroll area speed", PadSettings.SCROLLBAR_SPEED, 1, 10) { "$it" })
         }
-        // Only shown when R3 mouse/camera toggling was switched on at launch (main screen).
-        if (PadSettings.bool(PadSettings.R3_TOGGLE)) {
-            section("Right-stick cursor (R3)", collapsible = true) {
+        // Always listed: ConsolePort drives the same stick, so this mode has to be switchable from the
+        // pad without leaving the game. It is off by default for the local realm (main screen switch).
+        section("Right-stick cursor (R3)", collapsible = true) {
+            val details = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+            addView(
+                rowOf(
+                    button("R3 toggles mouse / camera", active = PadSettings.bool(PadSettings.R3_TOGGLE)) { b ->
+                        val enabled = !PadSettings.bool(PadSettings.R3_TOGGLE)
+                        // The launcher's main screen carries the same per-game switch, so keep it in step.
+                        ButtonPad.setR3Toggle(context, WowFlavor.current, enabled)
+                        style(b, enabled)
+                        details.visibility = if (enabled) View.VISIBLE else View.GONE
+                    },
+                ),
+            )
+            addView(
+                note("Off: R3 is a normal button press and the right stick stays the camera, so ConsolePort gets both. The launcher's main screen carries the same switch, and it is off for the local realm to begin with because ConsolePort drives the stick and R3 itself."),
+            )
+            details.visibility = if (PadSettings.bool(PadSettings.R3_TOGGLE)) View.VISIBLE else View.GONE
+            details.apply {
                 addView(toggleRow(listOf("Ring around the cursor" to PadSettings.CURSOR_RING)))
                 addView(cycleRow("Ring colour", PadSettings.RING_COLOR, PadSettings.RING_COLORS.map { it.first }))
                 addView(sliderRow("Ring size", PadSettings.RING_SIZE, 20, 120) { tenths(it) + "%" })
@@ -166,6 +184,7 @@ class ExternalPadSettingsView(
                 addView(note("Other"))
                 addView(toggleRow(listOf("Show message when the mode changes" to PadSettings.MODE_MESSAGE)))
             }
+            addView(details)
         }
         section("Triggers (L2 / R2)", collapsible = true) {
             addView(toggleRow(listOf("L2 / R2 act as modifier keys" to PadSettings.TRIGGER_MODS)))

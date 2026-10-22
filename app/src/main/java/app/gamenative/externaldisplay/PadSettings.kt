@@ -445,7 +445,11 @@ object PadSettings {
 
     // Reset, profiles, export and import.
 
-    /** Settings the launcher sets per game at launch. Profiles and resets leave them alone during play. */
+    /**
+     * Settings the launcher sets per game at launch; profiles and resets leave them alone during play.
+     * R3 toggling is one of them, but the pad's settings page may still switch it mid-session, because
+     * it is the only way to get ConsolePort's stick back without quitting to the launcher.
+     */
     private val LAUNCH_ONLY = setOf(R3_TOGGLE)
 
     fun resetAll() {
