@@ -70,6 +70,8 @@ class ExternalActionPad(
     /** Builds (or rebuilds, after settings changed) everything below the pad background. */
     private fun buildUi() {
         removeAllViews()
+        // The panels start hidden again, so the pad is not in mouse mode any more either.
+        PadBridge.setTrackpadOpen(false)
         // Let go of anything still held (including locked modifiers) before the old buttons are dropped.
         heldModifiers.toList().forEach { xServer.injectKeyRelease(it) }
         releaseMouseButtons.forEach { it() }
@@ -750,6 +752,9 @@ class ExternalActionPad(
             setSettings(false)
         }
         trackpadPanel.visibility = if (on) View.VISIBLE else View.GONE
+        // The pad is the mouse while its trackpad is up: the controller turns A / B into clicks and the
+        // ring marks the pointer, whether or not R3 cursor mode is on for this game.
+        PadBridge.setTrackpadOpen(on)
         if (!on) releaseMouseButtons.forEach { it() }
         padView.visibility = if (on) View.GONE else View.VISIBLE
         // A modifier armed on one view shows as armed on the other too.

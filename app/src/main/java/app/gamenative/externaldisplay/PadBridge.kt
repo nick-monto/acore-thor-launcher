@@ -29,7 +29,29 @@ object PadBridge {
     @Volatile
     private var cursorMode = false
 
-    fun isCursorRingShown(): Boolean = cursorMode && PadSettings.bool(PadSettings.CURSOR_RING)
+    /**
+     * True while the pad's trackpad is up, i.e. the pad itself is the mouse. Set by the pad.
+     *
+     * The trackpad is a mouse mode of its own: it moves the pointer, so the pad's click shortcuts (A / B,
+     * and L1 / R1 when enabled) and the cursor ring have to work there even when R3 cursor mode is off.
+     * The local realm runs with it off, because ConsolePort drives the right stick, and tying the clicks
+     * to that mode left A / B sending ConsolePort's buttons - A jumps - whenever the trackpad was open.
+     */
+    @Volatile
+    var trackpadOpen = false
+        private set
+
+    /** Set by the controller code: a click it holds must not outlive the trackpad closing under it. */
+    @Volatile
+    var releaseClicks: (() -> Unit)? = null
+
+    fun setTrackpadOpen(open: Boolean) {
+        if (trackpadOpen == open) return
+        trackpadOpen = open
+        if (!open) releaseClicks?.invoke()
+    }
+
+    fun isCursorRingShown(): Boolean = (cursorMode || trackpadOpen) && PadSettings.bool(PadSettings.CURSOR_RING)
 
     fun ringColor(): Int = PadSettings.RING_COLORS[PadSettings.int(PadSettings.RING_COLOR).coerceIn(0, PadSettings.RING_COLORS.size - 1)].second
 

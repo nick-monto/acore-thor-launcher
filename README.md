@@ -84,15 +84,22 @@ of a Blizzard realm. Six things change for that flavor:
   (action buttons 4 and 5, and 10 on shift+L3) are still on the bars. The right stick drives the
   pointer in both modes, because injected pointer motion is the only thing a 3.3.5a client can turn a
   camera with — so R3 changes what the face buttons do rather than whether the stick works: in cursor
-  mode A/B click and Y/X scroll the interface, outside it they send ConsolePort's keys. Stick speed is
-  adjustable in both: the profile's cursor speed for the plain stick, and the R3 section of the pad
-  settings for cursor mode.
+  mode A/B click and Y/X scroll the interface, with the pad's trackpad open A/B click as well, and
+  otherwise they send ConsolePort's keys. Stick speed is adjustable in both: the profile's cursor
+  speed for the plain stick, and the R3 section of the pad settings for cursor mode.
 
   ConsolePort has its own cursor and camera handling on that same stick, so the launcher's R3 cursor
   mode starts **off** for the local realm: R3 then reaches the game as a normal button press and the
   stick stays the camera. Turn it back on with the **R3 toggles mouse / camera** switch on the main
   screen, or the identically named switch at the top of the pad's settings page, which takes effect
   without leaving the game. Two cursor modes on one stick is what makes R3 feel broken here.
+
+  The pad's **trackpad is a mouse mode of its own**, so it does not depend on that switch: while the
+  trackpad is up, A/B (and L1/R1, if enabled) click instead of reaching ConsolePort and the ring marks
+  the pointer, exactly as they do in cursor mode. With cursor mode off and the trackpad closed, A/B
+  are ConsolePort's buttons again (the bottom one jumps), so clicks tied to R3 alone would leave the
+  pad with no mouse at all. The click and ring switches sit in the R3 section of the pad settings and
+  stay visible with the mode off; only the stick tuning collapses.
 
 - **The realm is reported, not driven.** A **LOCAL SERVER** panel shows what is listening on
   `127.0.0.1:3724` and `127.0.0.1:8085`, and it never starts or stops the realm. One Android app
@@ -179,7 +186,8 @@ Pick your game at the top of the screen (**Classic** opens Classic Era, TBC Anni
 ### Controls and signing in
 
 - **Cursor mode (R3):** click the right stick to turn it into a mouse cursor. **A** and **B** click (left/right, or swapped, or off in the pad settings). **Y** and **X** scroll up and down, with a scroll speed setting and an invert option. Speed, ramp and deadzone are adjustable. Click R3 again to go back to normal camera control.
-  - The **R3 toggles mouse / camera** switch turns this off per game. It is on the main screen, and again at the top of the pad's **Right-stick cursor (R3)** section, where it applies immediately during play with no trip back to the launcher. With it off, R3 is a regular button press and the cursor tuning rows are hidden. Profiles can't change this switch.
+  - The **pad's trackpad is a second mouse mode**, independent of this switch: while the trackpad is open, **A**/**B** click and the ring shows the pointer, so the pad is usable as a mouse on a game whose client drives the right stick itself.
+  - The **R3 toggles mouse / camera** switch turns the stick's cursor mode off per game. It is on the main screen, and again at the top of the pad's **Right-stick cursor (R3)** section, where it applies immediately during play with no trip back to the launcher. With it off, R3 is a regular button press and only the stick, D-pad and scroll tuning rows are hidden; the click and ring switches stay. Profiles can't change this switch.
   - It is off to begin with for the local realm, whose client runs ConsolePort: ConsolePort drives the right stick and R3 itself, and the two cursor modes fight over the same stick.
 - **Controller:** built-in handheld controllers work in-game. WoW's own gamepad mode handles the mapping.
 - **In-game menu:** press Back (the button or the back swipe gesture) to open the sidebar. It has **Keyboard**, on-screen controls, performance overlay and **Exit**.
@@ -312,7 +320,7 @@ Full third-party license details are in [`THIRD_PARTY_NOTICES`](THIRD_PARTY_NOTI
 - Per-client switches for the button pad, forcing the gamepad UI and R3 mouse/camera toggling.
 - A stone-and-gold launcher theme and quick menu, and the selected client named on the Play button and boot screen.
 - Second-screen button pad with a settings page: switchable button pages, Extra Buttons, layout options, remapping, renaming, recoloring and reordering of every button, profiles, a trackpad scroll area, a Gboard-style keyboard, and trackpad and stick tuning.
-- Right-stick cursor mode on R3 with A/B clicks, Y/X scrolling and a speed ramp.
+- Right-stick cursor mode on R3 with A/B clicks, Y/X scrolling and a speed ramp, plus the same clicks and cursor ring while the pad's trackpad is open.
 - An updater with beta opt-in and a skip-automatic-updates option.
 - Its own package name (`app.acorethor.launcher`) and an updater that follows this repo's releases.
 

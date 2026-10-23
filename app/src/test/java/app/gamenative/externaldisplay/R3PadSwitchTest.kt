@@ -34,6 +34,15 @@ class R3PadSwitchTest {
         return null
     }
 
+    private fun isVisibleInHierarchy(view: View): Boolean {
+        var current: View? = view
+        while (current != null) {
+            if (current.visibility != View.VISIBLE) return false
+            current = current.parent as? View
+        }
+        return true
+    }
+
     @Test
     fun `the pad switch turns cursor mode on and saves it for this game`() {
         PadSettings.init(context)
@@ -54,5 +63,42 @@ class R3PadSwitchTest {
 
         assertFalse(PadSettings.bool(PadSettings.R3_TOGGLE))
         assertFalse(ButtonPad.r3Toggle(context, flavor))
+    }
+
+    @Test
+    fun `clicks and the ring stay reachable with cursor mode off`() {
+        PadSettings.init(context)
+        // The local realm runs with the launcher's cursor mode off, but the pad's trackpad is a mouse of
+        // its own, so the click shortcuts and the ring keep working - and have to stay settable.
+        ButtonPad.setR3Toggle(context, WowFlavor.current, false)
+        val settings = ExternalPadSettingsView(context, PadTheme.DEFAULT)
+        val header = findText(settings, "RIGHT-STICK CURSOR (R3)")
+        assertNotNull("the R3 section is listed", header)
+        assertTrue(isVisibleInHierarchy(header!!))
+        header.performClick()
+
+        val clickSwitch = findButton(settings, "A / B click")
+        assertNotNull("with cursor mode off, the click switches are still listed", clickSwitch)
+        assertTrue("and reachable without turning the stick tuning back on", isVisibleInHierarchy(clickSwitch!!))
+        assertTrue(isVisibleInHierarchy(findButton(settings, "Ring around the cursor")!!))
+        assertFalse("the stick tuning stays collapsed while the mode is off", isVisibleInHierarchy(findText(settings, "Stick deadzone")!!))
+
+        findButton(settings, "R3 toggles mouse / camera")!!.performClick()
+        assertTrue("turning the mode on opens the stick tuning", isVisibleInHierarchy(findText(settings, "Stick deadzone")!!))
+
+        findButton(settings, "R3 toggles mouse / camera")!!.performClick()
+        assertFalse("and turning it off again hides only that", isVisibleInHierarchy(findText(settings, "Stick deadzone")!!))
+        assertTrue("the click switches are not part of the stick tuning", isVisibleInHierarchy(clickSwitch))
+    }
+
+    private fun findText(root: View, contains: String): View? {
+        if (root is android.widget.TextView && root.text.toString().contains(contains)) return root
+        if (root !is ViewGroup) return null
+
+        for (i in 0 until root.childCount) {
+            findText(root.getChildAt(i), contains)?.let { return it }
+        }
+
+        return null
     }
 }

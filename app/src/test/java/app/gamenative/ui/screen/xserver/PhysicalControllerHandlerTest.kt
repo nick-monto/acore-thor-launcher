@@ -1,5 +1,6 @@
 package app.gamenative.ui.screen.xserver
 
+import android.content.Context
 import android.graphics.PointF
 import android.os.Looper
 import android.view.KeyEvent
@@ -11,6 +12,9 @@ import com.winlator.inputcontrols.ExternalController
 import com.winlator.inputcontrols.ExternalControllerBinding
 import com.winlator.inputcontrols.GamepadState
 import com.winlator.widget.InputControlsView
+import androidx.test.core.app.ApplicationProvider
+import app.gamenative.externaldisplay.PadBridge
+import app.gamenative.externaldisplay.PadSettings
 import com.winlator.xserver.Pointer
 import com.winlator.xserver.XServer
 import com.winlator.xserver.XKeycode
@@ -20,7 +24,9 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
+import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
@@ -241,6 +247,96 @@ class PhysicalControllerHandlerTest {
             assertNull(privateField(handler, "mouseMoveTimer"))
         } finally {
             handler.cleanup()
+        }
+    }
+
+    @Test
+    fun `A clicks while the pad's trackpad is open even with R3 cursor mode off`() {
+        PadSettings.init(ApplicationProvider.getApplicationContext<Context>())
+        PadSettings.set(PadSettings.CLICK_AB, true)
+        PadSettings.set(PadSettings.CLICK_HOLD, false)
+        val deviceId = 42
+        val keyCode = KeyEvent.KEYCODE_BUTTON_A
+        val xServer = mock<XServer>()
+        val handler = padClickHandler(xServer, deviceId, keyCode, Binding.GAMEPAD_BUTTON_A)
+        PadBridge.setTrackpadOpen(true)
+
+        try {
+            assertFalse("cursor mode is off for this case", privateField(handler, "rightStickMouseMode") as Boolean)
+            assertTrue(handler.onKeyEvent(keyEvent(deviceId, keyCode, KeyEvent.ACTION_DOWN)))
+            verify(xServer).injectPointerButtonPress(Pointer.Button.BUTTON_LEFT)
+
+            assertTrue(handler.onKeyEvent(keyEvent(deviceId, keyCode, KeyEvent.ACTION_UP)))
+            verify(xServer).injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT)
+        } finally {
+            PadBridge.setTrackpadOpen(false)
+            handler.cleanup()
+        }
+    }
+
+    @Test
+    fun `the trackpad closing lets go of a click the controller holds`() {
+        PadSettings.init(ApplicationProvider.getApplicationContext<Context>())
+        PadSettings.set(PadSettings.CLICK_AB, true)
+        PadSettings.set(PadSettings.CLICK_HOLD, false)
+        val deviceId = 42
+        val keyCode = KeyEvent.KEYCODE_BUTTON_A
+        val xServer = mock<XServer>()
+        val handler = padClickHandler(xServer, deviceId, keyCode, Binding.GAMEPAD_BUTTON_A)
+        PadBridge.setTrackpadOpen(true)
+
+        try {
+            assertTrue(handler.onKeyEvent(keyEvent(deviceId, keyCode, KeyEvent.ACTION_DOWN)))
+            verify(xServer).injectPointerButtonPress(Pointer.Button.BUTTON_LEFT)
+
+            PadBridge.setTrackpadOpen(false)
+
+            verify(xServer).injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT)
+        } finally {
+            PadBridge.setTrackpadOpen(false)
+            handler.cleanup()
+        }
+    }
+
+    @Test
+    fun `with the trackpad closed the face button keeps its ConsolePort key`() {
+        PadSettings.init(ApplicationProvider.getApplicationContext<Context>())
+        PadSettings.set(PadSettings.CLICK_AB, true)
+        val deviceId = 42
+        val keyCode = KeyEvent.KEYCODE_BUTTON_A
+        val xServer = mock<XServer>()
+        val handler = padClickHandler(xServer, deviceId, keyCode, Binding.KEY_F11)
+
+        try {
+            assertTrue(handler.onKeyEvent(keyEvent(deviceId, keyCode, KeyEvent.ACTION_DOWN)))
+            verify(xServer).injectKeyPress(XKeycode.KEY_F11)
+            verify(xServer, never()).injectPointerButtonPress(any())
+        } finally {
+            PadBridge.setTrackpadOpen(false)
+            handler.cleanup()
+        }
+    }
+
+    /** A handler whose pad maps [keyCode] to [binding], the way the installed local profile does. */
+    private fun padClickHandler(xServer: XServer, deviceId: Int, keyCode: Int, binding: Binding): PhysicalControllerHandler {
+        val controllerBinding = ExternalControllerBinding().apply {
+            setKeyCode(keyCode)
+            setBindingCombo(BindingCombo.fromBindings(listOf(binding)))
+        }
+        val controller = mock<ExternalController>()
+        whenever(controller.getControllerBinding(keyCode)).thenReturn(controllerBinding)
+        val profile = mock<ControlsProfile>()
+        whenever(profile.getController(deviceId)).thenReturn(controller)
+        whenever(profile.gamepadState).thenReturn(GamepadState())
+        return PhysicalControllerHandler(profile, xServer)
+    }
+
+    private fun keyEvent(deviceId: Int, keyCode: Int, action: Int): KeyEvent {
+        return mock<KeyEvent>().also { event ->
+            whenever(event.repeatCount).thenReturn(0)
+            whenever(event.deviceId).thenReturn(deviceId)
+            whenever(event.keyCode).thenReturn(keyCode)
+            whenever(event.action).thenReturn(action)
         }
     }
 

@@ -81,6 +81,22 @@ class PhysicalControllerHandler(
     // Toggled by clicking R3 (stick click). Touched on the main thread only.
     private var rightStickMouseMode = false
 
+    /**
+     * True while the pad is acting as a mouse: the right stick drives the cursor (R3 cursor mode), or the
+     * pad's trackpad is up. Both make the pad's click shortcuts meaningful, and the trackpad case has to
+     * work with cursor mode off - the local realm leaves the right stick to ConsolePort, and A / B then
+     * reach it as plain buttons (the bottom one jumps) instead of clicking.
+     */
+    private fun padClicksActive() = rightStickMouseMode || PadBridge.trackpadOpen
+
+    init {
+        // Closing the trackpad must let go of a click the controller is still holding.
+        PadBridge.releaseClicks = {
+            releaseHeldClicks()
+            releaseCursorClicks()
+        }
+    }
+
     // Physical key code -> mouse button binding for A/B clicks started while in cursor mode.
     private val cursorClickBindings = mutableMapOf<Int, Binding>()
 
@@ -352,7 +368,8 @@ class PhysicalControllerHandler(
         activeSequenceTriggerBindings.clear()
         releaseCursorClicks()
         rightStickMouseMode = false
-        app.gamenative.externaldisplay.PadBridge.setCursorMode(false)
+        PadBridge.setCursorMode(false)
+        PadBridge.releaseClicks = null
         showKeyboardPressed = false
         closeRadialMenuIfOpen(commit = false)
         sendGamepadState()
@@ -450,10 +467,10 @@ class PhysicalControllerHandler(
                     cursorScrollBindings[keyCode] = scroll
                     handleScrollBinding(scroll, true)
                     return true
-                } else if (event.action == KeyEvent.ACTION_DOWN && rightStickMouseMode &&
+                } else if (event.action == KeyEvent.ACTION_DOWN && padClicksActive() &&
                     (PadSettings.bool(PadSettings.CLICK_AB) || PadSettings.bool(PadSettings.CLICK_SHOULDERS))
                 ) {
-                    // Cursor mode: A / B and / or L1 / R1 act as left / right click, optionally swapped.
+                    // Mouse mode: A / B and / or L1 / R1 act as left / right click, optionally swapped.
                     val bindings = controller.getControllerBinding(keyCode)?.bindingCombo?.bindings
                     val useAB = PadSettings.bool(PadSettings.CLICK_AB)
                     val useShoulders = PadSettings.bool(PadSettings.CLICK_SHOULDERS)
@@ -706,7 +723,7 @@ class PhysicalControllerHandler(
     private fun setRightStickMouseMode(enabled: Boolean, deviceId: Int) {
         if (rightStickMouseMode == enabled) return
         rightStickMouseMode = enabled
-        app.gamenative.externaldisplay.PadBridge.setCursorMode(enabled)
+        PadBridge.setCursorMode(enabled)
         clearDpadCursor()
         val stickKeys = rightStickKeyCodes()
         if (enabled) {
