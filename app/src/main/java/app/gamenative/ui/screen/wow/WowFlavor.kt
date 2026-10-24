@@ -36,7 +36,7 @@ enum class WowFlavor(
         subtitle = "FOREVER (ARM64 NATIVE)",
         product = "wowf",
         dir = "_forever_",
-        exeNames = listOf("WowB-ARM64.exe"),
+        exeNames = listOf("WowF-ARM64.exe", "WowB-ARM64.exe"),
         portal = "us",
         defaultFolder = "WoW Forever",
     ),
