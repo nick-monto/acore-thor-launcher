@@ -375,21 +375,8 @@ public class TouchpadView extends View implements View.OnCapturedPointerListener
         }
     }
 
-    /**
-     * Run whenever a finger touches this pad, before any pointer event is generated. The second-screen pad
-     * uses it to take the pointer from the controller for as long as the trackpad is in use.
-     */
-    public void setOnInteractionListener(Runnable listener) {
-        this.interactionListener = listener;
-    }
-
-    private Runnable interactionListener;
-
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        if (interactionListener != null && event.getActionMasked() == MotionEvent.ACTION_DOWN) {
-            interactionListener.run();
-        }
         boolean isStylus = isEventTriggeredByStylus(event);
         if (touchscreenMouseDisabled
                 && !isStylus

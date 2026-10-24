@@ -154,16 +154,13 @@ class ExternalPadSettingsView(
             addView(
                 note("Off: R3 is a normal button press (ConsolePort binds it to clear the target on the local realm) and the right stick stays the camera, so ConsolePort gets both. The launcher's main screen carries the same switch, and it is off for the local realm to begin with because ConsolePort drives the stick and R3 itself."),
             )
-            // The ring is not the stick's: the pad's trackpad shows it too, so it stays listed with the switch off.
-            addView(toggleRow(listOf("Ring around the cursor" to PadSettings.CURSOR_RING)))
-            addView(cycleRow("Ring colour", PadSettings.RING_COLOR, PadSettings.RING_COLORS.map { it.first }))
-            addView(sliderRow("Ring size", PadSettings.RING_SIZE, 20, 120) { tenths(it) + "%" })
-            addView(sliderRow("Ring thickness", PadSettings.RING_THICK, 50, 250) { "$it%" })
-            addView(note("The ring marks the pointer on the game screen while the right stick is the cursor, and while the pad's trackpad is in use. Touching the trackpad or its click buttons takes the pointer from the controller; the first controller input hands it back."))
-            // The stick's own tuning and the clicks belong to cursor mode: the pad clicks with its trackpad
-            // buttons and taps, so the face buttons stay ConsolePort's whenever this is off.
             details.visibility = if (PadSettings.bool(PadSettings.R3_TOGGLE)) View.VISIBLE else View.GONE
             details.apply {
+                addView(toggleRow(listOf("Ring around the cursor" to PadSettings.CURSOR_RING)))
+                addView(cycleRow("Ring colour", PadSettings.RING_COLOR, PadSettings.RING_COLORS.map { it.first }))
+                addView(sliderRow("Ring size", PadSettings.RING_SIZE, 20, 120) { tenths(it) + "%" })
+                addView(sliderRow("Ring thickness", PadSettings.RING_THICK, 50, 250) { "$it%" })
+                addView(note("The ring shows on the game screen while the right stick is the cursor, and goes away in camera mode."))
                 addView(note("Stick"))
                 addView(sliderRow("Base speed", PadSettings.STICK_BASE, 5, 30) { tenths(it) })
                 addView(sliderRow("Max speed", PadSettings.STICK_MAX, 10, 50) { tenths(it) })
@@ -175,17 +172,17 @@ class ExternalPadSettingsView(
                 addView(sliderRow("D-pad cursor base speed", PadSettings.DPAD_BASE, 5, 30) { tenths(it) })
                 addView(sliderRow("D-pad cursor max speed", PadSettings.DPAD_MAX, 10, 50) { tenths(it) })
                 addView(sliderRow("D-pad cursor ramp time", PadSettings.DPAD_RAMP, 1, 20) { tenths(it) + " s" })
-                addView(note("Scrolling"))
-                addView(toggleRow(listOf("Y / X scroll in cursor mode" to PadSettings.SCROLL_KEYS, "Invert Y / X scroll" to PadSettings.SCROLL_INVERT)))
-                addView(sliderRow("Scroll speed", PadSettings.SCROLL_SPEED, 1, 10) { "$it" })
-                addView(note("Other"))
-                addView(toggleRow(listOf("Show message when the mode changes" to PadSettings.MODE_MESSAGE)))
-                addView(note("Clicking. In cursor mode the buttons you turn on click instead of reaching the game. Both pairs can be on together. A or L1 is left click, B or R1 is right click, unless that pair is swapped. The pad's own Left click and Right click buttons, and a tap on the trackpad, work whatever this switch says."))
+                addView(note("Clicking. In cursor mode the buttons you turn on click instead of reaching the game. Both pairs can be on together. A or L1 is left click, B or R1 is right click, unless that pair is swapped."))
                 addView(toggleRow(listOf("A / B click" to PadSettings.CLICK_AB, "Swap A / B" to PadSettings.AB_SWAP)))
                 addView(toggleRow(listOf("L1 / R1 click" to PadSettings.CLICK_SHOULDERS, "Swap L1 / R1" to PadSettings.SHOULDER_SWAP)))
                 addView(toggleRow(listOf("Double-tap a click button holds the click" to PadSettings.CLICK_HOLD)))
                 addView(sliderRow("Double-tap speed", PadSettings.CLICK_HOLD_MS, 150, 600) { "$it ms" })
                 addView(sliderRow("Click wait for double tap", PadSettings.CURSOR_CLICK_WAIT_MS, 0, 300) { if (it == 0) "Off" else "$it ms" })
+                addView(note("Scrolling"))
+                addView(toggleRow(listOf("Y / X scroll in cursor mode" to PadSettings.SCROLL_KEYS, "Invert Y / X scroll" to PadSettings.SCROLL_INVERT)))
+                addView(sliderRow("Scroll speed", PadSettings.SCROLL_SPEED, 1, 10) { "$it" })
+                addView(note("Other"))
+                addView(toggleRow(listOf("Show message when the mode changes" to PadSettings.MODE_MESSAGE)))
             }
             addView(details)
         }

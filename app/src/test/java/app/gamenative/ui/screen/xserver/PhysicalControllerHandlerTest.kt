@@ -1,6 +1,5 @@
 package app.gamenative.ui.screen.xserver
 
-import android.content.Context
 import android.graphics.PointF
 import android.os.Looper
 import android.view.KeyEvent
@@ -12,9 +11,6 @@ import com.winlator.inputcontrols.ExternalController
 import com.winlator.inputcontrols.ExternalControllerBinding
 import com.winlator.inputcontrols.GamepadState
 import com.winlator.widget.InputControlsView
-import androidx.test.core.app.ApplicationProvider
-import app.gamenative.externaldisplay.PadBridge
-import app.gamenative.externaldisplay.PadSettings
 import com.winlator.xserver.Pointer
 import com.winlator.xserver.XServer
 import com.winlator.xserver.XKeycode
@@ -24,9 +20,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
-import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
@@ -247,112 +241,6 @@ class PhysicalControllerHandlerTest {
             assertNull(privateField(handler, "mouseMoveTimer"))
         } finally {
             handler.cleanup()
-        }
-    }
-
-    @Test
-    fun `the pad taking the pointer lets go of the camera stick`() {
-        PadSettings.init(ApplicationProvider.getApplicationContext<Context>())
-        val deviceId = 42
-        val controller = motionController(
-            ExternalControllerBinding.getKeyCodeForAxis(MotionEvent.AXIS_Z, 1),
-            Binding.GAMEPAD_RIGHT_THUMB_RIGHT,
-        )
-        val gamepadState = GamepadState()
-        val profile = mock<ControlsProfile>()
-        whenever(profile.getController(deviceId)).thenReturn(controller)
-        whenever(profile.gamepadState).thenReturn(gamepadState)
-        val handler = PhysicalControllerHandler(profile = profile, xServer = mock<XServer>(), gamepadStateSender = {})
-        val event = motionEvent(deviceId)
-
-        try {
-            controller.state.thumbRX = 0.8f
-            assertTrue(handler.onGenericMotionEvent(event))
-            assertEquals("the controller is driving the camera", 0.8f, gamepadState.thumbRX, 0f)
-
-            // The trackpad was touched: the pad is the pointer, and the camera stick is not the camera any more.
-            PadBridge.beginPointerSession()
-            assertEquals("a stick held a moment ago cannot turn the view under the trackpad", 0f, gamepadState.thumbRX, 0f)
-            assertTrue(PadBridge.isCursorRingShown())
-
-            // The controller is used again: the camera comes back, and the ring goes away.
-            assertTrue(handler.onGenericMotionEvent(event))
-            assertEquals(0.8f, gamepadState.thumbRX, 0f)
-            assertFalse(PadBridge.pointerSession)
-            assertFalse(PadBridge.isCursorRingShown())
-        } finally {
-            PadBridge.endPointerSession()
-            handler.cleanup()
-        }
-    }
-
-    @Test
-    fun `a controller press ends the pad's pointer session`() {
-        PadSettings.init(ApplicationProvider.getApplicationContext<Context>())
-        val deviceId = 42
-        val keyCode = KeyEvent.KEYCODE_BUTTON_A
-        val xServer = mock<XServer>()
-        val handler = padClickHandler(xServer, deviceId, keyCode, Binding.KEY_F11)
-
-        try {
-            PadBridge.beginPointerSession()
-            assertTrue(PadBridge.isCursorRingShown())
-
-            assertTrue(handler.onKeyEvent(keyEvent(deviceId, keyCode, KeyEvent.ACTION_DOWN)))
-
-            assertFalse(PadBridge.pointerSession)
-            assertFalse(PadBridge.isCursorRingShown())
-            verify(xServer).injectKeyPress(XKeycode.KEY_F11)
-        } finally {
-            PadBridge.endPointerSession()
-            handler.cleanup()
-        }
-    }
-
-    @Test
-    fun `a face button never clicks while the pad's trackpad is in use`() {
-        PadSettings.init(ApplicationProvider.getApplicationContext<Context>())
-        PadSettings.set(PadSettings.CLICK_AB, true)
-        val deviceId = 42
-        val keyCode = KeyEvent.KEYCODE_BUTTON_A
-        val xServer = mock<XServer>()
-        // The installed local profile maps A to the key ConsolePort binds to its bottom face button.
-        val handler = padClickHandler(xServer, deviceId, keyCode, Binding.KEY_F11)
-
-        try {
-            assertFalse("cursor mode is off for this case", privateField(handler, "rightStickMouseMode") as Boolean)
-            PadBridge.beginPointerSession()
-
-            assertTrue(handler.onKeyEvent(keyEvent(deviceId, keyCode, KeyEvent.ACTION_DOWN)))
-
-            verify(xServer).injectKeyPress(XKeycode.KEY_F11)
-            verify(xServer, never()).injectPointerButtonPress(any())
-        } finally {
-            PadBridge.endPointerSession()
-            handler.cleanup()
-        }
-    }
-
-    /** A handler whose pad maps [keyCode] to [binding], the way the installed local profile does. */
-    private fun padClickHandler(xServer: XServer, deviceId: Int, keyCode: Int, binding: Binding): PhysicalControllerHandler {
-        val controllerBinding = ExternalControllerBinding().apply {
-            setKeyCode(keyCode)
-            setBindingCombo(BindingCombo.fromBindings(listOf(binding)))
-        }
-        val controller = mock<ExternalController>()
-        whenever(controller.getControllerBinding(keyCode)).thenReturn(controllerBinding)
-        val profile = mock<ControlsProfile>()
-        whenever(profile.getController(deviceId)).thenReturn(controller)
-        whenever(profile.gamepadState).thenReturn(GamepadState())
-        return PhysicalControllerHandler(profile, xServer)
-    }
-
-    private fun keyEvent(deviceId: Int, keyCode: Int, action: Int): KeyEvent {
-        return mock<KeyEvent>().also { event ->
-            whenever(event.repeatCount).thenReturn(0)
-            whenever(event.deviceId).thenReturn(deviceId)
-            whenever(event.keyCode).thenReturn(keyCode)
-            whenever(event.action).thenReturn(action)
         }
     }
 

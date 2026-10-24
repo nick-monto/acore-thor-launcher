@@ -81,14 +81,6 @@ class PhysicalControllerHandler(
     // Toggled by clicking R3 (stick click). Touched on the main thread only.
     private var rightStickMouseMode = false
 
-    init {
-        // The pad took the pointer: hand the camera back so the stick cannot turn the view under the trackpad.
-        PadBridge.pointerSessionStarted = {
-            releaseCameraStick()
-            sendGamepadState()
-        }
-    }
-
     // Physical key code -> mouse button binding for A/B clicks started while in cursor mode.
     private val cursorClickBindings = mutableMapOf<Int, Binding>()
 
@@ -360,9 +352,7 @@ class PhysicalControllerHandler(
         activeSequenceTriggerBindings.clear()
         releaseCursorClicks()
         rightStickMouseMode = false
-        PadBridge.setCursorMode(false)
-        PadBridge.endPointerSession()
-        PadBridge.pointerSessionStarted = null
+        app.gamenative.externaldisplay.PadBridge.setCursorMode(false)
         showKeyboardPressed = false
         closeRadialMenuIfOpen(commit = false)
         sendGamepadState()
@@ -389,8 +379,6 @@ class PhysicalControllerHandler(
     fun onKeyEvent(event: KeyEvent): Boolean {
         if (profile != null && event.repeatCount == 0) {
             val keyCode = JoyConSupport.remapKeyCode(event.device, event)
-            // The controller is being used again: it gets the camera back, and the pad stops being the pointer.
-            PadBridge.endPointerSession()
             if (radialMenuPressed && !isRadialMenuOpenerDevice(event.deviceId)) return true
             val controller = profile?.getController(event.deviceId)
             if (keyCode == KeyEvent.KEYCODE_BUTTON_THUMBR && controller != null && rightStickMouseMode &&
@@ -465,9 +453,7 @@ class PhysicalControllerHandler(
                 } else if (event.action == KeyEvent.ACTION_DOWN && rightStickMouseMode &&
                     (PadSettings.bool(PadSettings.CLICK_AB) || PadSettings.bool(PadSettings.CLICK_SHOULDERS))
                 ) {
-                    // Cursor mode only: there the stick is the pointer, so the face buttons click. With the mode
-                    // off they stay ConsolePort's buttons - the bottom one is jump - and the pad clicks with its
-                    // own click buttons and taps.
+                    // Cursor mode: A / B and / or L1 / R1 act as left / right click, optionally swapped.
                     val bindings = controller.getControllerBinding(keyCode)?.bindingCombo?.bindings
                     val useAB = PadSettings.bool(PadSettings.CLICK_AB)
                     val useShoulders = PadSettings.bool(PadSettings.CLICK_SHOULDERS)
@@ -720,41 +706,35 @@ class PhysicalControllerHandler(
     private fun setRightStickMouseMode(enabled: Boolean, deviceId: Int) {
         if (rightStickMouseMode == enabled) return
         rightStickMouseMode = enabled
-        PadBridge.setCursorMode(enabled)
+        app.gamenative.externaldisplay.PadBridge.setCursorMode(enabled)
         clearDpadCursor()
-        releaseCameraStick()
-        // A held click must not outlive cursor mode.
-        if (!enabled) releaseHeldClicks()
+        val stickKeys = rightStickKeyCodes()
+        if (enabled) {
+            // Center the gamepad right stick: release any active right-stick axis bindings.
+            for (source in activeAxisBindings.toList()) {
+                if (source.keyCode !in stickKeys) continue
+                activeAxisBindings.remove(source)
+                val controller = profile?.getController(source.deviceId) ?: continue
+                controller.getControllerBinding(source.keyCode)?.let {
+                    handleInputEvent(
+                        it.bindingCombo,
+                        false,
+                        0f,
+                        fromMotion = true,
+                        sourceKeyCode = source.keyCode,
+                        sourceDeviceId = source.deviceId,
+                        sourceController = controller,
+                    )
+                }
+            }
+        } else {
+            mouseMoveContributions.keys.removeAll { it.keyCode in stickKeys }
+            recalculateMouseMoveOffset()
+            // A held click must not outlive cursor mode.
+            releaseHeldClicks()
+        }
         sendGamepadState()
         onRightStickMouseModeChanged?.invoke(enabled)
-    }
-
-    /**
-     * Let go of the right stick, so a camera turn in progress stops here.
-     *
-     * Used when the stick stops being the camera - handed to the pointer by R3 cursor mode, or by the pad
-     * taking the pointer itself - because otherwise the game keeps the turn the stick was last giving it.
-     */
-    private fun releaseCameraStick() {
-        val stickKeys = rightStickKeyCodes()
-        for (source in activeAxisBindings.toList()) {
-            if (source.keyCode !in stickKeys) continue
-            activeAxisBindings.remove(source)
-            val controller = profile?.getController(source.deviceId) ?: continue
-            controller.getControllerBinding(source.keyCode)?.let {
-                handleInputEvent(
-                    it.bindingCombo,
-                    false,
-                    0f,
-                    fromMotion = true,
-                    sourceKeyCode = source.keyCode,
-                    sourceDeviceId = source.deviceId,
-                    sourceController = controller,
-                )
-            }
-        }
-        mouseMoveContributions.keys.removeAll { it.keyCode in stickKeys }
-        recalculateMouseMoveOffset()
     }
 
     /**
@@ -963,14 +943,6 @@ class PhysicalControllerHandler(
             controller.state.dPadY.toFloat()
         )
 
-        // A deflected stick or D-pad is the controller being used: it gets the camera back, and the pad stops
-        // being the pointer. Centred axes still arrive while the pad drags, so only a real push counts.
-        for (i in axes.indices) {
-            if (Math.abs(values[i]) > PadSettings.stickDeadzone) {
-                PadBridge.endPointerSession()
-                break
-            }
-        }
         if (!dpadCursorActive() && (dpadEffX != 0 || dpadEffY != 0)) clearDpadCursor()
         for (i in axes.indices) {
             if (rightStickMouseMode && (axes[i] == MotionEvent.AXIS_Z || axes[i] == MotionEvent.AXIS_RZ)) {
