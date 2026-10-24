@@ -41,24 +41,24 @@ class WowClientDownloaderTest {
     }
 
     @Test
-    fun readBuildInfo_selectsForeverBetaFromMultiGameInstall() {
+    fun readBuildInfo_selectsForeverFromMultiGameInstall() {
         val root = tempFolder.newFolder("multi_wow")
         val buildInfo = File(root, ".build.info")
         buildInfo.writeText(
             "Branch!STRING:0|Active!DEC:1|Build Key!HEX:16|CDN Key!HEX:16|Install Key!HEX:16|IM Size!DEC:4|CDN Path!STRING:0|CDN Hosts!STRING:0|Tags!STRING:0|Arm64!DEC:1|Version!STRING:0|Product!STRING:0\n" +
             "us|1|11111111111111111111111111111111|22222222222222222222222222222222|33333333333333333333333333333333|10000|tpr/wow|level3.blizzard.com|?|0|11.0.7.58238|wow\n" +
             "us|1|44444444444444444444444444444444|55555555555555555555555555555555|66666666666666666666666666666666|10000|tpr/wow|level3.blizzard.com|?|0|1.15.5.58238|wow_classic_era\n" +
-            "us|1|77777777777777777777777777777777|88888888888888888888888888888888|99999999999999999999999999999999|10000|tpr/wow|level3.blizzard.com|?|1|1.60.1.61118|wow_classic_beta\n"
+            "us|1|77777777777777777777777777777777|88888888888888888888888888888888|99999999999999999999999999999999|10000|tpr/wow|level3.blizzard.com|?|1|1.60.1.61118|wowf\n"
         )
 
         val result = WowClientDownloader.readBuildInfo(buildInfo)
         assertNotNull(result)
-        assertEquals("wow_classic_beta", result?.get("Product"))
+        assertEquals("wowf", result?.get("Product"))
         assertEquals("1.60.1.61118", result?.get("Version"))
     }
 
     @Test
-    fun readBuildInfo_detectsIncompatibleGameWhenForeverBetaMissingFromMultiGame() {
+    fun readBuildInfo_detectsIncompatibleGameWhenForeverMissingFromMultiGame() {
         val root = tempFolder.newFolder("multi_incompatible")
         val buildInfo = File(root, ".build.info")
         buildInfo.writeText(
@@ -80,7 +80,7 @@ class WowClientDownloaderTest {
         if (!hostFile.isFile) return
         val result = WowClientDownloader.readBuildInfo(hostFile)
         assertNotNull(result)
-        assertEquals("wow_classic_beta", result?.get("Product"))
+        assertEquals("wowf", result?.get("Product"))
         assertEquals("1.60.1.70205", result?.get("Version"))
     }
 
