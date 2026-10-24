@@ -42,28 +42,42 @@ class LocalAddonsInstallTest {
                 root.resolve("Interface/AddOns/$name/$name.toc").isFile,
             )
         }
-        // Three versions: the pinned archive, ThorPad and EInteract.
-        assertEquals("1.5.0-rc2-thor2 2 1", root.resolve(".consoleport-version").readText().trim())
+        // One version: the pinned, unpatched archive.
+        assertEquals("1.5.0-rc2", root.resolve(".consoleport-version").readText().trim())
+    }
 
-        // ThorPad, which hands ConsolePort the pad's keys so nobody has to calibrate it.
-        assertTrue(
-            "ThorPad was not installed",
-            root.resolve("Interface/AddOns/ThorPad/ThorPad.toc").isFile,
-        )
-        assertTrue(
-            "ThorPad has no script, so it would load and do nothing",
-            root.resolve("Interface/AddOns/ThorPad/ThorPad.lua").isFile,
-        )
+    @Test
+    fun `a client root left by an older launch loses the add-ons this launcher no longer ships`() {
+        val root = context.cacheDir.resolve("client-root-stale").apply { mkdirs() }
+        // What an earlier launch left: its own two add-ons, their saved variables and its marker.
+        root.resolve("Interface/AddOns/ThorPad").mkdirs()
+        root.resolve("Interface/AddOns/ThorPad/ThorPad.toc").writeText("## Interface: 30300\n")
+        root.resolve("Interface/AddOns/EInteract").mkdirs()
+        root.resolve("Interface/AddOns/EInteract/EInteract.toc").writeText("## Interface: 30300\n")
+        root.resolve("WTF/Account/PLAYER/SavedVariables").mkdirs()
+        root.resolve("WTF/Account/PLAYER/SavedVariables/ThorPad.lua").writeText("ThorPadDB = {}\n")
+        root.resolve("WTF/Account/PLAYER/SavedVariables/EInteract.lua").writeText("EInteractDB = {}\n")
+        root.resolve(".consoleport-version").writeText("1.5.0-rc2-thor2 2 1\n")
 
-        // EInteract, the client half of the realm's interact key. Its script is the whole addon.
-        assertTrue(
-            "EInteract was not installed",
-            root.resolve("Interface/AddOns/EInteract/EInteract.toc").isFile,
+        installLocalAddons(context, root, {})
+
+        assertFalse(
+            "ThorPad is gone from the build but still in the client",
+            root.resolve("Interface/AddOns/ThorPad").exists(),
         )
-        assertTrue(
-            "EInteract has no script, so E would send the chat line instead of the interact request",
-            root.resolve("Interface/AddOns/EInteract/EInteract.lua").isFile,
+        assertFalse(
+            "EInteract is gone from the build but still in the client",
+            root.resolve("Interface/AddOns/EInteract").exists(),
         )
+        assertFalse(
+            "ThorPad's saved variables outlived the add-on",
+            root.resolve("WTF/Account/PLAYER/SavedVariables/ThorPad.lua").exists(),
+        )
+        assertFalse(
+            "EInteract's saved variables outlived the add-on",
+            root.resolve("WTF/Account/PLAYER/SavedVariables/EInteract.lua").exists(),
+        )
+        assertEquals("1.5.0-rc2", root.resolve(".consoleport-version").readText().trim())
     }
 
     @Test

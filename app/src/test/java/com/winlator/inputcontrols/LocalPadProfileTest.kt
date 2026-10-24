@@ -55,9 +55,9 @@ class LocalPadProfileTest {
         assertEquals(Binding.KEY_F5, keys[KeyEvent.KEYCODE_BUTTON_SELECT])
         assertEquals(Binding.KEY_F6, keys[KeyEvent.KEYCODE_BUTTON_START])
         assertEquals(Binding.KEY_KP_MULTIPLY, keys[KeyEvent.KEYCODE_BUTTON_MODE])
-        // The left stick click is the interact key: EInteract binds E, and ConsolePort has no binding
-        // on that button, so this is the one press that is not a ConsolePort button.
-        assertEquals(Binding.KEY_E, keys[KeyEvent.KEYCODE_BUTTON_THUMBL])
+        // Neither stick click is bound: the interact key that used to hold the left one is gone, and
+        // ConsolePort has no button there, so both are the player's to bind.
+        assertNull("the left stick click stays free", keys[KeyEvent.KEYCODE_BUTTON_THUMBL])
         assertNull("the right stick click stays free", keys[KeyEvent.KEYCODE_BUTTON_THUMBR])
         // ConsolePort's two shoulder buttons are F7/F8 and its two modifiers are shift/control, so the
         // pad's shoulders carry the first pair and its triggers the second: a prompt that says "L1"
@@ -116,6 +116,27 @@ class LocalPadProfileTest {
 
         assertEquals(id, ensureLocalControllerProfile(context))
         assertEquals(Binding.KEY_F5, bindingsOnDisk(context, id)[KeyEvent.KEYCODE_BUTTON_L1])
+    }
+
+    @Test
+    fun `a stick click left holding the retired interact key is freed, and a rebound one is not`() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val id = ensureLocalControllerProfile(context)
+
+        // The layout this launcher installed while the left stick click sent the realm's interact key.
+        rewriteBindings(context, id, mapOf(KeyEvent.KEYCODE_BUTTON_THUMBL to Binding.KEY_E))
+
+        assertEquals(id, ensureLocalControllerProfile(context))
+        assertNull(
+            "the retired interact key is still on the left stick click",
+            bindingsOnDisk(context, id)[KeyEvent.KEYCODE_BUTTON_THUMBL],
+        )
+
+        // Anything else on that button is the player's own choice, so a launch leaves it alone.
+        rewriteBindings(context, id, mapOf(KeyEvent.KEYCODE_BUTTON_THUMBL to Binding.KEY_F5))
+
+        assertEquals(id, ensureLocalControllerProfile(context))
+        assertEquals(Binding.KEY_F5, bindingsOnDisk(context, id)[KeyEvent.KEYCODE_BUTTON_THUMBL])
     }
 
     @Test

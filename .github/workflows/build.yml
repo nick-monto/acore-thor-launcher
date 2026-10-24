@@ -27,7 +27,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: app/src/main/assets/bundled_components
-          key: components-${{ hashFiles('tools/components.sha256', 'tools/consoleportlk-thor1.patch') }}
+          key: components-${{ hashFiles('tools/components.sha256') }}
 
       - name: Fetch runtime components
         run: tools/fetch_components.sh

@@ -55,47 +55,20 @@ of a Blizzard realm. Six things change for that flavor:
   own wined3d cannot render here), rather than the ARM64/DXVK profile the Blizzard flavors use.
 - **The pad arrives as keys.** A 3.3.5a client has no gamepad support at all, so the launcher installs
   [ConsolePortLK](https://github.com/leoaviana/ConsolePortLK) — the Wrath backport of ConsolePort — into
-  the client's `Interface/AddOns`, and gives the container a pad profile that sends the keys and pointer
-  motion it expects: face buttons and D-pad on F1-F12, the shoulders on F7/F8, the triggers on
-  shift/control, the left stick on WASD, and the right stick on relative pointer motion, which turns the
-  camera while ConsolePort holds mouse look. The launcher also installs **ThorPad**, its own add-on,
-  which hands ConsolePort those keys on the first login: the pad is mapped without calibrating anything,
-  Wrath's F1-F4 "target party member" defaults are cleared where the D-pad would otherwise fire them
-  too, and the controller is the **Switch** one, because this pad's buttons sit where a Nintendo pad's
-  do — Y on the left, X on top, A on the right, B at the bottom — so the prompts are drawn where the
-  labels are. `/thorpad` reports the keys and the controller type; `/cp` still lets you change all of it.
+  the client's `Interface/AddOns` exactly as its release publishes it, and gives the container a pad
+  profile that sends the keys and pointer motion it expects: face buttons and D-pad on F1-F12, the
+  shoulders on F7/F8, the triggers on shift/control, the left stick on WASD, and the right stick on
+  relative pointer motion, which turns the camera while ConsolePort holds mouse look. The add-on's
+  bindings are its own defaults: `/cp` maps the pad once, which is how ConsolePort learns which button
+  is which, and its default action per button is what every character then gets. Both stick clicks are
+  left free, and nothing else is pre-bound.
 
-  A second add-on of its own goes in beside that one: **EInteract**, the client half of the realm's
-  `mod-e-interact`. It binds **E** and sends the hidden addon whisper the server module answers, which
-  is how one key loots, gathers, opens chests and nodes and talks to NPCs — the client itself cannot
-  look for nearby objects, and `InteractUnit` is protected. Two things send that E: the pad's
-  **Interact** button, and a click of the controller's left stick (`L3`).
-  `/ei` shows whether the server answered, and turns the key off, rebinds it, or toggles quest-dialog
-  paging, autoloot and roll-answering.
-
-  The pad defaults that differ from upstream, both in the bundled add-on and applied once to an account
-  that already played:
-
-  | Button | Action |
-  | --- | --- |
-  | L1 | Target previous enemy |
-  | R1 | Target nearest enemy |
-  | L3 | **Interact** — not a ConsolePort binding: the launcher sends it as `E`, the key EInteract binds |
-  | R3 | nothing (free) |
-
-  The add-on is not shipped as its author built it: `tools/fetch_components.sh` downloads the pinned
-  release and applies `tools/consoleportlk-thor1.patch`, which carries those defaults, so refreshing
-  the add-on re-applies them instead of quietly reverting to the upstream bindings. The patch also
-  leaves the two stick clicks unbound in ConsolePort — a console button needs a key bound to it, and
-  neither click has one — so ThorPad clears the jump and clear-target rows an earlier launcher put
-  there once an account has seen them.
-
-  Shift and control therefore sit on the triggers, where ConsolePort expects its two modifiers, so
-  L2+R1 is ConsolePort's "shift + right shoulder" and the action slots the shoulders used to hold
-  (action buttons 4 and 5) are still on the bars. The right stick drives the
-  pointer in both modes, because injected pointer motion is the only thing a 3.3.5a client can turn a
-  camera with — so R3 changes what the face buttons do rather than whether the stick works: in cursor
-  mode A/B click and Y/X scroll the interface, outside it they send ConsolePort's keys. Stick speed is
+  Shift and control sit on the triggers, where ConsolePort expects its two modifiers, so L2+R1 is
+  ConsolePort's "shift + right shoulder", and the shoulders themselves keep ConsolePort's default
+  actions (action buttons 4 and 5, shift for target nearest enemy). The right stick drives the pointer
+  in both modes, because injected pointer motion is the only thing a 3.3.5a client can turn a camera
+  with — so R3 changes what the face buttons do rather than whether the stick works: in cursor mode
+  A/B click and Y/X scroll the interface, outside it they send ConsolePort's keys. Stick speed is
   adjustable in both: the profile's cursor speed for the plain stick, and the R3 section of the pad
   settings for cursor mode.
 
@@ -204,12 +177,11 @@ Pick your game at the top of the screen (**Classic** opens Classic Era, TBC Anni
 
 On the AYN Thor the bottom screen shows a touch pad while you play. The tab bar has three page tabs (**Interface**, **Target**, **Utility**) and three buttons: **settings (gear)**, **trackpad** and **keyboard**. It can sit at the top or bottom of the screen, and the page tabs and the three buttons can swap sides. The pad can be switched on or off per client with the **Action button pad** switch on the main screen.
 
-- **Interact:** the first button on every page sends **E**, which the bundled **EInteract** add-on binds to the realm's interact key: walk up and press it to loot the nearest corpse, skin or gather it, open a chest, herb or ore node, or talk to the nearest NPC — all on the server, so no clicking a corpse you cannot see. Quest dialogs page through on the same key, and an open Need/Greed roll is answered with it. It is remappable like every other page button.
 - **Trackpad:** a touch mouse with Shift, Ctrl and Alt always available, left and right click buttons, and a **scroll area** along one edge: slide a finger up or down to scroll. Its side, speed and direction are adjustable and it can be turned off.
 - **Buttons:** the number block (1-9, 0, -, =) and the modifier keys stay on one side, while the tabs change the buttons on the other:
-  - **Interface:** Interact, Character, Spellbook, Talents, Quest Log, Map, Social, Guild, Group Finder, Achievements, Professions, Bags and System.
-  - **Target:** Interact, Self, Party 1 to 4, and next and previous enemy.
-  - **Utility:** Interact, chat page up and down, sheathe weapons, auto-run, walk/run, sit/stand, hide UI, nameplates and screenshot.
+  - **Interface:** Character, Spellbook, Talents, Quest Log, Map, Social, Guild, Group Finder, Achievements, Professions, Bags and System.
+  - **Target:** Self, Party 1 to 4, and next and previous enemy.
+  - **Utility:** chat page up and down, sheathe weapons, auto-run, walk/run, sit/stand, hide UI, nameplates and screenshot.
   
   All of the page buttons come mapped to World of Warcraft's default key bindings, so they work out of the box. If you've changed a binding in game, remap the button to match.
 

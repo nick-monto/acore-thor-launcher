@@ -1,8 +1,0 @@
-## Interface: 30300
-## Title: Thor Pad |cff739BD0defaults|r
-## Notes: Hands ConsolePort the pad's keys on the AYN Thor, so the pad works without calibrating it.
-## Author: AYN Thor WoW Launcher
-## Version: 1
-## OptionalDeps: ConsolePort
-## SavedVariables: ThorPadDB
-ThorPad.lua

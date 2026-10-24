@@ -108,18 +108,11 @@ private const val LOCAL_CLIENT_LOCALE = "enUS"
 private const val CONTAINER_EXTRA_PROFILE_ID = "profileId"
 
 /** The controller add-on the launcher installs for the local realm, and the version it installs. */
-private const val LOCAL_ADDON_ARCHIVE = "ConsolePortLK-1.5.0-rc2-thor2.zip"
-private const val LOCAL_ADDON_VERSION = "1.5.0-rc2-thor2"
+private const val LOCAL_ADDON_ARCHIVE = "ConsolePortLK-1.5.0-rc2.zip"
+private const val LOCAL_ADDON_VERSION = "1.5.0-rc2"
 
-/** This project's own companion add-on, which hands ConsolePort the pad's keys. */
-private const val LOCAL_PAD_ADDON = "thorpad"
-private const val LOCAL_PAD_ADDON_FOLDER = "ThorPad"
-private const val LOCAL_PAD_ADDON_VERSION = "2"
-// EInteract: the client half of the realm's mod-e-interact, one key for the whole interact loop
-// (loot, gather, talk, chests and nodes). It ships as assets beside ThorPad.
-private const val LOCAL_INTERACT_ADDON = "einteract"
-private const val LOCAL_INTERACT_ADDON_FOLDER = "EInteract"
-private const val LOCAL_INTERACT_ADDON_VERSION = "1"
+/** Add-ons this launcher used to install and no longer ships, cleaned out on the next launch. */
+private val RETIRED_ADDONS = listOf("ThorPad", "EInteract")
 
 /** Marks the client root as carrying [LOCAL_ADDON_VERSION], so a launch does not re-extract it. */
 private const val LOCAL_ADDON_MARKER = ".consoleport-version"
@@ -1956,6 +1949,7 @@ internal fun ensureLocalControllerProfile(context: Context): Int {
     val manager = InputControlsManager(context)
     manager.profiles.firstOrNull { it.name == LOCAL_CONTROLLER_PROFILE }?.let { installed ->
         migrateShoulderKeys(installed)
+        migrateRetiredStickClick(installed)
         return installed.id
     }
 
@@ -1987,11 +1981,6 @@ internal fun ensureLocalControllerProfile(context: Context): Int {
 
     bind(KeyEvent.KEYCODE_BUTTON_SELECT, Binding.KEY_F5)
     bind(KeyEvent.KEYCODE_BUTTON_START, Binding.KEY_F6)
-    // The left stick click is the realm's interact key: EInteract binds E, so one press loots the
-    // nearest corpse, gathers it, opens a chest, node or mailbox, or talks to the nearest NPC. It is
-    // the only button ConsolePort does not take, and ConsolePort itself is left without a binding
-    // for it (see ThorPad), so nothing here overrides a ConsolePort action.
-    bind(KeyEvent.KEYCODE_BUTTON_THUMBL, Binding.KEY_E)
     bind(KeyEvent.KEYCODE_BUTTON_MODE, Binding.KEY_KP_MULTIPLY)
 
     for ((keyCode, binding) in THOR_SHOULDER_KEYS) bind(keyCode, binding)
@@ -2011,21 +2000,20 @@ internal fun ensureLocalControllerProfile(context: Context): Int {
 }
 
 /**
- * Installs the controller add-ons into the client's `Interface/AddOns`. A 3.3.5a client accepts any
- * keys it is sent, but it has no idea what a controller is, so the console behaviour - the button
- * rings, the action bar, targeting, cursor mode - has to live in an add-on. That add-on is
- * ConsolePortLK, and beside it go two of this project's own: ThorPad, which hands ConsolePort the keys
- * this pad sends so nobody has to calibrate a handheld, and EInteract, one interact key for the realm's
- * mod-e-interact.
+ * Installs the controller add-on into the client's `Interface/AddOns`. A 3.3.5a client accepts any keys
+ * it is sent, but it has no idea what a controller is, so the console behaviour - the button rings, the
+ * action bar, targeting, cursor mode - has to live in an add-on. That add-on is ConsolePortLK, shipped
+ * exactly as its release publishes it: its binding templates are its own defaults, and the pad is
+ * calibrated once with `/cp`, which is what ConsolePort's setup is for.
  *
- * Idempotent and self-healing: the marker records both versions and keeps a launch from re-extracting
- * the textures or re-copying the defaults, a changed version is installed over the old copy, and
- * add-ons the player added are left alone.
+ * Idempotent and self-healing: the marker records the version and keeps a launch from re-extracting the
+ * textures, a changed version is installed over the old copy, add-ons the player added are left alone,
+ * and the add-ons this launcher used to ship are deleted rather than left behind with no server module
+ * or no key behind them.
  */
 internal fun installLocalAddons(context: Context, clientRoot: File, onStatus: (String) -> Unit) {
-    val installed = "$LOCAL_ADDON_VERSION $LOCAL_PAD_ADDON_VERSION $LOCAL_INTERACT_ADDON_VERSION"
     val marker = File(clientRoot, LOCAL_ADDON_MARKER)
-    if (marker.isFile && marker.readText().trim() == installed) return
+    if (marker.isFile && marker.readText().trim() == LOCAL_ADDON_VERSION) return
 
     onStatus("Installing the controller add-ons...")
     val addOns = File(clientRoot, "Interface/AddOns")
@@ -2033,17 +2021,13 @@ internal fun installLocalAddons(context: Context, clientRoot: File, onStatus: (S
     check(FileUtils.extractZipFromAssets(context, "bundled_components/$LOCAL_ADDON_ARCHIVE", addOns)) {
         "Could not install $LOCAL_ADDON_ARCHIVE into ${addOns.path}."
     }
-    // Ours is two small files, so it ships as assets rather than inside the pinned archive.
-    FileUtils.copy(context, LOCAL_PAD_ADDON, File(addOns, LOCAL_PAD_ADDON_FOLDER))
-    check(File(addOns, "$LOCAL_PAD_ADDON_FOLDER/$LOCAL_PAD_ADDON_FOLDER.toc").isFile) {
-        "Could not install $LOCAL_PAD_ADDON_FOLDER into ${addOns.path}."
+    RETIRED_ADDONS.forEach { name ->
+        File(addOns, name).deleteRecursively()
+        // SavedVariables live one level below the account, and the account name is the player's.
+        File(clientRoot, "WTF/Account").listFiles()
+            ?.forEach { File(it, "SavedVariables/$name.lua").delete() }
     }
-    // EInteract, likewise: the addon sends the hidden whisper its server module answers.
-    FileUtils.copy(context, LOCAL_INTERACT_ADDON, File(addOns, LOCAL_INTERACT_ADDON_FOLDER))
-    check(File(addOns, "$LOCAL_INTERACT_ADDON_FOLDER/$LOCAL_INTERACT_ADDON_FOLDER.toc").isFile) {
-        "Could not install $LOCAL_INTERACT_ADDON_FOLDER into ${addOns.path}."
-    }
-    marker.writeText("$installed\n")
+    marker.writeText("$LOCAL_ADDON_VERSION\n")
 }
 
 /**
@@ -2084,6 +2068,20 @@ private fun migrateShoulderKeys(profile: ControlsProfile) {
         entry.setBinding(binding)
         pad.addControllerBinding(entry)
     }
+    profile.save()
+}
+
+/**
+ * Frees the left stick click on a profile this launcher installed while that button sent the realm's
+ * interact key: the add-on that key belonged to is gone, so the binding would only strafe again. A
+ * button the player has rebound is left exactly as it is.
+ */
+private fun migrateRetiredStickClick(profile: ControlsProfile) {
+    val pad = profile.loadControllers().firstOrNull { it.id == "*" } ?: return
+    val stale = pad.getControllerBindings().firstOrNull {
+        it.getKeyCodeForAxis() == KeyEvent.KEYCODE_BUTTON_THUMBL && it.getBinding() == Binding.KEY_E
+    } ?: return
+    pad.removeControllerBinding(stale)
     profile.save()
 }
 

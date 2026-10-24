@@ -9,40 +9,16 @@ FILES=(
     dxvk-2.4.1-wow-aarch64-test.wcp
     turnip-wow-scheduler-test.zip
     turnip-V32-RP6sched.zip
+    ConsolePortLK-1.5.0-rc2.zip
 )
 
-# ConsolePortLK ships modified: the upstream release is pinned here, and the pad defaults this project
-# gives it (see the README section on the local realm) are applied from a patch to the extracted copy.
-# The zip that lands in the APK is the result, so it is built rather than downloaded.
-CONSOLEPORT_UPSTREAM="ConsolePortLK-1.5.0-rc2.zip"
-CONSOLEPORT_SHA256="9ee20bb1f3c5c5b8d45fcc5980a07bb90d49a707e120613453177c05fea6497f"
-CONSOLEPORT_SHIPPED="ConsolePortLK-1.5.0-rc2-thor2.zip"
-CONSOLEPORT_PATCH="$REPO_DIR/tools/consoleportlk-thor1.patch"
-
-build_consoleport() {
-    if [ -s "$DEST/$CONSOLEPORT_SHIPPED" ]; then
-        echo "have $CONSOLEPORT_SHIPPED"
-        return
-    fi
-    if [ -n "${1:-}" ] && [ -s "$1/$CONSOLEPORT_SHIPPED" ]; then
-        cp "$1/$CONSOLEPORT_SHIPPED" "$DEST/$CONSOLEPORT_SHIPPED"
-        echo "copied $CONSOLEPORT_SHIPPED"
-        return
-    fi
-    local work
-    work="$(mktemp -d)"
-    trap 'rm -rf "$work"' RETURN
-    curl -fL --retry 3 -o "$work/$CONSOLEPORT_UPSTREAM" \
-        "https://github.com/leoaviana/ConsolePortLK/releases/download/1.5.0-rc2/$CONSOLEPORT_UPSTREAM"
-    echo "$CONSOLEPORT_SHA256  $work/$CONSOLEPORT_UPSTREAM" | shasum -a 256 -c -
-    unzip -q "$work/$CONSOLEPORT_UPSTREAM" -d "$work/addon"
-    (cd "$work/addon" && patch -p1 -s < "$CONSOLEPORT_PATCH")
-    (cd "$work/addon" && zip -q -r -X "$DEST/$CONSOLEPORT_SHIPPED.part" .)
-    mv "$DEST/$CONSOLEPORT_SHIPPED.part" "$DEST/$CONSOLEPORT_SHIPPED"
-    echo "built $CONSOLEPORT_SHIPPED"
-}
-
 mkdir -p "$DEST"
+# Components this project used to ship. A cache restored from an older key still holds them, and
+# anything in this directory is packaged into the APK, so they are removed rather than kept.
+for f in ConsolePortLK-1.5.0-rc2-thor2.zip; do
+    rm -f "$DEST/$f"
+done
+
 for f in "${FILES[@]}"; do
     if [ -s "$DEST/$f" ]; then
         echo "have $f"
@@ -54,6 +30,11 @@ for f in "${FILES[@]}"; do
             turnip-V32-RP6sched.zip)
                 curl -fL --retry 3 -o "$DEST/$f.part" "https://raw.githubusercontent.com/arusiasotto/wow-forever-a840/main/driver/turnip-V32-RP6sched.zip"
                 ;;
+            ConsolePortLK-*.zip)
+                # ConsolePortLK has its own upstream release, and it ships stock: this launcher no
+                # longer patches its controller templates, so the file is the release asset itself.
+                curl -fL --retry 3 -o "$DEST/$f.part" "https://github.com/leoaviana/ConsolePortLK/releases/download/1.5.0-rc2/$f"
+                ;;
             *)
                 curl -fL --retry 3 -o "$DEST/$f.part" "$RELEASE_URL/$f"
                 ;;
@@ -62,7 +43,5 @@ for f in "${FILES[@]}"; do
         echo "downloaded $f"
     fi
 done
-
-build_consoleport "${1:-}"
 
 (cd "$DEST" && shasum -a 256 -c "$REPO_DIR/tools/components.sha256")
