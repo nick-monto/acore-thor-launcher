@@ -33,11 +33,11 @@ enum class WowFlavor(
 ) {
     FOREVER(
         label = "Forever",
-        subtitle = "FOREVER BETA (ARM64 NATIVE)",
+        subtitle = "FOREVER (ARM64 NATIVE)",
         product = "wow_classic_beta",
         dir = "_classic_beta_",
         exeNames = listOf("WowB-ARM64.exe"),
-        portal = "test",
+        portal = "us",
         defaultFolder = "WoW Forever",
     ),
     RETAIL(
@@ -84,11 +84,11 @@ enum class WowFlavor(
     /** True for the three Classic products, which share the Classic button and its second row. */
     val isClassic get() = this == CLASSIC_ERA || this == CLASSIC_ANNIVERSARY || this == CLASSIC_MOP
 
-    /** Forever runs on Blizzard's test servers, so it has no region choice. */
-    val hasRegion get() = this != FOREVER
+    /** Every product, Forever included, now runs on regional live servers and uses the region picker. */
+    val hasRegion get() = true
 
-    /** The `portal` for Config.wtf: the chosen region, or the fixed test portal for Forever. */
-    val activePortal get() = if (hasRegion) WowFlavor.region.code else portal
+    /** The `portal` for Config.wtf: the region chosen in the launcher. */
+    val activePortal get() = WowFlavor.region.code
 
     val exeName get() = exeNames.first()
 
