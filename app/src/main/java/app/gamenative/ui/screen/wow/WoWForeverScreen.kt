@@ -115,6 +115,11 @@ private const val LOCAL_ADDON_VERSION = "1.5.0-rc2-thor1"
 private const val LOCAL_PAD_ADDON = "thorpad"
 private const val LOCAL_PAD_ADDON_FOLDER = "ThorPad"
 private const val LOCAL_PAD_ADDON_VERSION = "2"
+// EInteract: the client half of the realm's mod-e-interact, one key for the whole interact loop
+// (loot, gather, talk, chests and nodes). It ships as assets beside ThorPad.
+private const val LOCAL_INTERACT_ADDON = "einteract"
+private const val LOCAL_INTERACT_ADDON_FOLDER = "EInteract"
+private const val LOCAL_INTERACT_ADDON_VERSION = "1"
 
 /** Marks the client root as carrying [LOCAL_ADDON_VERSION], so a launch does not re-extract it. */
 private const val LOCAL_ADDON_MARKER = ".consoleport-version"
@@ -2004,15 +2009,16 @@ internal fun ensureLocalControllerProfile(context: Context): Int {
  * Installs the controller add-ons into the client's `Interface/AddOns`. A 3.3.5a client accepts any
  * keys it is sent, but it has no idea what a controller is, so the console behaviour - the button
  * rings, the action bar, targeting, cursor mode - has to live in an add-on. That add-on is
- * ConsolePortLK, and beside it goes ThorPad, this project's own, which hands ConsolePort the keys
- * this pad sends so nobody has to calibrate a handheld.
+ * ConsolePortLK, and beside it go two of this project's own: ThorPad, which hands ConsolePort the keys
+ * this pad sends so nobody has to calibrate a handheld, and EInteract, one interact key for the realm's
+ * mod-e-interact.
  *
  * Idempotent and self-healing: the marker records both versions and keeps a launch from re-extracting
  * the textures or re-copying the defaults, a changed version is installed over the old copy, and
  * add-ons the player added are left alone.
  */
 internal fun installLocalAddons(context: Context, clientRoot: File, onStatus: (String) -> Unit) {
-    val installed = "$LOCAL_ADDON_VERSION $LOCAL_PAD_ADDON_VERSION"
+    val installed = "$LOCAL_ADDON_VERSION $LOCAL_PAD_ADDON_VERSION $LOCAL_INTERACT_ADDON_VERSION"
     val marker = File(clientRoot, LOCAL_ADDON_MARKER)
     if (marker.isFile && marker.readText().trim() == installed) return
 
@@ -2026,6 +2032,11 @@ internal fun installLocalAddons(context: Context, clientRoot: File, onStatus: (S
     FileUtils.copy(context, LOCAL_PAD_ADDON, File(addOns, LOCAL_PAD_ADDON_FOLDER))
     check(File(addOns, "$LOCAL_PAD_ADDON_FOLDER/$LOCAL_PAD_ADDON_FOLDER.toc").isFile) {
         "Could not install $LOCAL_PAD_ADDON_FOLDER into ${addOns.path}."
+    }
+    // EInteract, likewise: the addon sends the hidden whisper its server module answers.
+    FileUtils.copy(context, LOCAL_INTERACT_ADDON, File(addOns, LOCAL_INTERACT_ADDON_FOLDER))
+    check(File(addOns, "$LOCAL_INTERACT_ADDON_FOLDER/$LOCAL_INTERACT_ADDON_FOLDER.toc").isFile) {
+        "Could not install $LOCAL_INTERACT_ADDON_FOLDER into ${addOns.path}."
     }
     marker.writeText("$installed\n")
 }

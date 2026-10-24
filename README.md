@@ -65,6 +65,13 @@ of a Blizzard realm. Six things change for that flavor:
   do — Y on the left, X on top, A on the right, B at the bottom — so the prompts are drawn where the
   labels are. `/thorpad` reports the keys and the controller type; `/cp` still lets you change all of it.
 
+  A second add-on of its own goes in beside that one: **EInteract**, the client half of the realm's
+  `mod-e-interact`. It binds **E** and sends the hidden addon whisper the server module answers, which
+  is how one key loots, gathers, opens chests and nodes and talks to NPCs — the client itself cannot
+  look for nearby objects, and `InteractUnit` is protected. The pad's **Interact** button sends that E.
+  `/ei` shows whether the server answered, and turns the key off, rebinds it, or toggles quest-dialog
+  paging, autoloot and roll-answering.
+
   The pad defaults that differ from upstream, both in the bundled add-on and applied once to an account
   that already played:
 
@@ -193,11 +200,12 @@ Pick your game at the top of the screen (**Classic** opens Classic Era, TBC Anni
 
 On the AYN Thor the bottom screen shows a touch pad while you play. The tab bar has three page tabs (**Interface**, **Target**, **Utility**) and three buttons: **settings (gear)**, **trackpad** and **keyboard**. It can sit at the top or bottom of the screen, and the page tabs and the three buttons can swap sides. The pad can be switched on or off per client with the **Action button pad** switch on the main screen.
 
+- **Interact:** the first button on every page sends **E**, which the bundled **EInteract** add-on binds to the realm's interact key: walk up and press it to loot the nearest corpse, skin or gather it, open a chest, herb or ore node, or talk to the nearest NPC — all on the server, so no clicking a corpse you cannot see. Quest dialogs page through on the same key, and an open Need/Greed roll is answered with it. It is remappable like every other page button.
 - **Trackpad:** a touch mouse with Shift, Ctrl and Alt always available, left and right click buttons, and a **scroll area** along one edge: slide a finger up or down to scroll. Its side, speed and direction are adjustable and it can be turned off.
 - **Buttons:** the number block (1-9, 0, -, =) and the modifier keys stay on one side, while the tabs change the buttons on the other:
-  - **Interface:** Character, Spellbook, Talents, Quest Log, Map, Social, Guild, Group Finder, Achievements, Professions, Bags and System.
-  - **Target:** Self, Party 1 to 4, and next and previous enemy.
-  - **Utility:** chat page up and down, sheathe weapons, auto-run, walk/run, sit/stand, hide UI, nameplates and screenshot.
+  - **Interface:** Interact, Character, Spellbook, Talents, Quest Log, Map, Social, Guild, Group Finder, Achievements, Professions, Bags and System.
+  - **Target:** Interact, Self, Party 1 to 4, and next and previous enemy.
+  - **Utility:** Interact, chat page up and down, sheathe weapons, auto-run, walk/run, sit/stand, hide UI, nameplates and screenshot.
   
   All of the page buttons come mapped to World of Warcraft's default key bindings, so they work out of the box. If you've changed a binding in game, remap the button to match.
 

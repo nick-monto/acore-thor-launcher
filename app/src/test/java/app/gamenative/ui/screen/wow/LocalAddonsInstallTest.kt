@@ -42,7 +42,8 @@ class LocalAddonsInstallTest {
                 root.resolve("Interface/AddOns/$name/$name.toc").isFile,
             )
         }
-        assertEquals("1.5.0-rc2-thor1 2", root.resolve(".consoleport-version").readText().trim())
+        // Three versions: the pinned archive, ThorPad and EInteract.
+        assertEquals("1.5.0-rc2-thor1 2 1", root.resolve(".consoleport-version").readText().trim())
 
         // ThorPad, which hands ConsolePort the pad's keys so nobody has to calibrate it.
         assertTrue(
@@ -52,6 +53,16 @@ class LocalAddonsInstallTest {
         assertTrue(
             "ThorPad has no script, so it would load and do nothing",
             root.resolve("Interface/AddOns/ThorPad/ThorPad.lua").isFile,
+        )
+
+        // EInteract, the client half of the realm's interact key. Its script is the whole addon.
+        assertTrue(
+            "EInteract was not installed",
+            root.resolve("Interface/AddOns/EInteract/EInteract.toc").isFile,
+        )
+        assertTrue(
+            "EInteract has no script, so E would send the chat line instead of the interact request",
+            root.resolve("Interface/AddOns/EInteract/EInteract.lua").isFile,
         )
     }
 

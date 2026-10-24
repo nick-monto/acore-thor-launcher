@@ -440,6 +440,14 @@ class ExternalActionBarView(
         /** A page button. It sends its own modifiers and ignores any the user holds on the pad. */
         private fun page(label: String, key: XKeycode, vararg mods: XKeycode) = Slot(label, key, mods.toList(), isolated = true)
 
+        /**
+         * The interact key, E, on every page: the realm's mod-e-interact addon binds E to loot the
+         * nearest corpse, gather, open a chest or node, or talk to the nearest NPC, so this is the
+         * button the solo loop sits on. It is the first button on each page, in the same place on
+         * all three, because the pad shows one page at a time. Remappable like any other.
+         */
+        private fun interactButton() = page("Interact", XKeycode.KEY_E)
+
         private class Page(val id: String, val title: String, val slots: List<Slot>)
 
         // WoW's default bindings. A page holds at most 12 buttons.
@@ -447,6 +455,7 @@ class ExternalActionBarView(
             Page(
                 "interface", "Interface",
                 listOf(
+                    interactButton(),
                     page("Character", XKeycode.KEY_C),
                     page("Spellbook", XKeycode.KEY_P),
                     page("Talents", XKeycode.KEY_N),
@@ -465,6 +474,7 @@ class ExternalActionBarView(
             Page(
                 "target", "Target",
                 listOf(
+                    interactButton(),
                     page("Self", XKeycode.KEY_F1),
                     page("Party 1", XKeycode.KEY_F2),
                     page("Party 2", XKeycode.KEY_F3),
@@ -477,6 +487,7 @@ class ExternalActionBarView(
             Page(
                 "utility", "Utility",
                 listOf(
+                    interactButton(),
                     page("Sheathe weapons", XKeycode.KEY_Z),
                     page("Auto-run", XKeycode.KEY_NUM_LOCK),
                     page("Walk / run", XKeycode.KEY_KP_DIVIDE),
