@@ -108,8 +108,8 @@ private const val LOCAL_CLIENT_LOCALE = "enUS"
 private const val CONTAINER_EXTRA_PROFILE_ID = "profileId"
 
 /** The controller add-on the launcher installs for the local realm, and the version it installs. */
-private const val LOCAL_ADDON_ARCHIVE = "ConsolePortLK-1.5.0-rc2-thor1.zip"
-private const val LOCAL_ADDON_VERSION = "1.5.0-rc2-thor1"
+private const val LOCAL_ADDON_ARCHIVE = "ConsolePortLK-1.5.0-rc2-thor2.zip"
+private const val LOCAL_ADDON_VERSION = "1.5.0-rc2-thor2"
 
 /** This project's own companion add-on, which hands ConsolePort the pad's keys. */
 private const val LOCAL_PAD_ADDON = "thorpad"
@@ -1987,6 +1987,11 @@ internal fun ensureLocalControllerProfile(context: Context): Int {
 
     bind(KeyEvent.KEYCODE_BUTTON_SELECT, Binding.KEY_F5)
     bind(KeyEvent.KEYCODE_BUTTON_START, Binding.KEY_F6)
+    // The left stick click is the realm's interact key: EInteract binds E, so one press loots the
+    // nearest corpse, gathers it, opens a chest, node or mailbox, or talks to the nearest NPC. It is
+    // the only button ConsolePort does not take, and ConsolePort itself is left without a binding
+    // for it (see ThorPad), so nothing here overrides a ConsolePort action.
+    bind(KeyEvent.KEYCODE_BUTTON_THUMBL, Binding.KEY_E)
     bind(KeyEvent.KEYCODE_BUTTON_MODE, Binding.KEY_KP_MULTIPLY)
 
     for ((keyCode, binding) in THOR_SHOULDER_KEYS) bind(keyCode, binding)

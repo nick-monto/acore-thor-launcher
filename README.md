@@ -68,7 +68,8 @@ of a Blizzard realm. Six things change for that flavor:
   A second add-on of its own goes in beside that one: **EInteract**, the client half of the realm's
   `mod-e-interact`. It binds **E** and sends the hidden addon whisper the server module answers, which
   is how one key loots, gathers, opens chests and nodes and talks to NPCs — the client itself cannot
-  look for nearby objects, and `InteractUnit` is protected. The pad's **Interact** button sends that E.
+  look for nearby objects, and `InteractUnit` is protected. Two things send that E: the pad's
+  **Interact** button, and a click of the controller's left stick (`L3`).
   `/ei` shows whether the server answered, and turns the key off, rebinds it, or toggles quest-dialog
   paging, autoloot and roll-answering.
 
@@ -79,16 +80,19 @@ of a Blizzard realm. Six things change for that flavor:
   | --- | --- |
   | L1 | Target previous enemy |
   | R1 | Target nearest enemy |
-  | L3 | Jump |
-  | R3 | Clear target |
+  | L3 | **Interact** — not a ConsolePort binding: the launcher sends it as `E`, the key EInteract binds |
+  | R3 | nothing (free) |
 
   The add-on is not shipped as its author built it: `tools/fetch_components.sh` downloads the pinned
   release and applies `tools/consoleportlk-thor1.patch`, which carries those defaults, so refreshing
-  the add-on re-applies them instead of quietly reverting to the upstream bindings.
+  the add-on re-applies them instead of quietly reverting to the upstream bindings. The patch also
+  leaves the two stick clicks unbound in ConsolePort — a console button needs a key bound to it, and
+  neither click has one — so ThorPad clears the jump and clear-target rows an earlier launcher put
+  there once an account has seen them.
 
   Shift and control therefore sit on the triggers, where ConsolePort expects its two modifiers, so
   L2+R1 is ConsolePort's "shift + right shoulder" and the action slots the shoulders used to hold
-  (action buttons 4 and 5, and 10 on shift+L3) are still on the bars. The right stick drives the
+  (action buttons 4 and 5) are still on the bars. The right stick drives the
   pointer in both modes, because injected pointer motion is the only thing a 3.3.5a client can turn a
   camera with — so R3 changes what the face buttons do rather than whether the stick works: in cursor
   mode A/B click and Y/X scroll the interface, outside it they send ConsolePort's keys. Stick speed is

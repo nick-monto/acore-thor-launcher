@@ -10,8 +10,10 @@
 -- LoadBindingSet).
 --
 -- Applied once per account; /thorpad reports it, /thorpad reset makes the next login apply again.
--- It also moves the four buttons this project rebinds (L1/R1 target, L3 jump, R3 clear target) into
--- ConsolePort's saved binding set once, leaving any button the player rebound alone.
+-- It also moves the two shoulders this project rebinds (L1/R1 cycle targets) into ConsolePort's saved
+-- binding set once, leaving any button the player rebound alone. The stick clicks are nothing to do
+-- with ConsolePort: the launcher sends the left one as the interact key (E), and the right one is
+-- free, so neither carries a binding here.
 --------------------------------------------------------------------------
 
 local BUTTONS = {
@@ -53,20 +55,24 @@ local CONFLICTS = {
 -- after the change. These are the buttons this project rebinds, with the action the template shipped
 -- and the one it carries now ('was = false' means the template left the button unbound). A button the
 -- player has rebound is not at the shipped action any more and is left exactly as it is.
+-- 'now = false' unbinds the button: the two stick clicks held jump and clear-target for one launcher
+-- version, on a button that had no key, so the action could never fire. Clearing them here reaches
+-- accounts that already copied that set.
 local REBINDS = {
 	{ button = 'CP_T1',   modifier = '',       was = 'ACTIONBUTTON4',      now = 'TARGETPREVIOUSENEMY' },
 	{ button = 'CP_T2',   modifier = '',       was = 'ACTIONBUTTON5',      now = 'TARGETNEARESTENEMY' },
 	{ button = 'CP_T1',   modifier = 'SHIFT-', was = 'TARGETNEARESTENEMY', now = 'ACTIONBUTTON4' },
 	{ button = 'CP_T2',   modifier = 'SHIFT-', was = 'ACTIONBUTTON10',     now = 'ACTIONBUTTON5' },
-	{ button = 'CP_T_L3', modifier = '',       was = false,                now = 'JUMP' },
-	{ button = 'CP_T_R3', modifier = '',       was = false,                now = 'CP_CLEARTARGET' },
+	{ button = 'CP_T_L3', modifier = '',       was = 'JUMP',               now = false },
+	{ button = 'CP_T_R3', modifier = '',       was = 'CP_CLEARTARGET',     now = false },
 }
 -- The controller template this pad plays with. Its face buttons sit where a Nintendo pad's do
 -- (Y left, X top, A right, B bottom), so the Switch theme labels them the way the hardware is
 -- labelled; Xbox was this add-on's first choice and is only replaced where nobody has changed it.
 local CONTROLLER_TYPE = 'SWITCH'
 local LEGACY_TYPES = { XBOX = true }
-local PAD_VERSION = 1
+-- 2: the two stick-click rebinds are undone (they could never fire - no key was bound to them).
+local PAD_VERSION = 2
 
 local function countBound()
 	local bound, missing = 0, {}
@@ -164,7 +170,8 @@ local function migrate()
 		end
 		local current = sub[entry.modifier]
 		if (entry.was == false and current == nil) or current == entry.was then
-			sub[entry.modifier] = entry.now
+			-- 'now = false' clears the entry instead of storing false in it.
+			sub[entry.modifier] = entry.now or nil
 			changed = true
 		end
 	end

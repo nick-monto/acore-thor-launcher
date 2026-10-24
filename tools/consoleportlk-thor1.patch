@@ -1,21 +1,7 @@
-diff -r cpstock/ConsolePort/Bindings.xml cpzip/ConsolePort/Bindings.xml
---- a/ConsolePort/Bindings.xml	2025-02-16 01:00:56.000000000 -0500
-+++ b/ConsolePort/Bindings.xml	2026-10-22 10:19:39.530994528 -0400
-@@ -45,6 +45,10 @@
- 	<Binding name="CP_TOGGLEMOUSE" hidden="true">
- 		ConsolePortCamera:Toggle()
- 	</Binding>
-+	<!-- No client build of this era has a "clear target" action to bind, so this is ours. -->
-+	<Binding name="CP_CLEARTARGET" hidden="true">
-+		ClearTarget()
-+	</Binding>
- 	<Binding name="CP_CAMZOOMIN" hidden="true">
- 		CameraZoomIn(5.0);
- 	</Binding>
 diff -r cpstock/ConsolePort/Controllers/SWITCH/Switch.lua cpzip/ConsolePort/Controllers/SWITCH/Switch.lua
---- a/ConsolePort/Controllers/SWITCH/Switch.lua	2025-08-28 02:24:14.000000000 -0400
-+++ b/ConsolePort/Controllers/SWITCH/Switch.lua	2026-10-22 10:23:39.249846247 -0400
-@@ -1,169 +1,176 @@
+--- cpstock/ConsolePort/Controllers/SWITCH/Switch.lua	2025-08-28 02:24:14.000000000 -0400
++++ cpzip/ConsolePort/Controllers/SWITCH/Switch.lua	2026-10-23 22:07:31.665479773 -0400
+@@ -1,169 +1,171 @@
 -local _, db = ...
 ----------------------------------------------------------------
 -if not db.Controllers then db.Controllers = {} end
@@ -341,15 +327,10 @@ diff -r cpstock/ConsolePort/Controllers/SWITCH/Switch.lua cpzip/ConsolePort/Cont
 +		['CP_T6'] = {  
 +			[''] 			= 'CP_CAMZOOMIN', 
 +		}, 
-+		-- Stick buttons: jump on the left, clear the target on the right. Action button 10 used to
-+		-- be on shift+R1, which is now action button 5, so it moves to a button nothing else wanted.
-+		['CP_T_R3'] = {
-+			['']		 	= 'CP_CLEARTARGET',
-+		},
-+		['CP_T_L3'] = {
-+			['']		 	= 'JUMP',
-+			['SHIFT-'] 		= 'ACTIONBUTTON10',
-+		},
++		-- Stick buttons: nothing is bound to them. The left one sends the realm's interact key (E)
++		-- from the launcher, which is not a ConsolePort binding; the right one is free.
++		['CP_T_R3'] = {},
++		['CP_T_L3'] = {},
 +	},
 +	Shared = {
 +		['CP_L_DOWN'] 	= true,
@@ -362,8 +343,8 @@ diff -r cpstock/ConsolePort/Controllers/SWITCH/Switch.lua cpzip/ConsolePort/Cont
  }
 \ No newline at end of file
 diff -r cpstock/ConsolePort/Controllers/XBOX/Xbox.lua cpzip/ConsolePort/Controllers/XBOX/Xbox.lua
---- a/ConsolePort/Controllers/XBOX/Xbox.lua	2025-08-28 02:24:18.000000000 -0400
-+++ b/ConsolePort/Controllers/XBOX/Xbox.lua	2026-10-22 10:19:35.530729767 -0400
+--- cpstock/ConsolePort/Controllers/XBOX/Xbox.lua	2025-08-28 02:24:18.000000000 -0400
++++ cpzip/ConsolePort/Controllers/XBOX/Xbox.lua	2026-10-23 22:07:31.665479773 -0400
 @@ -102,16 +102,17 @@
  			['CTRL-'] 		= 'MULTIACTIONBAR1BUTTON3',
  			['CTRL-SHIFT-'] = 'MULTIACTIONBAR1BUTTON8',
@@ -387,22 +368,13 @@ diff -r cpstock/ConsolePort/Controllers/XBOX/Xbox.lua cpzip/ConsolePort/Controll
  			['CTRL-'] 		= 'MULTIACTIONBAR1BUTTON5',
  			['CTRL-SHIFT-'] = 'MULTIACTIONBAR1BUTTON10',
  		},
-@@ -184,9 +185,15 @@
+@@ -184,7 +185,8 @@
  			['CTRL-SHIFT-'] = 'MULTIACTIONBAR4BUTTON4',
  
  		},		
 -		-- Stick buttons
--		['CP_T_R3'] = {},
--		['CP_T_L3'] = {},
-+		-- Stick buttons: jump on the left, clear the target on the right. Action button 10 used to
-+		-- be on shift+R1, which is now action button 5, so it moves to a button nothing else wanted.
-+		['CP_T_R3'] = {
-+			['']		 	= 'CP_CLEARTARGET',
-+		},
-+		['CP_T_L3'] = {
-+			['']		 	= 'JUMP',
-+			['SHIFT-'] 		= 'ACTIONBUTTON10',
-+		},
++		-- Stick buttons: nothing is bound to them. The left one sends the realm's interact key (E)
++		-- from the launcher, which is not a ConsolePort binding; the right one is free.
+ 		['CP_T_R3'] = {},
+ 		['CP_T_L3'] = {},
  	},
- 	Shared = {
- 		['CP_L_DOWN'] 	= true,

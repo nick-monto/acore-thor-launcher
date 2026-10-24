@@ -7,6 +7,7 @@ import androidx.test.core.app.ApplicationProvider
 import app.gamenative.ui.screen.wow.ensureLocalControllerProfile
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -54,6 +55,10 @@ class LocalPadProfileTest {
         assertEquals(Binding.KEY_F5, keys[KeyEvent.KEYCODE_BUTTON_SELECT])
         assertEquals(Binding.KEY_F6, keys[KeyEvent.KEYCODE_BUTTON_START])
         assertEquals(Binding.KEY_KP_MULTIPLY, keys[KeyEvent.KEYCODE_BUTTON_MODE])
+        // The left stick click is the interact key: EInteract binds E, and ConsolePort has no binding
+        // on that button, so this is the one press that is not a ConsolePort button.
+        assertEquals(Binding.KEY_E, keys[KeyEvent.KEYCODE_BUTTON_THUMBL])
+        assertNull("the right stick click stays free", keys[KeyEvent.KEYCODE_BUTTON_THUMBR])
         // ConsolePort's two shoulder buttons are F7/F8 and its two modifiers are shift/control, so the
         // pad's shoulders carry the first pair and its triggers the second: a prompt that says "L1"
         // must be the button on the left hand.

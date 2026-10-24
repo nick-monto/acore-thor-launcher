@@ -16,7 +16,7 @@ FILES=(
 # The zip that lands in the APK is the result, so it is built rather than downloaded.
 CONSOLEPORT_UPSTREAM="ConsolePortLK-1.5.0-rc2.zip"
 CONSOLEPORT_SHA256="9ee20bb1f3c5c5b8d45fcc5980a07bb90d49a707e120613453177c05fea6497f"
-CONSOLEPORT_SHIPPED="ConsolePortLK-1.5.0-rc2-thor1.zip"
+CONSOLEPORT_SHIPPED="ConsolePortLK-1.5.0-rc2-thor2.zip"
 CONSOLEPORT_PATCH="$REPO_DIR/tools/consoleportlk-thor1.patch"
 
 build_consoleport() {
