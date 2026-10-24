@@ -70,8 +70,8 @@ class ExternalActionPad(
     /** Builds (or rebuilds, after settings changed) everything below the pad background. */
     private fun buildUi() {
         removeAllViews()
-        // The panels start hidden again, so the pad is not in mouse mode any more either.
-        PadBridge.setTrackpadOpen(false)
+        // The panels start hidden again, so the pad is not the pointer any more either.
+        PadBridge.endPointerSession()
         // Let go of anything still held (including locked modifiers) before the old buttons are dropped.
         heldModifiers.toList().forEach { xServer.injectKeyRelease(it) }
         releaseMouseButtons.forEach { it() }
@@ -103,6 +103,9 @@ class ExternalActionPad(
             if (!PadSettings.bool(PadSettings.TP_TAP)) {
                 setGestureConfig(TouchGestureConfig().copy(tapEnabled = false))
             }
+            // Touching the trackpad takes the pointer from the controller: the ring shows where a click lands
+            // and the camera stick is let go, so a stick deflected a moment ago cannot turn the view under it.
+            setOnInteractionListener { PadBridge.beginPointerSession() }
         }
         trackpadPanel = LinearLayout(context).apply {
             orientation = VERTICAL
@@ -514,6 +517,7 @@ class ExternalActionPad(
 
     /** One mouse wheel tick from the scroll strip: +1 scrolls down, -1 scrolls up. Same two paths as the buttons. */
     private fun sendWheel(direction: Int) {
+        PadBridge.beginPointerSession()
         if (xServer.isRelativeMouseMovement()) {
             xServer.getWinHandler().mouseEvent(MouseEventFlags.WHEEL, 0, 0, if (direction > 0) -WHEEL_DELTA else WHEEL_DELTA)
         } else {
@@ -569,6 +573,7 @@ class ExternalActionPad(
             // mouse when the game is in relative mode. Pressing in one mode and releasing in the other (the game
             // switches modes while you drag) used to leave the two out of step, so a hold could drop or stick.
             fun send(down: Boolean) {
+                PadBridge.beginPointerSession()
                 if (down) {
                     if (xServer.pointer.isButtonPressed(button)) xServer.injectPointerButtonRelease(button)
                     xServer.injectPointerButtonPress(button)
@@ -752,10 +757,11 @@ class ExternalActionPad(
             setSettings(false)
         }
         trackpadPanel.visibility = if (on) View.VISIBLE else View.GONE
-        // The pad is the mouse while its trackpad is up: the controller turns A / B into clicks and the
-        // ring marks the pointer, whether or not R3 cursor mode is on for this game.
-        PadBridge.setTrackpadOpen(on)
-        if (!on) releaseMouseButtons.forEach { it() }
+        // Closing the panel ends the pad's pointer session; the controller has the camera again.
+        if (!on) {
+            PadBridge.endPointerSession()
+            releaseMouseButtons.forEach { it() }
+        }
         padView.visibility = if (on) View.GONE else View.VISIBLE
         // A modifier armed on one view shows as armed on the other too.
         modifierStyles.forEach { (key, styles) -> styles.forEach { it(isArmed(key)) } }

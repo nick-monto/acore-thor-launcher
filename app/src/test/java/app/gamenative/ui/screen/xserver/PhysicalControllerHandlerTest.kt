@@ -251,68 +251,84 @@ class PhysicalControllerHandlerTest {
     }
 
     @Test
-    fun `A clicks while the pad's trackpad is open even with R3 cursor mode off`() {
+    fun `the pad taking the pointer lets go of the camera stick`() {
         PadSettings.init(ApplicationProvider.getApplicationContext<Context>())
-        PadSettings.set(PadSettings.CLICK_AB, true)
-        PadSettings.set(PadSettings.CLICK_HOLD, false)
         val deviceId = 42
-        val keyCode = KeyEvent.KEYCODE_BUTTON_A
-        val xServer = mock<XServer>()
-        val handler = padClickHandler(xServer, deviceId, keyCode, Binding.GAMEPAD_BUTTON_A)
-        PadBridge.setTrackpadOpen(true)
+        val controller = motionController(
+            ExternalControllerBinding.getKeyCodeForAxis(MotionEvent.AXIS_Z, 1),
+            Binding.GAMEPAD_RIGHT_THUMB_RIGHT,
+        )
+        val gamepadState = GamepadState()
+        val profile = mock<ControlsProfile>()
+        whenever(profile.getController(deviceId)).thenReturn(controller)
+        whenever(profile.gamepadState).thenReturn(gamepadState)
+        val handler = PhysicalControllerHandler(profile = profile, xServer = mock<XServer>(), gamepadStateSender = {})
+        val event = motionEvent(deviceId)
 
         try {
-            assertFalse("cursor mode is off for this case", privateField(handler, "rightStickMouseMode") as Boolean)
-            assertTrue(handler.onKeyEvent(keyEvent(deviceId, keyCode, KeyEvent.ACTION_DOWN)))
-            verify(xServer).injectPointerButtonPress(Pointer.Button.BUTTON_LEFT)
+            controller.state.thumbRX = 0.8f
+            assertTrue(handler.onGenericMotionEvent(event))
+            assertEquals("the controller is driving the camera", 0.8f, gamepadState.thumbRX, 0f)
 
-            assertTrue(handler.onKeyEvent(keyEvent(deviceId, keyCode, KeyEvent.ACTION_UP)))
-            verify(xServer).injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT)
+            // The trackpad was touched: the pad is the pointer, and the camera stick is not the camera any more.
+            PadBridge.beginPointerSession()
+            assertEquals("a stick held a moment ago cannot turn the view under the trackpad", 0f, gamepadState.thumbRX, 0f)
+            assertTrue(PadBridge.isCursorRingShown())
+
+            // The controller is used again: the camera comes back, and the ring goes away.
+            assertTrue(handler.onGenericMotionEvent(event))
+            assertEquals(0.8f, gamepadState.thumbRX, 0f)
+            assertFalse(PadBridge.pointerSession)
+            assertFalse(PadBridge.isCursorRingShown())
         } finally {
-            PadBridge.setTrackpadOpen(false)
+            PadBridge.endPointerSession()
             handler.cleanup()
         }
     }
 
     @Test
-    fun `the trackpad closing lets go of a click the controller holds`() {
+    fun `a controller press ends the pad's pointer session`() {
         PadSettings.init(ApplicationProvider.getApplicationContext<Context>())
-        PadSettings.set(PadSettings.CLICK_AB, true)
-        PadSettings.set(PadSettings.CLICK_HOLD, false)
-        val deviceId = 42
-        val keyCode = KeyEvent.KEYCODE_BUTTON_A
-        val xServer = mock<XServer>()
-        val handler = padClickHandler(xServer, deviceId, keyCode, Binding.GAMEPAD_BUTTON_A)
-        PadBridge.setTrackpadOpen(true)
-
-        try {
-            assertTrue(handler.onKeyEvent(keyEvent(deviceId, keyCode, KeyEvent.ACTION_DOWN)))
-            verify(xServer).injectPointerButtonPress(Pointer.Button.BUTTON_LEFT)
-
-            PadBridge.setTrackpadOpen(false)
-
-            verify(xServer).injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT)
-        } finally {
-            PadBridge.setTrackpadOpen(false)
-            handler.cleanup()
-        }
-    }
-
-    @Test
-    fun `with the trackpad closed the face button keeps its ConsolePort key`() {
-        PadSettings.init(ApplicationProvider.getApplicationContext<Context>())
-        PadSettings.set(PadSettings.CLICK_AB, true)
         val deviceId = 42
         val keyCode = KeyEvent.KEYCODE_BUTTON_A
         val xServer = mock<XServer>()
         val handler = padClickHandler(xServer, deviceId, keyCode, Binding.KEY_F11)
 
         try {
+            PadBridge.beginPointerSession()
+            assertTrue(PadBridge.isCursorRingShown())
+
             assertTrue(handler.onKeyEvent(keyEvent(deviceId, keyCode, KeyEvent.ACTION_DOWN)))
+
+            assertFalse(PadBridge.pointerSession)
+            assertFalse(PadBridge.isCursorRingShown())
+            verify(xServer).injectKeyPress(XKeycode.KEY_F11)
+        } finally {
+            PadBridge.endPointerSession()
+            handler.cleanup()
+        }
+    }
+
+    @Test
+    fun `a face button never clicks while the pad's trackpad is in use`() {
+        PadSettings.init(ApplicationProvider.getApplicationContext<Context>())
+        PadSettings.set(PadSettings.CLICK_AB, true)
+        val deviceId = 42
+        val keyCode = KeyEvent.KEYCODE_BUTTON_A
+        val xServer = mock<XServer>()
+        // The installed local profile maps A to the key ConsolePort binds to its bottom face button.
+        val handler = padClickHandler(xServer, deviceId, keyCode, Binding.KEY_F11)
+
+        try {
+            assertFalse("cursor mode is off for this case", privateField(handler, "rightStickMouseMode") as Boolean)
+            PadBridge.beginPointerSession()
+
+            assertTrue(handler.onKeyEvent(keyEvent(deviceId, keyCode, KeyEvent.ACTION_DOWN)))
+
             verify(xServer).injectKeyPress(XKeycode.KEY_F11)
             verify(xServer, never()).injectPointerButtonPress(any())
         } finally {
-            PadBridge.setTrackpadOpen(false)
+            PadBridge.endPointerSession()
             handler.cleanup()
         }
     }

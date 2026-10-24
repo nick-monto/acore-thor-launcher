@@ -66,10 +66,10 @@ class R3PadSwitchTest {
     }
 
     @Test
-    fun `clicks and the ring stay reachable with cursor mode off`() {
+    fun `the ring stays reachable with cursor mode off, and the stick's clicks do not`() {
         PadSettings.init(context)
-        // The local realm runs with the launcher's cursor mode off, but the pad's trackpad is a mouse of
-        // its own, so the click shortcuts and the ring keep working - and have to stay settable.
+        // The local realm runs with the launcher's cursor mode off; the pad's trackpad still shows the ring,
+        // while the face buttons are ConsolePort's there, so their click switches are cursor-mode rows.
         ButtonPad.setR3Toggle(context, WowFlavor.current, false)
         val settings = ExternalPadSettingsView(context, PadTheme.DEFAULT)
         val header = findText(settings, "RIGHT-STICK CURSOR (R3)")
@@ -77,18 +77,23 @@ class R3PadSwitchTest {
         assertTrue(isVisibleInHierarchy(header!!))
         header.performClick()
 
+        val ringSwitch = findButton(settings, "Ring around the cursor")
+        assertNotNull("the ring marks the pointer on the trackpad too", ringSwitch)
+        assertTrue("so it is settable with the mode off", isVisibleInHierarchy(ringSwitch!!))
+
         val clickSwitch = findButton(settings, "A / B click")
-        assertNotNull("with cursor mode off, the click switches are still listed", clickSwitch)
-        assertTrue("and reachable without turning the stick tuning back on", isVisibleInHierarchy(clickSwitch!!))
-        assertTrue(isVisibleInHierarchy(findButton(settings, "Ring around the cursor")!!))
-        assertFalse("the stick tuning stays collapsed while the mode is off", isVisibleInHierarchy(findText(settings, "Stick deadzone")!!))
+        assertNotNull("the click switches are still listed for the mode", clickSwitch)
+        assertFalse("but hidden while the face buttons are ConsolePort's", isVisibleInHierarchy(clickSwitch!!))
+        assertFalse("and so is the stick tuning", isVisibleInHierarchy(findText(settings, "Stick deadzone")!!))
 
         findButton(settings, "R3 toggles mouse / camera")!!.performClick()
-        assertTrue("turning the mode on opens the stick tuning", isVisibleInHierarchy(findText(settings, "Stick deadzone")!!))
+        assertTrue("turning the mode on shows the clicks", isVisibleInHierarchy(clickSwitch))
+        assertTrue("and the stick tuning", isVisibleInHierarchy(findText(settings, "Stick deadzone")!!))
 
         findButton(settings, "R3 toggles mouse / camera")!!.performClick()
-        assertFalse("and turning it off again hides only that", isVisibleInHierarchy(findText(settings, "Stick deadzone")!!))
-        assertTrue("the click switches are not part of the stick tuning", isVisibleInHierarchy(clickSwitch))
+        assertFalse(isVisibleInHierarchy(clickSwitch))
+        assertFalse(isVisibleInHierarchy(findText(settings, "Stick deadzone")!!))
+        assertTrue("the ring is not one of those rows", isVisibleInHierarchy(ringSwitch))
     }
 
     private fun findText(root: View, contains: String): View? {

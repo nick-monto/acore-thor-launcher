@@ -30,28 +30,33 @@ object PadBridge {
     private var cursorMode = false
 
     /**
-     * True while the pad's trackpad is up, i.e. the pad itself is the mouse. Set by the pad.
+     * True while the pad is the pointer: the trackpad is being used, or one of its click buttons.
      *
-     * The trackpad is a mouse mode of its own: it moves the pointer, so the pad's click shortcuts (A / B,
-     * and L1 / R1 when enabled) and the cursor ring have to work there even when R3 cursor mode is off.
-     * The local realm runs with it off, because ConsolePort drives the right stick, and tying the clicks
-     * to that mode left A / B sending ConsolePort's buttons - A jumps - whenever the trackpad was open.
+     * This is the second mouse source, and it is independent of R3 cursor mode - the local realm leaves the
+     * right stick to ConsolePort, so handing that stick to the pointer would take the camera away. Instead the
+     * pad takes the pointer only for as long as it is in use: [beginPointerSession] lets the controller code
+     * let go of the camera stick, and the next controller input ends the session and hands the camera back.
      */
     @Volatile
-    var trackpadOpen = false
+    var pointerSession = false
         private set
 
-    /** Set by the controller code: a click it holds must not outlive the trackpad closing under it. */
+    /** Set by the controller code: run when a session starts, so a deflected stick stops driving the camera. */
     @Volatile
-    var releaseClicks: (() -> Unit)? = null
+    var pointerSessionStarted: (() -> Unit)? = null
 
-    fun setTrackpadOpen(open: Boolean) {
-        if (trackpadOpen == open) return
-        trackpadOpen = open
-        if (!open) releaseClicks?.invoke()
+    fun beginPointerSession() {
+        if (pointerSession) return
+        pointerSession = true
+        pointerSessionStarted?.invoke()
     }
 
-    fun isCursorRingShown(): Boolean = (cursorMode || trackpadOpen) && PadSettings.bool(PadSettings.CURSOR_RING)
+    fun endPointerSession() {
+        if (!pointerSession) return
+        pointerSession = false
+    }
+
+    fun isCursorRingShown(): Boolean = (cursorMode || pointerSession) && PadSettings.bool(PadSettings.CURSOR_RING)
 
     fun ringColor(): Int = PadSettings.RING_COLORS[PadSettings.int(PadSettings.RING_COLOR).coerceIn(0, PadSettings.RING_COLORS.size - 1)].second
 
