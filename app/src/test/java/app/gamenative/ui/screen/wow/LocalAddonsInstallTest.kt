@@ -42,12 +42,21 @@ class LocalAddonsInstallTest {
                 root.resolve("Interface/AddOns/$name/$name.toc").isFile,
             )
         }
+        // The interact add-on rides beside it, as this project's own files.
+        assertTrue(
+            "EInteract was not installed",
+            root.resolve("Interface/AddOns/EInteract/EInteract.toc").isFile,
+        )
+        assertTrue(
+            "EInteract's code was not installed",
+            root.resolve("Interface/AddOns/EInteract/EInteract.lua").isFile,
+        )
         // One version: the pinned, unpatched archive.
-        assertEquals("1.5.0-rc2", root.resolve(".consoleport-version").readText().trim())
+        assertEquals("1.5.0-rc2+ei1", root.resolve(".consoleport-version").readText().trim())
     }
 
     @Test
-    fun `a client root left by an older launch loses the add-ons this launcher no longer ships`() {
+    fun `a client root left by an older launch loses ThorPad and keeps the interact add-on`() {
         val root = context.cacheDir.resolve("client-root-stale").apply { mkdirs() }
         // What an earlier launch left: its own two add-ons, their saved variables and its marker.
         root.resolve("Interface/AddOns/ThorPad").mkdirs()
@@ -66,18 +75,20 @@ class LocalAddonsInstallTest {
             root.resolve("Interface/AddOns/ThorPad").exists(),
         )
         assertFalse(
-            "EInteract is gone from the build but still in the client",
-            root.resolve("Interface/AddOns/EInteract").exists(),
-        )
-        assertFalse(
             "ThorPad's saved variables outlived the add-on",
             root.resolve("WTF/Account/PLAYER/SavedVariables/ThorPad.lua").exists(),
         )
-        assertFalse(
-            "EInteract's saved variables outlived the add-on",
-            root.resolve("WTF/Account/PLAYER/SavedVariables/EInteract.lua").exists(),
+        // EInteract is shipped again, so its folder is replaced rather than deleted, and the player's
+        // saved variables - the key they chose - survive the upgrade.
+        assertTrue(
+            "EInteract was not reinstalled over the old copy",
+            root.resolve("Interface/AddOns/EInteract/EInteract.lua").isFile,
         )
-        assertEquals("1.5.0-rc2", root.resolve(".consoleport-version").readText().trim())
+        assertTrue(
+            "EInteract's saved variables were deleted",
+            root.resolve("WTF/Account/PLAYER/SavedVariables/EInteract.lua").isFile,
+        )
+        assertEquals("1.5.0-rc2+ei1", root.resolve(".consoleport-version").readText().trim())
     }
 
     @Test

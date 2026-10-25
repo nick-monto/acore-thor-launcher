@@ -1,0 +1,8 @@
+## Interface: 30300
+## Title: EInteract
+## Version: 1.1.0
+## Notes: One key to loot, gather and talk to the nearest NPC, page through quest dialogs and roll Need. Looting, gathering and talking need the mod-e-interact server module. The key is a client binding (Interact with the nearest thing), listed in ConsolePort's /cp menu, so a pad button can be assigned to it.
+## Notes-ruRU: Одна клавиша: лут, сбор и разговор с ближайшим NPC, листание квестовых диалогов и «Нужно» в розыгрыше. Для лута, сбора и NPC нужен серверный модуль mod-e-interact. Клавиша — привязка клиента (Взаимодействовать с ближайшим), она есть в меню /cp ConsolePort, поэтому её можно назначить на кнопку геймпада.
+## OptionalDeps: ConsolePort
+## SavedVariables: EInteractDB
+EInteract.lua

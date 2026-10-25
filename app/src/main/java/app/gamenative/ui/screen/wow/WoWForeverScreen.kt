@@ -109,10 +109,18 @@ private const val CONTAINER_EXTRA_PROFILE_ID = "profileId"
 
 /** The controller add-on the launcher installs for the local realm, and the version it installs. */
 private const val LOCAL_ADDON_ARCHIVE = "ConsolePortLK-1.5.0-rc2.zip"
-private const val LOCAL_ADDON_VERSION = "1.5.0-rc2"
+private const val LOCAL_ADDON_VERSION = "1.5.0-rc2+ei1"
+
+/**
+ * The interact add-on: the client half of the realm's mod-e-interact. Shipped as assets rather than an
+ * archive because it is this project's own file - it registers a client binding (see [installLocalAddons])
+ * that ConsolePort's /cp menu can put on a pad button.
+ */
+private const val LOCAL_INTERACT_ADDON = "einteract"
+private const val LOCAL_INTERACT_ADDON_FOLDER = "EInteract"
 
 /** Add-ons this launcher used to install and no longer ships, cleaned out on the next launch. */
-private val RETIRED_ADDONS = listOf("ThorPad", "EInteract")
+private val RETIRED_ADDONS = listOf("ThorPad")
 
 /** Marks the client root as carrying [LOCAL_ADDON_VERSION], so a launch does not re-extract it. */
 private const val LOCAL_ADDON_MARKER = ".consoleport-version"
@@ -1939,6 +1947,10 @@ private val LEGACY_CONFIG_VALUES = mapOf(
  * control are its two modifiers, which the triggers hold. Anything else would make ConsolePort draw
  * "L1" on a prompt for a button on the right hand.
  *
+ * The left stick click sends E, the realm's interact key (EInteract, the client half of
+ * mod-e-interact). It is the only letter key in the profile: everything else is a key ConsolePort
+ * already knows, so the one binding EInteract has to own is the one ConsolePort does not use.
+ *
  * The codes come from the app's own axis convention rather than literals, and the profile is only ever
  * written when a profile of this name does not exist yet: after the first launch it belongs to the
  * player, who binds its keys to ConsolePort's buttons once with /cp and may edit it freely. The one
@@ -1949,7 +1961,6 @@ internal fun ensureLocalControllerProfile(context: Context): Int {
     val manager = InputControlsManager(context)
     manager.profiles.firstOrNull { it.name == LOCAL_CONTROLLER_PROFILE }?.let { installed ->
         migrateShoulderKeys(installed)
-        migrateRetiredStickClick(installed)
         return installed.id
     }
 
@@ -1985,6 +1996,12 @@ internal fun ensureLocalControllerProfile(context: Context): Int {
 
     for ((keyCode, binding) in THOR_SHOULDER_KEYS) bind(keyCode, binding)
 
+    // The left stick click sends the interact key. EInteract binds that key on its first run, so the
+    // button works out of the box; ConsolePort's /cp menu lists the same action, and a player who
+    // assigns it somewhere else - or gives this button to ConsolePort's left click - is choosing in
+    // the one place that owns the pad's keys.
+    bind(KeyEvent.KEYCODE_BUTTON_THUMBL, Binding.KEY_E)
+
     bind(axis(MotionEvent.AXIS_Y, -1), Binding.KEY_W)
     bind(axis(MotionEvent.AXIS_Y, 1), Binding.KEY_S)
     bind(axis(MotionEvent.AXIS_X, -1), Binding.KEY_A)
@@ -2000,11 +2017,18 @@ internal fun ensureLocalControllerProfile(context: Context): Int {
 }
 
 /**
- * Installs the controller add-on into the client's `Interface/AddOns`. A 3.3.5a client accepts any keys
- * it is sent, but it has no idea what a controller is, so the console behaviour - the button rings, the
- * action bar, targeting, cursor mode - has to live in an add-on. That add-on is ConsolePortLK, shipped
- * exactly as its release publishes it: its binding templates are its own defaults, and the pad is
- * calibrated once with `/cp`, which is what ConsolePort's setup is for.
+ * Installs the add-ons into the client's `Interface/AddOns`. A 3.3.5a client accepts any keys it is
+ * sent, but it has no idea what a controller is, so the console behaviour - the button rings, the action
+ * bar, targeting, cursor mode - has to live in an add-on. That add-on is ConsolePortLK, shipped exactly
+ * as its release publishes it: its binding templates are its own defaults, and the pad is calibrated
+ * once with `/cp`, which is what ConsolePort's setup is for.
+ *
+ * Beside it goes EInteract, the client half of the realm's mod-e-interact. It binds no key of its own
+ * choosing: it declares a client binding (`CLICK EInteractButton:LeftButton`) and appends a row for it
+ * to ConsolePort's `/cp` list, so the pad button that fires the interact key is the player's choice in
+ * ConsolePort's own menu, not a key this launcher injects. ConsolePort owns L3 and R3 - its default
+ * controller set makes them the mouse buttons - and that is the whole reason the interact key is not
+ * hard-wired to the left stick click any more.
  *
  * Idempotent and self-healing: the marker records the version and keeps a launch from re-extracting the
  * textures, a changed version is installed over the old copy, add-ons the player added are left alone,
@@ -2020,6 +2044,11 @@ internal fun installLocalAddons(context: Context, clientRoot: File, onStatus: (S
     addOns.mkdirs()
     check(FileUtils.extractZipFromAssets(context, "bundled_components/$LOCAL_ADDON_ARCHIVE", addOns)) {
         "Could not install $LOCAL_ADDON_ARCHIVE into ${addOns.path}."
+    }
+    // The interact add-on is this project's own file, not a pinned release, so it ships as assets.
+    FileUtils.copy(context, LOCAL_INTERACT_ADDON, File(addOns, LOCAL_INTERACT_ADDON_FOLDER))
+    check(File(addOns, "$LOCAL_INTERACT_ADDON_FOLDER/$LOCAL_INTERACT_ADDON_FOLDER.toc").isFile) {
+        "Could not install $LOCAL_INTERACT_ADDON_FOLDER into ${addOns.path}."
     }
     RETIRED_ADDONS.forEach { name ->
         File(addOns, name).deleteRecursively()
@@ -2068,20 +2097,6 @@ private fun migrateShoulderKeys(profile: ControlsProfile) {
         entry.setBinding(binding)
         pad.addControllerBinding(entry)
     }
-    profile.save()
-}
-
-/**
- * Frees the left stick click on a profile this launcher installed while that button sent the realm's
- * interact key: the add-on that key belonged to is gone, so the binding would only strafe again. A
- * button the player has rebound is left exactly as it is.
- */
-private fun migrateRetiredStickClick(profile: ControlsProfile) {
-    val pad = profile.loadControllers().firstOrNull { it.id == "*" } ?: return
-    val stale = pad.getControllerBindings().firstOrNull {
-        it.getKeyCodeForAxis() == KeyEvent.KEYCODE_BUTTON_THUMBL && it.getBinding() == Binding.KEY_E
-    } ?: return
-    pad.removeControllerBinding(stale)
     profile.save()
 }
 
