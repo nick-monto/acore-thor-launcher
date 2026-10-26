@@ -70,6 +70,12 @@ of a Blizzard realm. Six things change for that flavor:
   to it there — ConsolePort's own left click is one of the choices, and the row sits beside it.
   `/ei key <key>` moves it to a plain key, `/ei` prints its state.
 
+  Beside it goes **Survivor**, the client half of the server's `mod-survivor`: dying in survivor mode
+  lifts your gear into a container where you fell, and this add-on keeps that spot — a pin on the
+  world map and an arrow with the distance in yards on the minimap — until the container is emptied
+  or `/surv clear` drops it. No client opcode draws a map marker, so the realm whispers the
+  coordinates over the addon channel and this add-on is what makes the run back findable.
+
   Shift and control sit on the triggers, where ConsolePort expects its two modifiers, so L2+R1 is
   ConsolePort's "shift + right shoulder", and the shoulders themselves keep ConsolePort's default
   actions (action buttons 4 and 5, shift for target nearest enemy). The right stick drives the pointer

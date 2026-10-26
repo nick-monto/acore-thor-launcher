@@ -109,7 +109,7 @@ private const val CONTAINER_EXTRA_PROFILE_ID = "profileId"
 
 /** The controller add-on the launcher installs for the local realm, and the version it installs. */
 private const val LOCAL_ADDON_ARCHIVE = "ConsolePortLK-1.5.0-rc2.zip"
-private const val LOCAL_ADDON_VERSION = "1.5.0-rc2+ei1"
+private const val LOCAL_ADDON_VERSION = "1.5.0-rc2+ei1+sv1"
 
 /**
  * The interact add-on: the client half of the realm's mod-e-interact. Shipped as assets rather than an
@@ -118,6 +118,15 @@ private const val LOCAL_ADDON_VERSION = "1.5.0-rc2+ei1"
  */
 private const val LOCAL_INTERACT_ADDON = "einteract"
 private const val LOCAL_INTERACT_ADDON_FOLDER = "EInteract"
+
+/**
+ * The survivor add-on: the client half of the realm's mod-survivor. The realm cannot draw a map marker
+ * itself, so it whispers the death site over the addon channel and this keeps it in SavedVariables,
+ * puts a pin on the world map and points the minimap at it. Shipped as assets for the same reason as
+ * the interact add-on - it is this project's own file, not a pinned release.
+ */
+private const val LOCAL_SURVIVOR_ADDON = "survivor"
+private const val LOCAL_SURVIVOR_ADDON_FOLDER = "Survivor"
 
 /** Add-ons this launcher used to install and no longer ships, cleaned out on the next launch. */
 private val RETIRED_ADDONS = listOf("ThorPad")
@@ -2030,6 +2039,10 @@ internal fun ensureLocalControllerProfile(context: Context): Int {
  * controller set makes them the mouse buttons - and that is the whole reason the interact key is not
  * hard-wired to the left stick click any more.
  *
+ * Beside both goes Survivor, the client half of the realm's mod-survivor. The realm cannot draw a map
+ * marker of its own, so it whispers the death site over the addon channel and this add-on is what
+ * keeps it, pins it on the world map and points the minimap at it.
+ *
  * Idempotent and self-healing: the marker records the version and keeps a launch from re-extracting the
  * textures, a changed version is installed over the old copy, add-ons the player added are left alone,
  * and the add-ons this launcher used to ship are deleted rather than left behind with no server module
@@ -2049,6 +2062,11 @@ internal fun installLocalAddons(context: Context, clientRoot: File, onStatus: (S
     FileUtils.copy(context, LOCAL_INTERACT_ADDON, File(addOns, LOCAL_INTERACT_ADDON_FOLDER))
     check(File(addOns, "$LOCAL_INTERACT_ADDON_FOLDER/$LOCAL_INTERACT_ADDON_FOLDER.toc").isFile) {
         "Could not install $LOCAL_INTERACT_ADDON_FOLDER into ${addOns.path}."
+    }
+    // Same for the survivor add-on: the realm's map marker is drawn by this file, not by the server.
+    FileUtils.copy(context, LOCAL_SURVIVOR_ADDON, File(addOns, LOCAL_SURVIVOR_ADDON_FOLDER))
+    check(File(addOns, "$LOCAL_SURVIVOR_ADDON_FOLDER/$LOCAL_SURVIVOR_ADDON_FOLDER.toc").isFile) {
+        "Could not install $LOCAL_SURVIVOR_ADDON_FOLDER into ${addOns.path}."
     }
     RETIRED_ADDONS.forEach { name ->
         File(addOns, name).deleteRecursively()
