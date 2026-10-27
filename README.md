@@ -25,7 +25,7 @@ This uses Blizzard's own **Windows ARM64** WoW clients, so the game itself runs 
 
 ### Highlights of this fork
 
-- **Five clients in one app:** Forever (beta), Retail, Classic Era, TBC Anniversary and MoP Classic, each with its own game folder, in-app updates and Play button.
+- **Five clients in one app:** Forever, Retail, Classic Era, TBC Anniversary and MoP Classic, each with its own game folder, in-app updates and Play button.
 - **Server status for the local flavor:** the AzerothCore panel reports whether the realm's two ports are actually listening. Starting the realm stays in Termux: the launcher deliberately holds no channel into it.
 - **Per-game switches on the main screen:** the Thor button pad, forcing WoW's gamepad UI, and R3 mouse/camera toggling can each be set separately for every client. The local realm starts with R3 toggling **off**, because its client runs ConsolePort, which already drives the right stick and R3 itself.
 - **Thor second-screen button pad:** a touch pad on the bottom screen with a trackpad, keyboard, hotbar-style buttons, three switchable pages of common shortcuts (Interface, Target and Utility), modifier keys, optional Extra Buttons, a scroll area, a Gboard-style keyboard, and a full settings page. Every button can be remapped (including to a key with Shift, Ctrl or Alt), renamed, recolored, reordered and hidden. See [The Thor button pad](#the-thor-button-pad).
@@ -34,7 +34,7 @@ This uses Blizzard's own **Windows ARM64** WoW clients, so the game itself runs 
 - **World of Warcraft look:** a stone-and-gold launcher and in-game quick menu, with the chosen client named on the Play button and boot screen.
 - **Its own app:** package `app.acorethor.launcher`, so it installs next to jaredgei's original WoW Forever app, GameNative and Winlator.
 
-> Unofficial community project. Not affiliated with or endorsed by Blizzard Entertainment. You need your own Battle.net account with access to the client you want to play (the Forever beta needs beta access). This repo and its releases contain **no** Blizzard game files.
+> Unofficial community project. Not affiliated with or endorsed by Blizzard Entertainment. You need your own Battle.net account with access to the client you want to play. This repo and its releases contain **no** Blizzard game files.
 
 ---
 
@@ -175,7 +175,7 @@ Pick your game at the top of the screen (**Classic** opens Classic Era, TBC Anni
 - **Controller:** built-in handheld controllers work in-game. WoW's own gamepad mode handles the mapping.
 - **In-game menu:** press Back (the button or the back swipe gesture) to open the sidebar. It has **Keyboard**, on-screen controls, performance overlay and **Exit**.
 - **Keyboard:** the sidebar's **Keyboard** opens the Android keyboard. On dual-screen devices like the Thor it appears on the bottom screen. Symbols like `@` work, and so does pasting. The button pad also has its own on-screen keyboard laid out like Gboard (number row, QWERTY, a `?123` symbols page, `/` on the main page for chat commands).
-- **Battle.net Auto-Login:** configure credentials directly on the launcher setup screen (**Configure Login** / **Update Login**). Credentials are saved encrypted on-device via Android Keystore. On boot, the launcher generates `_classic_beta_/login.txt`, which the WoW client automatically reads on startup to sign in natively without macro simulation or synthetic clicks. Use **Forget Saved Login** on the launcher setup screen to clear credentials and remove the login file.
+- **Battle.net Auto-Login:** configure credentials directly on the launcher setup screen (**Configure Login** / **Update Login**). Credentials are saved encrypted on-device via Android Keystore. On boot, the launcher generates `_forever_/login.txt`, which the WoW client automatically reads on startup to sign in natively without macro simulation or synthetic clicks. Use **Forget Saved Login** on the launcher setup screen to clear credentials and remove the login file.
   - Authenticator codes still have to be entered by hand.
 
 ---
@@ -228,11 +228,11 @@ The app itself updates from this repo's releases: when a newer release with an A
 
 | Symptom | Fix |
 | :--- | :--- |
-| *CAS system was unable to initialize: no active install info entries* | `.build.info` or `_classic_beta_/.flavor.info` is missing on the device. |
+| *CAS system was unable to initialize: no active install info entries* | `.build.info` or `_forever_/.flavor.info` is missing on the device. |
 | *No realms available* / no servers listed | The device client is out of date. Tap **Update** on the launcher setup screen, or restart the app with Wi-Fi enabled. |
 | Retail, Classic Era, TBC Anniversary or MoP Classic won't start | Support for these is newer and less tested than Forever. Check the client's `Errors/` folder (`_retail_`, `_classic_era_`, `_anniversary_` or `_classic_`) and open an issue with what you find. |
 | Keyboard doesn't appear | Force-stop Gboard (Settings → Apps → Gboard → Force stop) and open **Keyboard** again. It can get stuck on the second screen. |
-| Returns to the launcher after "Launching Game…" | Check the files under `_classic_beta_/Errors/` on the device. |
+| Returns to the launcher after "Launching Game…" | Check the files under `_forever_/Errors/` on the device. |
 | Handheld frontend (e.g. Cocoon) shows the wrong icon | The frontend cached an old icon. Set it with the frontend's "Edit App Artwork", or reinstall the app. |
 
 ---
@@ -315,7 +315,7 @@ GameNative is a general game library with Steam, GOG, Epic, Amazon, EA and Rocks
 - **Direct launch & instant boot:** the app opens to a WoW splash screen (`ui/screen/wow/WoWForeverScreen.kt`) and automatically boots straight into the game once configured. Holding **Start + Select + L2 + R2** or pressing Back on the loading screen cancels boot to return to the setup screen.
 - **Pre-configured container:** bionic, Proton 11 ARM64EC, Turnip through the Vulkan wrapper, DXVK 2.4.1 aarch64, WINEESYNC off, all 8 cores, 1920x1080, and `G:` mapped to `/storage/emulated/0/WoW Forever`.
 - **Native ARM64 launch:** GameNative wraps every Windows program in `winhandler.exe`, an x86-64 helper that needs x86 emulation. ARM64 executables now launch directly, so the game never goes through FEX, and the working directory is set from the mapped drive.
-- **Game file setup:** the launcher writes `_classic_beta_/.flavor.info` and a basic `WTF/Config.wtf` if they're missing, forces `gxApi "D3D11"` (so a copied Mac config that says Metal can't break it), and refuses to start without `.build.info`.
+- **Game file setup:** the launcher writes `_forever_/.flavor.info` and a basic `WTF/Config.wtf` if they're missing, forces `gxApi "D3D11"` (so a copied Mac config that says Metal can't break it), and refuses to start without `.build.info`.
 - **Package-name fixes:** several paths were hard-coded to `app.gamenative`: the bionic library path rewrite (`WINEMU_HOST_PKG` / `HOST_PKG`), the gamepad shared-memory files, the DXVK state cache and the default drives. The controller path was the reason controllers didn't work.
 - **Small robustness fixes:** non-numeric container IDs no longer crash the ID parser, and the bionic redirect library is copied in if it's missing.
 - **Keyboard fixes:** GameNative's on-screen keyboard dropped shifted symbols (`@` came through as `2`), because it sent key codes without the character or the Shift key. The fix is in `Keyboard.java` and `IMEInputReceiver.kt`. The keyboard now always goes through the IME receiver, so it appears on the Thor's bottom screen.
