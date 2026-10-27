@@ -2006,9 +2006,10 @@ internal fun ensureLocalControllerProfile(context: Context): Int {
     for ((keyCode, binding) in THOR_SHOULDER_KEYS) bind(keyCode, binding)
 
     // The left stick click sends the interact key. EInteract binds that key on its first run, so the
-    // button works out of the box; ConsolePort's /cp menu lists the same action, and a player who
-    // assigns it somewhere else - or gives this button to ConsolePort's left click - is choosing in
-    // the one place that owns the pad's keys.
+    // button works out of the box - and on this pad the key is the whole mechanism: a button bound
+    // here is consumed and sent as its key, so it never reaches the game as a controller button and a
+    // ConsolePort /cp row assigned to it cannot fire. /ei key <key> moves the action, and this profile
+    // is the player's after the first launch if they would rather move the button.
     bind(KeyEvent.KEYCODE_BUTTON_THUMBL, Binding.KEY_E)
 
     bind(axis(MotionEvent.AXIS_Y, -1), Binding.KEY_W)
