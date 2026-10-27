@@ -51,17 +51,8 @@ class LocalAddonsInstallTest {
             "EInteract's code was not installed",
             root.resolve("Interface/AddOns/EInteract/EInteract.lua").isFile,
         )
-        // The survivor add-on rides with it: its own folder, its own saved variables.
-        assertTrue(
-            "Survivor was not installed",
-            root.resolve("Interface/AddOns/Survivor/Survivor.toc").isFile,
-        )
-        assertTrue(
-            "Survivor's code was not installed",
-            root.resolve("Interface/AddOns/Survivor/Survivor.lua").isFile,
-        )
-        // One version: the pinned, unpatched archive, plus the marker of the add-ons added above.
-        assertEquals("1.5.0-rc2+ei1+sv1", root.resolve(".consoleport-version").readText().trim())
+        // One version: the pinned, unpatched archive.
+        assertEquals("1.5.0-rc2+ei1", root.resolve(".consoleport-version").readText().trim())
     }
 
     @Test
@@ -97,7 +88,7 @@ class LocalAddonsInstallTest {
             "EInteract's saved variables were deleted",
             root.resolve("WTF/Account/PLAYER/SavedVariables/EInteract.lua").isFile,
         )
-        assertEquals("1.5.0-rc2+ei1+sv1", root.resolve(".consoleport-version").readText().trim())
+        assertEquals("1.5.0-rc2+ei1", root.resolve(".consoleport-version").readText().trim())
     }
 
     @Test

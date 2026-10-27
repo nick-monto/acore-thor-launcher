@@ -29,7 +29,7 @@ This uses Blizzard's own **Windows ARM64** WoW clients, so the game itself runs 
 - **Server status for the local flavor:** the AzerothCore panel reports whether the realm's two ports are actually listening. Starting the realm stays in Termux: the launcher deliberately holds no channel into it.
 - **Per-game switches on the main screen:** the Thor button pad, forcing WoW's gamepad UI, and R3 mouse/camera toggling can each be set separately for every client. The local realm starts with R3 toggling **off**, because its client runs ConsolePort, which already drives the right stick and R3 itself.
 - **Thor second-screen button pad:** a touch pad on the bottom screen with a trackpad, keyboard, hotbar-style buttons, three switchable pages of common shortcuts (Interface, Target and Utility), modifier keys, optional Extra Buttons, a scroll area, a Gboard-style keyboard, and a full settings page. Every button can be remapped (including to a key with Shift, Ctrl or Alt), renamed, recolored, reordered and hidden. See [The Thor button pad](#the-thor-button-pad).
-- **Controller mouse mode:** the right stick becomes a cursor on R3, with A/B as clicks, Y/X as scroll up/down and an adjustable speed ramp. It can be switched off per game on the main screen and in the pad settings, and then R3 sends the right mouse button instead.
+- **Controller mouse mode:** the right stick becomes a cursor on R3, with A/B as clicks, Y/X as scroll up/down and an adjustable speed ramp. It can be switched off per game on the main screen and in the pad settings, and then R3 stays a normal button press.
 - **App updates you control:** the app updates from this repo's releases, with an opt-in for beta builds and an option to skip automatic app updates.
 - **World of Warcraft look:** a stone-and-gold launcher and in-game quick menu, with the chosen client named on the Play button and boot screen.
 - **Its own app:** package `app.acorethor.launcher`, so it installs next to jaredgei's original WoW Forever app, GameNative and Winlator.
@@ -60,31 +60,15 @@ of a Blizzard realm. Six things change for that flavor:
   shoulders on F7/F8, the triggers on shift/control, the left stick on WASD, and the right stick on
   relative pointer motion, which turns the camera while ConsolePort holds mouse look. The add-on's
   bindings are its own defaults: `/cp` maps the pad once, which is how ConsolePort learns which button
-  is which, and its default action per button is what every character then gets. The two stick clicks
-  are the launcher's, not ConsolePort's: the left one sends `E` for the realm's interact key, the right
-  one sends the right mouse button.
+  is which, and its default action per button is what every character then gets. The one exception is
+  the left stick click, which sends `E` for the realm's interact key.
 
-  ConsolePort cannot take them, by design. Its own L3 and R3 are aliases for the mouse buttons
-  (`Config/Binds.lua`: `mouseBindings = { ["CP_T_L3"] = "BUTTON1", ["CP_T_R3"] = "BUTTON2" }`), its
-  calibration skips every `CP_T_.3` button so they can never become real buttons (`Config/Splash.lua`),
-  and a `/cp` action assigned to either row becomes an override binding on the mouse button itself.
-  On this device the mouse is the launcher's trackpad, so that is exactly what it hijacks: the
-  trackpad's **Left click** and **Right click** start running the assigned action, and the physical
-  stick clicks still do nothing. Leave both rows empty — an empty row writes no override, which is
-  what keeps the trackpad a mouse.
-
-  `E` is [EInteract](https://github.com/Rainblower/mod-e-interact)'s add-on, the client half of
+  That key is [EInteract](https://github.com/Rainblower/mod-e-interact)'s add-on, the client half of
   the server's `mod-e-interact`: one press loots the nearest corpse, skins or gathers it, opens a
   chest or node, or talks to the nearest NPC. It declares a client binding rather than an override on
-  a literal key, and appends a named row to ConsolePort's `/cp` list, so a calibrated pad button can
-  be assigned to it there — but not the stick clicks, which are ConsolePort's names for the mouse
-  buttons (see above); `/ei key <key>` moves it to a plain key, `/ei` prints its state.
-
-  Beside it goes **Survivor**, the client half of the server's `mod-survivor`: dying in survivor mode
-  lifts your gear into a container where you fell, and this add-on keeps that spot — a pin on the
-  world map and an arrow with the distance in yards on the minimap — until the container is emptied
-  or `/surv clear` drops it. No client opcode draws a map marker, so the realm whispers the
-  coordinates over the addon channel and this add-on is what makes the run back findable.
+  a literal key, and appends a named row to ConsolePort's `/cp` list, so a pad button can be assigned
+  to it there — ConsolePort's own left click is one of the choices, and the row sits beside it.
+  `/ei key <key>` moves it to a plain key, `/ei` prints its state.
 
   Shift and control sit on the triggers, where ConsolePort expects its two modifiers, so L2+R1 is
   ConsolePort's "shift + right shoulder", and the shoulders themselves keep ConsolePort's default
@@ -93,11 +77,11 @@ of a Blizzard realm. Six things change for that flavor:
   with — so R3 changes what the face buttons do rather than whether the stick works: in cursor mode
   A/B click and Y/X scroll the interface, outside it they send ConsolePort's keys. Stick speed is
   adjustable in both: the profile's cursor speed for the plain stick, and the R3 section of the pad
-  settings for cursor mode. With the switch off, R3 sends the right mouse button instead.
+  settings for cursor mode.
 
   ConsolePort has its own cursor and camera handling on that same stick, so the launcher's R3 cursor
-  mode starts **off** for the local realm: R3 then sends the right mouse button and the stick stays
-  the camera. Turn it back on with the **R3 toggles mouse / camera** switch on the main
+  mode starts **off** for the local realm: R3 then reaches the game as a normal button press and the
+  stick stays the camera. Turn it back on with the **R3 toggles mouse / camera** switch on the main
   screen, or the identically named switch at the top of the pad's settings page, which takes effect
   without leaving the game. Two cursor modes on one stick is what makes R3 feel broken here.
 
@@ -186,7 +170,7 @@ Pick your game at the top of the screen (**Classic** opens Classic Era, TBC Anni
 ### Controls and signing in
 
 - **Cursor mode (R3):** click the right stick to turn it into a mouse cursor. **A** and **B** click (left/right, or swapped, or off in the pad settings). **Y** and **X** scroll up and down, with a scroll speed setting and an invert option. Speed, ramp and deadzone are adjustable. Click R3 again to go back to normal camera control.
-  - The **R3 toggles mouse / camera** switch turns this off per game. It is on the main screen, and again at the top of the pad's **Right-stick cursor (R3)** section, where it applies immediately during play with no trip back to the launcher. With it off, R3 sends the right mouse button and the cursor tuning rows are hidden. Profiles can't change this switch.
+  - The **R3 toggles mouse / camera** switch turns this off per game. It is on the main screen, and again at the top of the pad's **Right-stick cursor (R3)** section, where it applies immediately during play with no trip back to the launcher. With it off, R3 is a regular button press and the cursor tuning rows are hidden. Profiles can't change this switch.
   - It is off to begin with for the local realm, whose client runs ConsolePort: ConsolePort drives the right stick and R3 itself, and the two cursor modes fight over the same stick.
 - **Controller:** built-in handheld controllers work in-game. WoW's own gamepad mode handles the mapping.
 - **In-game menu:** press Back (the button or the back swipe gesture) to open the sidebar. It has **Keyboard**, on-screen controls, performance overlay and **Exit**.

@@ -109,7 +109,7 @@ private const val CONTAINER_EXTRA_PROFILE_ID = "profileId"
 
 /** The controller add-on the launcher installs for the local realm, and the version it installs. */
 private const val LOCAL_ADDON_ARCHIVE = "ConsolePortLK-1.5.0-rc2.zip"
-private const val LOCAL_ADDON_VERSION = "1.5.0-rc2+ei1+sv1"
+private const val LOCAL_ADDON_VERSION = "1.5.0-rc2+ei1"
 
 /**
  * The interact add-on: the client half of the realm's mod-e-interact. Shipped as assets rather than an
@@ -118,15 +118,6 @@ private const val LOCAL_ADDON_VERSION = "1.5.0-rc2+ei1+sv1"
  */
 private const val LOCAL_INTERACT_ADDON = "einteract"
 private const val LOCAL_INTERACT_ADDON_FOLDER = "EInteract"
-
-/**
- * The survivor add-on: the client half of the realm's mod-survivor. The realm cannot draw a map marker
- * itself, so it whispers the death site over the addon channel and this keeps it in SavedVariables,
- * puts a pin on the world map and points the minimap at it. Shipped as assets for the same reason as
- * the interact add-on - it is this project's own file, not a pinned release.
- */
-private const val LOCAL_SURVIVOR_ADDON = "survivor"
-private const val LOCAL_SURVIVOR_ADDON_FOLDER = "Survivor"
 
 /** Add-ons this launcher used to install and no longer ships, cleaned out on the next launch. */
 private val RETIRED_ADDONS = listOf("ThorPad")
@@ -1970,7 +1961,6 @@ internal fun ensureLocalControllerProfile(context: Context): Int {
     val manager = InputControlsManager(context)
     manager.profiles.firstOrNull { it.name == LOCAL_CONTROLLER_PROFILE }?.let { installed ->
         migrateShoulderKeys(installed)
-        migrateRightStickClick(installed)
         return installed.id
     }
 
@@ -2007,17 +1997,10 @@ internal fun ensureLocalControllerProfile(context: Context): Int {
     for ((keyCode, binding) in THOR_SHOULDER_KEYS) bind(keyCode, binding)
 
     // The left stick click sends the interact key. EInteract binds that key on its first run, so the
-    // button works out of the box - and on this pad the key is the whole mechanism: a button bound
-    // here is consumed and sent as its key, so it never reaches the game as a controller button and a
-    // ConsolePort /cp row assigned to it cannot fire. /ei key <key> moves the action, and this profile
-    // is the player's after the first launch if they would rather move the button.
+    // button works out of the box; ConsolePort's /cp menu lists the same action, and a player who
+    // assigns it somewhere else - or gives this button to ConsolePort's left click - is choosing in
+    // the one place that owns the pad's keys.
     bind(KeyEvent.KEYCODE_BUTTON_THUMBL, Binding.KEY_E)
-
-    // The right stick click is the mouse's right button. ConsolePort's own R3 means exactly that -
-    // its L3/R3 are aliases for BUTTON1/BUTTON2 - but it cannot receive the press, so the click is
-    // sent here instead. It only takes effect where this launcher's R3 cursor toggle is off (the
-    // local realm turns it off), because onKeyEvent handles that toggle before any profile binding.
-    bind(KeyEvent.KEYCODE_BUTTON_THUMBR, Binding.MOUSE_RIGHT_BUTTON)
 
     bind(axis(MotionEvent.AXIS_Y, -1), Binding.KEY_W)
     bind(axis(MotionEvent.AXIS_Y, 1), Binding.KEY_S)
@@ -2047,10 +2030,6 @@ internal fun ensureLocalControllerProfile(context: Context): Int {
  * controller set makes them the mouse buttons - and that is the whole reason the interact key is not
  * hard-wired to the left stick click any more.
  *
- * Beside both goes Survivor, the client half of the realm's mod-survivor. The realm cannot draw a map
- * marker of its own, so it whispers the death site over the addon channel and this add-on is what
- * keeps it, pins it on the world map and points the minimap at it.
- *
  * Idempotent and self-healing: the marker records the version and keeps a launch from re-extracting the
  * textures, a changed version is installed over the old copy, add-ons the player added are left alone,
  * and the add-ons this launcher used to ship are deleted rather than left behind with no server module
@@ -2070,11 +2049,6 @@ internal fun installLocalAddons(context: Context, clientRoot: File, onStatus: (S
     FileUtils.copy(context, LOCAL_INTERACT_ADDON, File(addOns, LOCAL_INTERACT_ADDON_FOLDER))
     check(File(addOns, "$LOCAL_INTERACT_ADDON_FOLDER/$LOCAL_INTERACT_ADDON_FOLDER.toc").isFile) {
         "Could not install $LOCAL_INTERACT_ADDON_FOLDER into ${addOns.path}."
-    }
-    // Same for the survivor add-on: the realm's map marker is drawn by this file, not by the server.
-    FileUtils.copy(context, LOCAL_SURVIVOR_ADDON, File(addOns, LOCAL_SURVIVOR_ADDON_FOLDER))
-    check(File(addOns, "$LOCAL_SURVIVOR_ADDON_FOLDER/$LOCAL_SURVIVOR_ADDON_FOLDER.toc").isFile) {
-        "Could not install $LOCAL_SURVIVOR_ADDON_FOLDER into ${addOns.path}."
     }
     RETIRED_ADDONS.forEach { name ->
         File(addOns, name).deleteRecursively()
@@ -2110,32 +2084,6 @@ private val LEGACY_SHOULDER_KEYS = mapOf(
  * own profile is never rewritten, so this only runs when all four shoulders still hold exactly what
  * was installed. Signs are left alone, so a pad the player has added stays where it is.
  */
-/**
- * Adds the right stick click to a profile installed before it had one, and only while the profile
- * still looks like the shipped layout: the interact key on the left stick click and the face buttons
- * on F9-F12. A profile whose right stick click the player has already given a job keeps it.
- */
-private fun migrateRightStickClick(profile: ControlsProfile) {
-    val pad = profile.loadControllers().firstOrNull { it.id == "*" } ?: return
-    val bindings = pad.getControllerBindings()
-    if (bindings.any { it.getKeyCodeForAxis() == KeyEvent.KEYCODE_BUTTON_THUMBR }) return
-    val held = bindings.associate { it.getKeyCodeForAxis() to it.getBinding() }
-    val shipped = mapOf(
-        KeyEvent.KEYCODE_BUTTON_THUMBL to Binding.KEY_E,
-        KeyEvent.KEYCODE_BUTTON_Y to Binding.KEY_F9,
-        KeyEvent.KEYCODE_BUTTON_B to Binding.KEY_F10,
-        KeyEvent.KEYCODE_BUTTON_A to Binding.KEY_F11,
-        KeyEvent.KEYCODE_BUTTON_X to Binding.KEY_F12,
-    )
-    if (shipped.any { (keyCode, binding) -> held[keyCode] != binding }) return
-
-    val entry = ExternalControllerBinding()
-    entry.setKeyCode(KeyEvent.KEYCODE_BUTTON_THUMBR)
-    entry.setBinding(Binding.MOUSE_RIGHT_BUTTON)
-    pad.addControllerBinding(entry)
-    profile.save()
-}
-
 private fun migrateShoulderKeys(profile: ControlsProfile) {
     val pad = profile.loadControllers().firstOrNull { it.id == "*" } ?: return
     val bindings = pad.getControllerBindings()

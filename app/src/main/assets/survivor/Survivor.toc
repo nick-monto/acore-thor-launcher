@@ -1,6 +1,0 @@
-## Interface: 30300
-## Title: Survivor
-## Version: 1.0.0
-## Notes: Marks the site of your last survivor-mode death on the world map and points the minimap at it until the container there is emptied. Needs the realm's mod-survivor; the server whispers the site to the client.
-## SavedVariables: SurvivorDB
-Survivor.lua

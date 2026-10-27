@@ -7,10 +7,8 @@
 -- The key is a client binding (a click binding on the hidden EInteractButton below), not an
 -- override on a literal key: the client lists it in the Key Bindings frame, the player can rebind
 -- it there or with /ei key, and ConsolePort lists it in /cp so a pad button can be assigned to it.
--- On the Thor the launcher's own controller profile is what a pad button becomes before the game
--- sees it, and it sends this key on the left stick click, so no /cp assignment is needed there: a
--- button the profile binds never arrives as a controller button. See
--- acore-thor-selfhost/docs/INTERACT-KEY-DESIGN.md.
+-- ConsolePort owns the pad - its default controller set makes the stick clicks mouse buttons - so
+-- this add-on never claims a button of its own.
 
 local defaults = { enabled = true, key = "E", bound = false, autoloot = true, dialog = true, roll = true }
 
@@ -21,7 +19,6 @@ local L = {
     BINDING_NAME = "Interact with the nearest thing",
     NONE = "none",
     NOTHING = "Nothing to interact with nearby",
-    NO_MODULE = "EInteract: the server has no mod-e-interact",
     NO_SERVER = "the server has no mod-e-interact: looting, gathering and talking to NPCs are unavailable, quest dialogs and loot rolls still work.",
     SERVER_OK = "server module found",
     IN_COMBAT = "in combat, will apply after combat.",
@@ -45,7 +42,6 @@ if GetLocale() == "ruRU" then
         BINDING_NAME = "Взаимодействовать с ближайшим",
         NONE = "нет",
         NOTHING = "Рядом не с кем взаимодействовать",
-        NO_MODULE = "EInteract: на сервере нет mod-e-interact",
         NO_SERVER = "на сервере нет mod-e-interact: лут, сбор и разговор с NPC недоступны, квестовые диалоги и розыгрыш добычи работают.",
         SERVER_OK = "серверный модуль найден",
         IN_COMBAT = "в бою, применю после выхода из боя.",
@@ -137,10 +133,7 @@ button:SetScript("OnClick", function()
     if EInteractDB.roll and (ConfirmRoll() or RollNeed()) then return end
     if EInteractDB.dialog and AdvanceDialog() then return end
     if server == false then
-        -- A different line from the one below on purpose: "nothing nearby" and "no server module"
-        -- used to read the same on screen, so a module that never answered looked like an empty
-        -- spot. The chat line says the rest, once.
-        UIErrorsFrame:AddMessage(L.NO_MODULE, 1, 0.1, 0.1)
+        UIErrorsFrame:AddMessage(L.NOTHING, 1, 0.1, 0.1)
         if not warned then
             warned = true
             Print(L.NO_SERVER)
