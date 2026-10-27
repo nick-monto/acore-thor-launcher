@@ -1970,6 +1970,7 @@ internal fun ensureLocalControllerProfile(context: Context): Int {
     val manager = InputControlsManager(context)
     manager.profiles.firstOrNull { it.name == LOCAL_CONTROLLER_PROFILE }?.let { installed ->
         migrateShoulderKeys(installed)
+        migrateRightStickClick(installed)
         return installed.id
     }
 
@@ -2011,6 +2012,12 @@ internal fun ensureLocalControllerProfile(context: Context): Int {
     // ConsolePort /cp row assigned to it cannot fire. /ei key <key> moves the action, and this profile
     // is the player's after the first launch if they would rather move the button.
     bind(KeyEvent.KEYCODE_BUTTON_THUMBL, Binding.KEY_E)
+
+    // The right stick click is the mouse's right button. ConsolePort's own R3 means exactly that -
+    // its L3/R3 are aliases for BUTTON1/BUTTON2 - but it cannot receive the press, so the click is
+    // sent here instead. It only takes effect where this launcher's R3 cursor toggle is off (the
+    // local realm turns it off), because onKeyEvent handles that toggle before any profile binding.
+    bind(KeyEvent.KEYCODE_BUTTON_THUMBR, Binding.MOUSE_RIGHT_BUTTON)
 
     bind(axis(MotionEvent.AXIS_Y, -1), Binding.KEY_W)
     bind(axis(MotionEvent.AXIS_Y, 1), Binding.KEY_S)
@@ -2103,6 +2110,32 @@ private val LEGACY_SHOULDER_KEYS = mapOf(
  * own profile is never rewritten, so this only runs when all four shoulders still hold exactly what
  * was installed. Signs are left alone, so a pad the player has added stays where it is.
  */
+/**
+ * Adds the right stick click to a profile installed before it had one, and only while the profile
+ * still looks like the shipped layout: the interact key on the left stick click and the face buttons
+ * on F9-F12. A profile whose right stick click the player has already given a job keeps it.
+ */
+private fun migrateRightStickClick(profile: ControlsProfile) {
+    val pad = profile.loadControllers().firstOrNull { it.id == "*" } ?: return
+    val bindings = pad.getControllerBindings()
+    if (bindings.any { it.getKeyCodeForAxis() == KeyEvent.KEYCODE_BUTTON_THUMBR }) return
+    val held = bindings.associate { it.getKeyCodeForAxis() to it.getBinding() }
+    val shipped = mapOf(
+        KeyEvent.KEYCODE_BUTTON_THUMBL to Binding.KEY_E,
+        KeyEvent.KEYCODE_BUTTON_Y to Binding.KEY_F9,
+        KeyEvent.KEYCODE_BUTTON_B to Binding.KEY_F10,
+        KeyEvent.KEYCODE_BUTTON_A to Binding.KEY_F11,
+        KeyEvent.KEYCODE_BUTTON_X to Binding.KEY_F12,
+    )
+    if (shipped.any { (keyCode, binding) -> held[keyCode] != binding }) return
+
+    val entry = ExternalControllerBinding()
+    entry.setKeyCode(KeyEvent.KEYCODE_BUTTON_THUMBR)
+    entry.setBinding(Binding.MOUSE_RIGHT_BUTTON)
+    pad.addControllerBinding(entry)
+    profile.save()
+}
+
 private fun migrateShoulderKeys(profile: ControlsProfile) {
     val pad = profile.loadControllers().firstOrNull { it.id == "*" } ?: return
     val bindings = pad.getControllerBindings()

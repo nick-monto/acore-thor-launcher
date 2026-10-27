@@ -7,7 +7,6 @@ import androidx.test.core.app.ApplicationProvider
 import app.gamenative.ui.screen.wow.ensureLocalControllerProfile
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -55,11 +54,13 @@ class LocalPadProfileTest {
         assertEquals(Binding.KEY_F5, keys[KeyEvent.KEYCODE_BUTTON_SELECT])
         assertEquals(Binding.KEY_F6, keys[KeyEvent.KEYCODE_BUTTON_START])
         assertEquals(Binding.KEY_KP_MULTIPLY, keys[KeyEvent.KEYCODE_BUTTON_MODE])
-        // The left stick click is the realm's interact key: EInteract binds E, and ConsolePort lists the
-        // same action in /cp for a player who wants it on another button. The right stick click stays
-        // free for ConsolePort's own cursor toggle.
+        // The left stick click is the realm's interact key: EInteract binds E. ConsolePort's own L3
+        // row is not an option - its L3/R3 are aliases for the real mouse buttons, so binding an
+        // action there rebinds the pad's left and right click instead of the stick click.
         assertEquals(Binding.KEY_E, keys[KeyEvent.KEYCODE_BUTTON_THUMBL])
-        assertNull("the right stick click stays free", keys[KeyEvent.KEYCODE_BUTTON_THUMBR])
+        // The right stick click is the right mouse button, which is what ConsolePort's R3 means by
+        // default and cannot deliver itself. It applies where the launcher's R3 cursor toggle is off.
+        assertEquals(Binding.MOUSE_RIGHT_BUTTON, keys[KeyEvent.KEYCODE_BUTTON_THUMBR])
         // ConsolePort's two shoulder buttons are F7/F8 and its two modifiers are shift/control, so the
         // pad's shoulders carry the first pair and its triggers the second: a prompt that says "L1"
         // must be the button on the left hand.
@@ -117,6 +118,34 @@ class LocalPadProfileTest {
 
         assertEquals(id, ensureLocalControllerProfile(context))
         assertEquals(Binding.KEY_F5, bindingsOnDisk(context, id)[KeyEvent.KEYCODE_BUTTON_L1])
+    }
+
+    @Test
+    fun `a profile from before the right stick click had a job gets one, a player's does not`() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val id = ensureLocalControllerProfile(context)
+
+        // What 2.6.1s installed: the interact key on the left stick click, nothing on the right.
+        rewriteBindings(
+            context, id, mapOf(
+                KeyEvent.KEYCODE_BUTTON_THUMBL to Binding.KEY_E,
+                KeyEvent.KEYCODE_BUTTON_Y to Binding.KEY_F9,
+                KeyEvent.KEYCODE_BUTTON_B to Binding.KEY_F10,
+                KeyEvent.KEYCODE_BUTTON_A to Binding.KEY_F11,
+                KeyEvent.KEYCODE_BUTTON_X to Binding.KEY_F12,
+            ),
+        )
+        assertEquals(id, ensureLocalControllerProfile(context))
+        assertEquals(
+            "the shipped layout gains the right click",
+            Binding.MOUSE_RIGHT_BUTTON,
+            bindingsOnDisk(context, id)[KeyEvent.KEYCODE_BUTTON_THUMBR],
+        )
+
+        // A player who gave the button a job of their own keeps it.
+        rewriteBindings(context, id, mapOf(KeyEvent.KEYCODE_BUTTON_THUMBR to Binding.KEY_F5))
+        assertEquals(id, ensureLocalControllerProfile(context))
+        assertEquals(Binding.KEY_F5, bindingsOnDisk(context, id)[KeyEvent.KEYCODE_BUTTON_THUMBR])
     }
 
     @Test
