@@ -109,7 +109,7 @@ private const val CONTAINER_EXTRA_PROFILE_ID = "profileId"
 
 /** The controller add-on the launcher installs for the local realm, and the version it installs. */
 private const val LOCAL_ADDON_ARCHIVE = "ConsolePortLK-1.5.0-rc2.zip"
-private const val LOCAL_ADDON_VERSION = "1.5.0-rc2+ei1"
+private const val LOCAL_ADDON_VERSION = "1.5.0-rc2+ei2"
 
 /**
  * The interact add-on: the client half of the realm's mod-e-interact. Shipped as assets rather than an
@@ -118,6 +118,15 @@ private const val LOCAL_ADDON_VERSION = "1.5.0-rc2+ei1"
  */
 private const val LOCAL_INTERACT_ADDON = "einteract"
 private const val LOCAL_INTERACT_ADDON_FOLDER = "EInteract"
+
+/**
+ * The skateboard add-on: the client half of the realm's mod-skateboard. Shipped the same way as the
+ * interact add-on - as assets - because it is this project's own file. It registers five client click
+ * bindings (board, push, trick 1, trick 2, bail) that both the stock Key Bindings frame and
+ * ConsolePort's /cp menu can assign.
+ */
+private const val LOCAL_SKATEBOARD_ADDON = "skateboard"
+private const val LOCAL_SKATEBOARD_ADDON_FOLDER = "Skateboard"
 
 /** Add-ons this launcher used to install and no longer ships, cleaned out on the next launch. */
 private val RETIRED_ADDONS = listOf("ThorPad")
@@ -2049,6 +2058,11 @@ internal fun installLocalAddons(context: Context, clientRoot: File, onStatus: (S
     FileUtils.copy(context, LOCAL_INTERACT_ADDON, File(addOns, LOCAL_INTERACT_ADDON_FOLDER))
     check(File(addOns, "$LOCAL_INTERACT_ADDON_FOLDER/$LOCAL_INTERACT_ADDON_FOLDER.toc").isFile) {
         "Could not install $LOCAL_INTERACT_ADDON_FOLDER into ${addOns.path}."
+    }
+    // The skateboard add-on is the client half of mod-skateboard, also one of this project's files.
+    FileUtils.copy(context, LOCAL_SKATEBOARD_ADDON, File(addOns, LOCAL_SKATEBOARD_ADDON_FOLDER))
+    check(File(addOns, "$LOCAL_SKATEBOARD_ADDON_FOLDER/$LOCAL_SKATEBOARD_ADDON_FOLDER.toc").isFile) {
+        "Could not install $LOCAL_SKATEBOARD_ADDON_FOLDER into ${addOns.path}."
     }
     RETIRED_ADDONS.forEach { name ->
         File(addOns, name).deleteRecursively()

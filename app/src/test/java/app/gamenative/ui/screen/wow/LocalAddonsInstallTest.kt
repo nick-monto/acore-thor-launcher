@@ -51,8 +51,17 @@ class LocalAddonsInstallTest {
             "EInteract's code was not installed",
             root.resolve("Interface/AddOns/EInteract/EInteract.lua").isFile,
         )
+        // The skateboard add-on is also this project's own, and rides beside the interact one.
+        assertTrue(
+            "Skateboard was not installed",
+            root.resolve("Interface/AddOns/Skateboard/Skateboard.toc").isFile,
+        )
+        assertTrue(
+            "Skateboard's code was not installed",
+            root.resolve("Interface/AddOns/Skateboard/Skateboard.lua").isFile,
+        )
         // One version: the pinned, unpatched archive.
-        assertEquals("1.5.0-rc2+ei1", root.resolve(".consoleport-version").readText().trim())
+        assertEquals("1.5.0-rc2+ei2", root.resolve(".consoleport-version").readText().trim())
     }
 
     @Test
@@ -88,7 +97,7 @@ class LocalAddonsInstallTest {
             "EInteract's saved variables were deleted",
             root.resolve("WTF/Account/PLAYER/SavedVariables/EInteract.lua").isFile,
         )
-        assertEquals("1.5.0-rc2+ei1", root.resolve(".consoleport-version").readText().trim())
+        assertEquals("1.5.0-rc2+ei2", root.resolve(".consoleport-version").readText().trim())
     }
 
     @Test
