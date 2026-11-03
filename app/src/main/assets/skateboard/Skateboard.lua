@@ -3,15 +3,24 @@
 -- The board itself is server-side: the module owns the momentum, the speed cap and the tricks.
 -- This add-on only owns the input and the readout. It declares click bindings on hidden buttons
 -- (no SecureActionButtonTemplate - nothing here is protected), sends one add-on whisper per
--- command to the server module and parses the whisper it gets back from itself. The server
--- rewrites the command channel reply as "AzerothCore\t<op><counter><payload>" with o = ok,
--- f = failed and m = message.
+-- command to the server module and parses the reply it gets back.
+--
+-- The wire format is the core's own add-on command channel, and the tab is not ours to send:
+-- SendAddonMessage(prefix, text, ...) puts exactly one tab between prefix and text, and
+-- ChatHandler::ParseCommands expects "AzerothCore\t" + one opcode byte + the 4-digit counter +
+-- the command (Chat.cpp:993-1017). So the prefix is "AzerothCore" and never "AzerothCore\t"; the
+-- same rule the in-tree mod-e-interact follows with "EINT".
+--
+-- Replies come back as CHAT_MSG_ADDON, not CHAT_MSG_WHISPER: the module answers with
+-- BuildChatPacket(CHAT_MSG_WHISPER, LANG_ADDON, ...) (Chat.cpp:1033), and a LANG_ADDON message is
+-- delivered to the client as an add-on message split at the tab - arg1 is the prefix, arg2 is the
+-- body, arg4 is the sender - which is how EInteract.lua reads its own replies.
 --
 -- Boarding is a click binding, so the stock Key Bindings frame lists every action and ConsolePort
 -- can put any of them on a pad button through its own /cp menu. This add-on never claims a pad
 -- button and never routes anything through the action bar, so it cannot taint ConsolePort.
 
-local PREFIX = "AzerothCore\t"
+local PREFIX = "AzerothCore"
 local RUN_RATE = 7.0 -- the 7.0 yd/s run rate the module caps against
 
 local defaults = { takeover = true, hud = true, showBar = true, bound = false }
@@ -25,7 +34,7 @@ local function OnOff(value)
 end
 
 -- The last status reply. The module's status line is the only place these come from.
-local boarded, tricks, pushOk, deck = false, 0, 1, 0
+local boarded, tricks, pushOk, deck, cap = false, 0, 1, 0, 0
 local inWorld = false
 local nextPoll = 0
 
@@ -150,9 +159,19 @@ bar:SetBackdrop({
 bar:SetBackdropColor(0, 0, 0, 0.6)
 bar:Hide()
 
+-- The bar is the whole board in five buttons: board or leave, push, three tricks. It is on screen
+-- whenever the player has not turned it off, so leaving a board never hides the way back on.
+local boardButton = CreateFrame("Button", "SkateboardBarBoard", bar, "UIPanelButtonTemplate")
+boardButton:SetSize(64, 22)
+boardButton:SetPoint("LEFT", bar, "LEFT", 6, 0)
+boardButton:SetText("Board")
+boardButton:SetScript("OnClick", function()
+    Send(boarded and "board off" or "board on", function(ok) if ok then Send("board status") end end)
+end)
+
 local pushButton = CreateFrame("Button", "SkateboardBarPush", bar, "UIPanelButtonTemplate")
 pushButton:SetSize(64, 22)
-pushButton:SetPoint("LEFT", bar, "LEFT", 6, 0)
+pushButton:SetPoint("LEFT", bar, "LEFT", 6 + 68, 0)
 pushButton:SetText("Push")
 pushButton:SetScript("OnClick", function() Send("board push") end)
 
@@ -160,19 +179,11 @@ local trickButtons = {}
 for i = 1, 3 do
     local b = CreateFrame("Button", "SkateboardBarTrick" .. i, bar, "UIPanelButtonTemplate")
     b:SetSize(64, 22)
-    b:SetPoint("LEFT", bar, "LEFT", 6 + i * 68, 0)
+    b:SetPoint("LEFT", bar, "LEFT", 6 + (i + 1) * 68, 0)
     b:SetText("Trick " .. i)
     b:SetScript("OnClick", function() Send("board trick " .. i) end)
     trickButtons[i] = b
 end
-
-local bailButton = CreateFrame("Button", "SkateboardBarBail", bar, "UIPanelButtonTemplate")
-bailButton:SetSize(64, 22)
-bailButton:SetPoint("LEFT", bar, "LEFT", 6 + 4 * 68, 0)
-bailButton:SetText("Bail")
-bailButton:SetScript("OnClick", function()
-    Send("board off", function(ok) if ok then Send("board status") end end)
-end)
 
 local hud = CreateFrame("Frame", "SkateboardHUD", UIParent)
 hud:SetWidth(240)
@@ -183,32 +194,35 @@ hudText:SetAllPoints(hud)
 hud:Hide()
 
 local function RefreshUI()
+    boardButton:SetText(boarded and "Bail" or "Board")
+    if boarded and pushOk == 1 then pushButton:Enable() else pushButton:Disable() end
     for i, b in ipairs(trickButtons) do
-        if i <= tricks then b:Show() else b:Hide() end
+        if boarded and i <= tricks then b:Show() else b:Hide() end
     end
-    if pushOk == 1 then pushButton:Enable() else pushButton:Disable() end
-    local showBar = boarded and SkateboardDB and SkateboardDB.showBar
+    local showBar = SkateboardDB and SkateboardDB.showBar
     local showHud = boarded and SkateboardDB and SkateboardDB.hud
     if showBar then bar:Show() else bar:Hide() end
     if showHud then hud:Show() else hud:Hide() end
 end
 
--- The readout is the cap the module publishes through GetUnitSpeed, not the client's actual
--- displacement: it stays non-zero while coasting with no key held, which is the momentum the
--- module is carrying, and it drops when friction and terrain bring the deck to a stop.
+-- Two numbers, because neither one alone answers "how fast am I": GetUnitSpeed is what the client
+-- is doing this frame and reads 0 whenever the player is standing still with the deck under them,
+-- while the cap is what the module is holding and is the number its debug line prints. The cap
+-- arrives with the status poll, so it lags a poll behind the movement.
 local function UpdateHUD()
     if not (boarded and SkateboardDB and SkateboardDB.hud) then return end
     local speed = GetUnitSpeed("player") or 0
-    hudText:SetText(string.format("Speed %.1f yd/s (%.0f%% of run)", speed, speed / RUN_RATE * 100))
+    hudText:SetText(string.format("Speed %.1f yd/s (%.0f%% of run), cap %.1f", speed, speed / RUN_RATE * 100, cap))
 end
 
 ApplyStatus = function(line)
-    local _, _, b, t, p, d = string.find(line, "boarded=(%d) tricks=(%d) push=(%d) deck=(%d+)")
+    local _, _, b, t, p, d, sp = string.find(line, "boarded=(%d) tricks=(%d) push=(%d) deck=(%d+) speed=([%d%.]+)")
     if not b then return end
     boarded = (b == "1")
     tricks = tonumber(t) or 0
     pushOk = tonumber(p) or 0
     deck = tonumber(d) or 0
+    cap = tonumber(sp) or 0
     if boarded then
         TakeOver()
     else
@@ -279,13 +293,12 @@ frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 frame:RegisterEvent("PLAYER_LOGOUT")
 frame:RegisterEvent("PLAYER_REGEN_ENABLED")
 frame:RegisterEvent("PLAYER_DEAD")
-frame:RegisterEvent("CHAT_MSG_WHISPER")
-frame:SetScript("OnEvent", function(self, event, arg1, arg2)
-    if event == "CHAT_MSG_WHISPER" then
-        if arg2 ~= UnitName("player") then return end
-        local text = arg1 or ""
-        if string.sub(text, 1, #PREFIX) ~= PREFIX then return end
-        local body = string.sub(text, #PREFIX + 1)
+frame:RegisterEvent("CHAT_MSG_ADDON")
+frame:SetScript("OnEvent", function(self, event, arg1, arg2, arg3, arg4)
+    if event == "CHAT_MSG_ADDON" then
+        -- arg1 is the prefix without the tab, arg2 is everything after it, arg4 is the sender.
+        if arg1 ~= PREFIX or arg4 ~= UnitName("player") then return end
+        local body = arg2 or ""
         local op = string.sub(body, 1, 1)
         local id = string.sub(body, 2, 5)
         local payload = string.sub(body, 6)
