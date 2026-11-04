@@ -16,6 +16,11 @@
 -- delivered to the client as an add-on message split at the tab - arg1 is the prefix, arg2 is the
 -- body, arg4 is the sender - which is how EInteract.lua reads its own replies.
 --
+-- Boarding takes Skateboard.BoardCastMs on the server, and its bar is not a spell cast: the module
+-- pushes one add-on line of its own (opcode 'c', its own opcode, not one of the core's a/o/f/m):
+-- "cbegin=<ms>", "cdone" or "ccancel=<reason>". That is one unsolicited whisper per cast instead of
+-- the client guessing from a five-second status poll, and it is why a stopped cast says why.
+--
 -- Boarding is a click binding, so the stock Key Bindings frame lists every action and ConsolePort
 -- can put any of them on a pad button through its own /cp menu. This add-on never claims a pad
 -- button and never routes anything through the action bar, so it cannot taint ConsolePort.
@@ -222,6 +227,64 @@ local hudText = hud:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 hudText:SetAllPoints(hud)
 hud:Hide()
 
+-- The boarding cast, drawn by this add-on: the server owns the timer and pushes start/stop, so the
+-- bar cannot outlive the cast. Only one visible at a time - boarding twice is refused server-side.
+local castEnd, castMs = nil, 0
+local castBar = CreateFrame("StatusBar", "SkateboardCastBar", UIParent)
+castBar:SetSize(180, 16)
+castBar:SetPoint("CENTER", UIParent, "CENTER", 0, 70)
+castBar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+castBar:SetMinMaxValues(0, 1)
+castBar:SetValue(0)
+castBar:Hide()
+local castLabel = castBar:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+castLabel:SetAllPoints(castBar)
+castLabel:SetText("Boarding...")
+
+local function StopCast()
+    castEnd, castMs = nil, 0
+    castBar:Hide()
+end
+
+local function ShowCast(ms)
+    castMs = ms
+    castEnd = GetTime() + ms / 1000
+    castBar:SetMinMaxValues(0, ms / 1000)
+    castBar:SetValue(ms / 1000)
+    castBar:Show()
+end
+
+local function UpdateCast()
+    if not castEnd then return end
+    local left = castEnd - GetTime()
+    if left <= 0 then
+        StopCast()
+        return
+    end
+    castBar:SetValue(left)
+end
+
+local CAST_REASON = {
+    moved = "you moved",
+    hit = "you were hit",
+    combat = "you entered combat",
+    interrupted = "interrupted",
+    cancelled = "cancelled",
+    disabled = "the realm turned the skateboard off",
+}
+
+local function CastEvent(payload)
+    local verb, arg = string.match(payload, "^(%a+)=?(.*)$")
+    if verb == "begin" then
+        ShowCast(tonumber(arg) or 0)
+    elseif verb == "done" then
+        StopCast()
+    elseif verb == "cancel" then
+        StopCast()
+        Refuse("Boarding stopped: " .. (CAST_REASON[arg] or arg) .. ".")
+    end
+end
+
 local function RefreshUI()
     boardButton:SetText(boarded and "Bail" or "Board")
     if boarded and pushOk == 1 then pushButton:Enable() else pushButton:Disable() end
@@ -329,6 +392,10 @@ frame:SetScript("OnEvent", function(self, event, arg1, arg2, arg3, arg4)
         if arg1 ~= PREFIX or arg4 ~= UnitName("player") then return end
         local body = arg2 or ""
         local op = string.sub(body, 1, 1)
+        if op == "c" then
+            CastEvent(string.sub(body, 2))
+            return
+        end
         local id = string.sub(body, 2, 5)
         local payload = string.sub(body, 6)
         local entry = pending[id]
@@ -356,6 +423,7 @@ frame:SetScript("OnEvent", function(self, event, arg1, arg2, arg3, arg4)
         Send("board status", nil, true)
     elseif event == "PLAYER_LOGOUT" then
         inWorld = false
+        StopCast()
         Restore()
     elseif event == "PLAYER_REGEN_ENABLED" then
         if pendingRestore then
@@ -364,6 +432,7 @@ frame:SetScript("OnEvent", function(self, event, arg1, arg2, arg3, arg4)
             TakeOver()
         end
     elseif event == "PLAYER_DEAD" then
+        StopCast()
         bar:Hide()
         hud:Hide()
     end
@@ -376,6 +445,7 @@ frame:SetScript("OnUpdate", function(self, dt)
     if elapsed < 0.1 then return end
     elapsed = 0
     UpdateHUD()
+    UpdateCast()
     local now = GetTime()
     if inWorld and not quiet and now >= nextPoll then
         nextPoll = now + 5

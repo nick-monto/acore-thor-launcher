@@ -61,7 +61,7 @@ class LocalAddonsInstallTest {
             root.resolve("Interface/AddOns/Skateboard/Skateboard.lua").isFile,
         )
         // One version: the pinned, unpatched archive.
-        assertEquals("1.5.0-rc2+ei3", root.resolve(".consoleport-version").readText().trim())
+        assertEquals("1.5.0-rc2+ei4", root.resolve(".consoleport-version").readText().trim())
     }
 
     @Test
@@ -97,7 +97,7 @@ class LocalAddonsInstallTest {
             "EInteract's saved variables were deleted",
             root.resolve("WTF/Account/PLAYER/SavedVariables/EInteract.lua").isFile,
         )
-        assertEquals("1.5.0-rc2+ei3", root.resolve(".consoleport-version").readText().trim())
+        assertEquals("1.5.0-rc2+ei4", root.resolve(".consoleport-version").readText().trim())
     }
 
     @Test

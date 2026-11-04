@@ -111,8 +111,9 @@ private const val CONTAINER_EXTRA_PROFILE_ID = "profileId"
 private const val LOCAL_ADDON_ARCHIVE = "ConsolePortLK-1.5.0-rc2.zip"
 // Bumped whenever any add-on this launcher ships changes, because the marker below is what tells a
 // launch that the client already has them: a changed shipped file without a changed version never
-// reaches an installed client. The +ei2 -> +ei3 step is this file's own change to Skateboard.lua.
-private const val LOCAL_ADDON_VERSION = "1.5.0-rc2+ei3"
+// reaches an installed client. +ei3 was the refusal-said-once change to Skateboard.lua, +ei4 its
+// boarding cast bar.
+private const val LOCAL_ADDON_VERSION = "1.5.0-rc2+ei4"
 
 /**
  * The interact add-on: the client half of the realm's mod-e-interact. Shipped as assets rather than an
