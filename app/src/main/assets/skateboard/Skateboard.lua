@@ -126,7 +126,8 @@ local BINDINGS = {
 }
 
 -- Which action button becomes which board action while the player is on the board.
-local TAKEOVER = { "SkateboardButtonTrick1", "SkateboardButtonTrick2", "SkateboardButtonPush" }
+-- 1 is push, because that is the key a rider leans on; 2 is the selected trick, 3 the menu.
+local TAKEOVER = { "SkateboardButtonPush", "SkateboardButtonTrick1", "SkateboardButtonTrick2" }
 
 local function ClickBinding(button)
     return "CLICK " .. button .. ":LeftButton"
