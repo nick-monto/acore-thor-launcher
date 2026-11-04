@@ -21,6 +21,11 @@
 -- "cbegin=<ms>", "cdone" or "ccancel=<reason>". That is one unsolicited whisper per cast instead of
 -- the client guessing from a five-second status poll, and it is why a stopped cast says why.
 --
+-- Push is the one action with two shapes: 'board push' is a single kick, and 'board push down' /
+-- 'board push up' are the edges the module pumps between when Skateboard.Push.Mode = 1. The bar
+-- button reports a real mouse release; a keyboard or pad click has no release to watch in 3.3.5,
+-- so it pumps for SkateboardDB.hold ms and the module's Push.MaxHoldMs is the backstop.
+--
 -- Boarding is a click binding, so the stock Key Bindings frame lists every action and ConsolePort
 -- can put any of them on a pad button through its own /cp menu. This add-on never claims a pad
 -- button and never routes anything through the action bar, so it cannot taint ConsolePort.
@@ -28,7 +33,10 @@
 local PREFIX = "AzerothCore"
 local RUN_RATE = 7.0 -- the 7.0 yd/s run rate the module caps against
 
-local defaults = { takeover = true, hud = true, showBar = true, bound = false }
+local defaults = { takeover = true, hud = true, showBar = true, bound = false, trick = "", hold = 1000 }
+
+-- The module's trick list, from 'board tricks': { index, name, emote } in band order.
+local trickList = {}
 
 local function Print(msg)
     DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99Skateboard:|r " .. tostring(msg))
@@ -50,6 +58,7 @@ local pending = {}
 
 local Send
 local ApplyStatus
+local RefreshUI
 
 -- A refusal that repeats is said once. The status line is polled every few seconds, so a realm
 -- with no 'board' command (an artifact built before mod-skateboard) or one with
@@ -111,8 +120,8 @@ end
 local BINDINGS = {
     { button = "SkateboardButtonBoard", label = "Skateboard", key = "B" },
     { button = "SkateboardButtonPush", label = "Skateboard: push", key = "G" },
-    { button = "SkateboardButtonTrick1", label = "Skateboard: trick 1", key = "T" },
-    { button = "SkateboardButtonTrick2", label = "Skateboard: trick 2", key = "Y" },
+    { button = "SkateboardButtonTrick1", label = "Skateboard: selected trick", key = "T" },
+    { button = "SkateboardButtonTrick2", label = "Skateboard: tricks menu", key = "Y" },
     { button = "SkateboardButtonBail", label = "Skateboard: bail", key = "X" },
 }
 
@@ -174,8 +183,26 @@ local function Restore()
     SkateboardDB.saved = nil
 end
 
+-- The push, in two shapes. A bar click has a mouse release, so it is a true hold; a keyboard or pad
+-- click does not, so it pumps for SkateboardDB.hold ms. In press mode (the shipped default) the
+-- module treats a down edge as one kick and an up edge as nothing, so both shapes work there too.
+local pushHeld, pushTimer = false, 0
+
+local function PushDown(fromMouse)
+    if pushHeld then return end
+    pushHeld = true
+    Send("board push down")
+    pushTimer = fromMouse and 0 or ((tonumber(SkateboardDB and SkateboardDB.hold) or 1000) / 1000)
+end
+
+local function PushUp()
+    if not pushHeld then return end
+    pushHeld, pushTimer = false, 0
+    Send("board push up")
+end
+
 local bar = CreateFrame("Frame", "SkateboardBar", UIParent)
-bar:SetWidth(420)
+bar:SetWidth(470)
 bar:SetHeight(32)
 bar:SetPoint("CENTER", UIParent, "CENTER", 0, -180)
 bar:SetMovable(true)
@@ -207,16 +234,115 @@ local pushButton = CreateFrame("Button", "SkateboardBarPush", bar, "UIPanelButto
 pushButton:SetSize(64, 22)
 pushButton:SetPoint("LEFT", bar, "LEFT", 6 + 68, 0)
 pushButton:SetText("Push")
-pushButton:SetScript("OnClick", function() Send("board push") end)
+pushButton:SetScript("OnMouseDown", function() PushDown(true) end)
+pushButton:SetScript("OnMouseUp", function() PushUp() end)
 
+-- One button per entry of the module's list, created on demand: the list is config, so the bar
+-- follows it instead of freezing three slots.
 local trickButtons = {}
-for i = 1, 3 do
-    local b = CreateFrame("Button", "SkateboardBarTrick" .. i, bar, "UIPanelButtonTemplate")
-    b:SetSize(64, 22)
-    b:SetPoint("LEFT", bar, "LEFT", 6 + (i + 1) * 68, 0)
-    b:SetText("Trick " .. i)
-    b:SetScript("OnClick", function() Send("board trick " .. i) end)
-    trickButtons[i] = b
+
+local function SelectedTrick()
+    local wanted = SkateboardDB and SkateboardDB.trick
+    for _, t in ipairs(trickList) do
+        if t.name == wanted then return t end
+    end
+    return trickList[1]
+end
+
+local function PlaySelectedTrick()
+    local t = SelectedTrick()
+    if t then Send("board trick " .. t.name) end
+end
+
+local function RebuildTricks()
+    for _, b in ipairs(trickButtons) do b:Hide() end
+    for i = 1, math.min(#trickList, 8) do
+        local b = trickButtons[i]
+        if not b then
+            b = CreateFrame("Button", "SkateboardBarTrick" .. i, bar, "UIPanelButtonTemplate")
+            b:SetSize(56, 22)
+            b:SetScript("OnClick", function(self) if self.trickName then Send("board trick " .. self.trickName) end end)
+            trickButtons[i] = b
+        end
+        b.trickName = trickList[i].name
+        b:SetText(string.sub(trickList[i].name, 1, 7))
+        b:SetPoint("LEFT", bar, "LEFT", 6 + (i + 1) * 60, 0)
+    end
+end
+
+-- The trick menu: the module's list, one clickable row each. Selecting a row remembers it in
+-- SavedVariables and plays it, so the bound 'selected trick' action is whatever was picked here.
+local menu = CreateFrame("Frame", "SkateboardTricks", UIParent)
+menu:SetSize(180, 96)
+menu:SetPoint("CENTER", UIParent, "CENTER", 240, 0)
+menu:SetBackdrop({
+    bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+    tile = true, tileSize = 16, edgeSize = 16,
+    insets = { left = 4, right = 4, top = 4, bottom = 4 },
+})
+menu:SetBackdropColor(0, 0, 0, 0.7)
+menu:SetFrameStrata("DIALOG")
+menu:Hide()
+
+local menuTitle = menu:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+menuTitle:SetPoint("TOP", menu, "TOP", 0, -8)
+menuTitle:SetText("Tricks")
+
+local menuRows = {}
+
+local function RebuildMenu()
+    for _, row in ipairs(menuRows) do row:Hide() end
+    for i = 1, math.min(#trickList, 8) do
+        local row = menuRows[i]
+        if not row then
+            row = CreateFrame("Button", "SkateboardTrickRow" .. i, menu, "UIPanelButtonTemplate")
+            row:SetSize(160, 20)
+            row:SetPoint("TOPLEFT", menu, "TOPLEFT", 10, -28 - (i - 1) * 22)
+            row:SetScript("OnClick", function(self)
+                if not self.trickName then return end
+                if SkateboardDB then SkateboardDB.trick = self.trickName end
+                Send("board trick " .. self.trickName)
+                menu:Hide()
+            end)
+            menuRows[i] = row
+        end
+        local t = trickList[i]
+        row.trickName = t.name
+        row:SetText(t.name .. " (emote " .. t.emote .. ")")
+        row:Show()
+    end
+    menu:SetHeight(math.max(48, 36 + #trickList * 22))
+end
+
+local function ToggleMenu()
+    if menu:IsShown() then
+        menu:Hide()
+        return
+    end
+    if #trickList == 0 then
+        Print("no trick list yet: the realm has not answered 'board tricks'")
+        return
+    end
+    RebuildMenu()
+    menu:Show()
+end
+
+-- 'board tricks' is what the list comes from: one line per entry, `1 kickflip 399`.
+local function FetchTricks()
+    Send("board tricks", function(ok, lines)
+        if not ok then return end
+        trickList = {}
+        for _, l in ipairs(lines) do
+            local n, name, emote = string.match(l, "^(%d+) (%S+) (%d+)$")
+            if n then
+                tinsert(trickList, { index = tonumber(n), name = name, emote = tonumber(emote) })
+            end
+        end
+        RebuildTricks()
+        if menu:IsShown() then RebuildMenu() end
+        RefreshUI()
+    end)
 end
 
 local hud = CreateFrame("Frame", "SkateboardHUD", UIParent)
@@ -285,11 +411,15 @@ local function CastEvent(payload)
     end
 end
 
-local function RefreshUI()
+RefreshUI = function()
     boardButton:SetText(boarded and "Bail" or "Board")
     if boarded and pushOk == 1 then pushButton:Enable() else pushButton:Disable() end
     for i, b in ipairs(trickButtons) do
-        if boarded and i <= tricks then b:Show() else b:Hide() end
+        if boarded and i <= #trickList and i <= tricks then b:Show() else b:Hide() end
+    end
+    if not boarded then
+        PushUp()
+        menu:Hide()
     end
     local showBar = SkateboardDB and SkateboardDB.showBar
     local showHud = boarded and SkateboardDB and SkateboardDB.hud
@@ -361,9 +491,11 @@ end
 local function CreateBindingButtons()
     local actions = {
         SkateboardButtonBoard = function() Send("board toggle") end,
-        SkateboardButtonPush = function() Send("board push") end,
-        SkateboardButtonTrick1 = function() Send("board trick 1") end,
-        SkateboardButtonTrick2 = function() Send("board trick 2") end,
+        SkateboardButtonPush = function() PushDown(false) end,
+        SkateboardButtonTrick1 = function() PlaySelectedTrick() end,
+        SkateboardButtonTrick2 = function()
+            Send("board tricks", function() ToggleMenu() end)
+        end,
         SkateboardButtonBail = function()
             Send("board off", function(ok) if ok then Send("board status") end end)
         end,
@@ -421,6 +553,7 @@ frame:SetScript("OnEvent", function(self, event, arg1, arg2, arg3, arg4)
         inWorld = true
         nextPoll = GetTime() + 5
         Send("board status", nil, true)
+        FetchTricks()
     elseif event == "PLAYER_LOGOUT" then
         inWorld = false
         StopCast()
@@ -446,6 +579,10 @@ frame:SetScript("OnUpdate", function(self, dt)
     elapsed = 0
     UpdateHUD()
     UpdateCast()
+    if pushHeld and pushTimer > 0 then
+        pushTimer = pushTimer - dt
+        if pushTimer <= 0 then PushUp() end
+    end
     local now = GetTime()
     if inWorld and not quiet and now >= nextPoll then
         nextPoll = now + 5
@@ -468,6 +605,26 @@ SlashCmdList.SKATEBOARD = function(msg)
             Print(string.format("boarded %s, tricks %d, push %s, deck %d",
                 OnOff(boarded), tricks, OnOff(pushOk == 1), deck))
         end)
+    elseif cmd == "tricks" then
+        Send("board tricks", function(ok, lines)
+            if not ok then return end
+            local said = false
+            for _, l in ipairs(lines) do
+                local n, name, emote = string.match(l, "^(%d+) (%S+) (%d+)$")
+                if n then
+                    said = true
+                    Print(string.format("%s%s: %s (emote %s)", SkateboardDB.trick == name and "* " or "", n, name, emote))
+                end
+            end
+            if not said then Print("no trick list: Skateboard.Tricks may be off on the realm") end
+        end)
+    elseif cmd == "menu" then
+        Send("board tricks", function(ok) if ok then ToggleMenu() end end)
+    elseif cmd == "trick" and arg ~= "" then
+        Send("board trick " .. arg)
+    elseif cmd == "hold" and tonumber(arg) then
+        SkateboardDB.hold = math.max(100, math.min(tonumber(arg), 5000))
+        Print(string.format("a keyboard or pad push pumps for %d ms", SkateboardDB.hold))
     elseif cmd == "keys" then
         for _, b in ipairs(BINDINGS) do
             local first, second = GetBindingKey(ClickBinding(b.button))
@@ -490,7 +647,7 @@ SlashCmdList.SKATEBOARD = function(msg)
         RefreshUI()
         Print("bar " .. OnOff(SkateboardDB.showBar))
     else
-        Print("usage: /sb on | off | toggle | status | keys | takeover on|off | hud on|off | bar")
+        Print("usage: /sb on | off | toggle | status | tricks | menu | trick <name> | hold <ms> | keys | takeover on|off | hud on|off | bar")
         Print(string.format("boarded %s, tricks %d, push %s, deck %d",
             OnOff(boarded), tricks, OnOff(pushOk == 1), deck))
     end
