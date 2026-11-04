@@ -46,26 +46,55 @@ local pending = {}
 local Send
 local ApplyStatus
 
+-- A refusal that repeats is said once. The status line is polled every few seconds, so a realm
+-- with no 'board' command (an artifact built before mod-skateboard) or one with
+-- Skateboard.Enable = 0 would otherwise answer every poll with the same sentence, and the player
+-- gets a line of chat every five seconds for nothing. The same goes for a push on a board the
+-- server has already dropped: one line, not one per press.
+local lastRefusal, refused, quiet = nil, 0, false
+
+local function Refuse(text)
+    refused = refused + 1
+    if text ~= lastRefusal then
+        Print(text)
+        lastRefusal = text
+    end
+    -- Three in a row is a server that will keep saying it: stop polling until the player asks
+    -- again (a click or /sb), and let a zone change or a reload start clean.
+    if refused >= 3 then quiet = true end
+end
+
+local function Reset()
+    lastRefusal, refused, quiet = nil, 0, false
+end
+
 local function Finish(entry, ok)
     local text = table.concat(entry.lines, "\n")
+    if ok then
+        -- The server answered: whatever was refusing has stopped, so the poll is worth running.
+        lastRefusal, refused, quiet = nil, 0, false
+    end
     if entry.command == "board status" then
         local line
         for _, l in ipairs(entry.lines) do
             if string.find(l, "boarded=", 1, true) then line = l end
         end
         if line then ApplyStatus(line) end
-        if not ok and text ~= "" then Print(text) end
+        if not ok and text ~= "" then Refuse(text) end
         if entry.handler then entry.handler(ok, entry.lines) end
     else
         if not ok then
-            Print(text ~= "" and text or "the server refused the command.")
+            Refuse(text ~= "" and text or "the server refused the command.")
         elseif entry.handler then
             entry.handler(true, entry.lines)
         end
     end
 end
 
-Send = function(command, handler)
+-- poll: true for the background status read, which is the only caller that answers the same
+-- sentence over and over. Anything the player asked for reopens the poll.
+Send = function(command, handler, poll)
+    if not poll then Reset() end
     counter = counter % 9999 + 1
     local id = string.format("%04d", counter)
     pending[id] = { command = command, lines = {}, handler = handler }
@@ -320,11 +349,11 @@ frame:SetScript("OnEvent", function(self, event, arg1, arg2, arg3, arg4)
         -- A saved table is a takeover that did not get undone - a reload, a logout or a crash.
         Restore()
         RefreshUI()
-        Send("board status")
+        Send("board status", nil, true)
     elseif event == "PLAYER_ENTERING_WORLD" then
         inWorld = true
         nextPoll = GetTime() + 5
-        Send("board status")
+        Send("board status", nil, true)
     elseif event == "PLAYER_LOGOUT" then
         inWorld = false
         Restore()
@@ -348,9 +377,9 @@ frame:SetScript("OnUpdate", function(self, dt)
     elapsed = 0
     UpdateHUD()
     local now = GetTime()
-    if inWorld and now >= nextPoll then
+    if inWorld and not quiet and now >= nextPoll then
         nextPoll = now + 5
-        Send("board status")
+        Send("board status", nil, true)
     end
 end)
 

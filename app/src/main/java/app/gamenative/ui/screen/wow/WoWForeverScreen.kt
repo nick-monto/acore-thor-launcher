@@ -109,7 +109,10 @@ private const val CONTAINER_EXTRA_PROFILE_ID = "profileId"
 
 /** The controller add-on the launcher installs for the local realm, and the version it installs. */
 private const val LOCAL_ADDON_ARCHIVE = "ConsolePortLK-1.5.0-rc2.zip"
-private const val LOCAL_ADDON_VERSION = "1.5.0-rc2+ei2"
+// Bumped whenever any add-on this launcher ships changes, because the marker below is what tells a
+// launch that the client already has them: a changed shipped file without a changed version never
+// reaches an installed client. The +ei2 -> +ei3 step is this file's own change to Skateboard.lua.
+private const val LOCAL_ADDON_VERSION = "1.5.0-rc2+ei3"
 
 /**
  * The interact add-on: the client half of the realm's mod-e-interact. Shipped as assets rather than an
