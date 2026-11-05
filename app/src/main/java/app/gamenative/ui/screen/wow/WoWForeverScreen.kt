@@ -112,8 +112,9 @@ private const val LOCAL_ADDON_ARCHIVE = "ConsolePortLK-1.5.0-rc2.zip"
 // Bumped whenever any add-on this launcher ships changes, because the marker below is what tells a
 // launch that the client already has them: a changed shipped file without a changed version never
 // reaches an installed client. +ei3 was the refusal-said-once change to Skateboard.lua, +ei4 its
-// boarding cast bar.
-private const val LOCAL_ADDON_VERSION = "1.5.0-rc2+ei4"
+// boarding cast bar, and +ei5 the retirement of that add-on (which also runs the stale-folder pass
+// on a client that still has it).
+private const val LOCAL_ADDON_VERSION = "1.5.0-rc2+ei5"
 
 /**
  * The interact add-on: the client half of the realm's mod-e-interact. Shipped as assets rather than an
@@ -124,16 +125,15 @@ private const val LOCAL_INTERACT_ADDON = "einteract"
 private const val LOCAL_INTERACT_ADDON_FOLDER = "EInteract"
 
 /**
- * The skateboard add-on: the client half of the realm's mod-skateboard. Shipped the same way as the
- * interact add-on - as assets - because it is this project's own file. It registers five client click
- * bindings (board, push, trick 1, trick 2, bail) that both the stock Key Bindings frame and
- * ConsolePort's /cp menu can assign.
+ * Add-ons this launcher used to install and no longer ships, cleaned out on the next launch.
+ *
+ * ThorPad's module is gone. Skateboard is the client half of mod-skateboard, which the realm now
+ * ships switched off while the deck's development is paused: an installed add-on would only draw a
+ * bar and five bindings whose every press the server answers "The skateboard is disabled on this
+ * realm.". Its `Skateboard.lua` and `.toc` remain in this repository's history; reinstalling one
+ * means putting the assets back beside EInteract and bumping the version above.
  */
-private const val LOCAL_SKATEBOARD_ADDON = "skateboard"
-private const val LOCAL_SKATEBOARD_ADDON_FOLDER = "Skateboard"
-
-/** Add-ons this launcher used to install and no longer ships, cleaned out on the next launch. */
-private val RETIRED_ADDONS = listOf("ThorPad")
+private val RETIRED_ADDONS = listOf("ThorPad", "Skateboard")
 
 /** Marks the client root as carrying [LOCAL_ADDON_VERSION], so a launch does not re-extract it. */
 private const val LOCAL_ADDON_MARKER = ".consoleport-version"
@@ -2062,11 +2062,6 @@ internal fun installLocalAddons(context: Context, clientRoot: File, onStatus: (S
     FileUtils.copy(context, LOCAL_INTERACT_ADDON, File(addOns, LOCAL_INTERACT_ADDON_FOLDER))
     check(File(addOns, "$LOCAL_INTERACT_ADDON_FOLDER/$LOCAL_INTERACT_ADDON_FOLDER.toc").isFile) {
         "Could not install $LOCAL_INTERACT_ADDON_FOLDER into ${addOns.path}."
-    }
-    // The skateboard add-on is the client half of mod-skateboard, also one of this project's files.
-    FileUtils.copy(context, LOCAL_SKATEBOARD_ADDON, File(addOns, LOCAL_SKATEBOARD_ADDON_FOLDER))
-    check(File(addOns, "$LOCAL_SKATEBOARD_ADDON_FOLDER/$LOCAL_SKATEBOARD_ADDON_FOLDER.toc").isFile) {
-        "Could not install $LOCAL_SKATEBOARD_ADDON_FOLDER into ${addOns.path}."
     }
     RETIRED_ADDONS.forEach { name ->
         File(addOns, name).deleteRecursively()

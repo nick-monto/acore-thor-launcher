@@ -1,7 +1,0 @@
-## Interface: 30300
-## Title: Skateboard
-## Version: 1.1.0
-## Notes: Client half of the realm's mod-skateboard server module: one key boards and leaves the deck, a movable bar sends push (a press, or a hold when the realm runs Skateboard.Push.Mode = 1), the selected trick from a menu built on the module's list, and bail, and the HUD reads the module's published speed cap. Every action is a click binding listed in the stock Key Bindings frame and in ConsolePort's /cp menu.
-## OptionalDeps: ConsolePort
-## SavedVariables: SkateboardDB
-Skateboard.lua

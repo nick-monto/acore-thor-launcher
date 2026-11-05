@@ -51,29 +51,29 @@ class LocalAddonsInstallTest {
             "EInteract's code was not installed",
             root.resolve("Interface/AddOns/EInteract/EInteract.lua").isFile,
         )
-        // The skateboard add-on is also this project's own, and rides beside the interact one.
-        assertTrue(
-            "Skateboard was not installed",
-            root.resolve("Interface/AddOns/Skateboard/Skateboard.toc").isFile,
-        )
-        assertTrue(
-            "Skateboard's code was not installed",
-            root.resolve("Interface/AddOns/Skateboard/Skateboard.lua").isFile,
+        // The skateboard add-on was retired with its paused server module: a fresh client gets no
+        // bar and no bindings for a deck that refuses every press.
+        assertFalse(
+            "Skateboard is retired but was installed",
+            root.resolve("Interface/AddOns/Skateboard").exists(),
         )
         // One version: the pinned, unpatched archive.
-        assertEquals("1.5.0-rc2+ei4", root.resolve(".consoleport-version").readText().trim())
+        assertEquals("1.5.0-rc2+ei5", root.resolve(".consoleport-version").readText().trim())
     }
 
     @Test
-    fun `a client root left by an older launch loses ThorPad and keeps the interact add-on`() {
+    fun `a client root left by an older launch loses the retired add-ons and keeps the interact one`() {
         val root = context.cacheDir.resolve("client-root-stale").apply { mkdirs() }
-        // What an earlier launch left: its own two add-ons, their saved variables and its marker.
+        // What an earlier launch left: every add-on it shipped, their saved variables and its marker.
         root.resolve("Interface/AddOns/ThorPad").mkdirs()
         root.resolve("Interface/AddOns/ThorPad/ThorPad.toc").writeText("## Interface: 30300\n")
+        root.resolve("Interface/AddOns/Skateboard").mkdirs()
+        root.resolve("Interface/AddOns/Skateboard/Skateboard.toc").writeText("## Interface: 30300\n")
         root.resolve("Interface/AddOns/EInteract").mkdirs()
         root.resolve("Interface/AddOns/EInteract/EInteract.toc").writeText("## Interface: 30300\n")
         root.resolve("WTF/Account/PLAYER/SavedVariables").mkdirs()
         root.resolve("WTF/Account/PLAYER/SavedVariables/ThorPad.lua").writeText("ThorPadDB = {}\n")
+        root.resolve("WTF/Account/PLAYER/SavedVariables/Skateboard.lua").writeText("SkateboardDB = {}\n")
         root.resolve("WTF/Account/PLAYER/SavedVariables/EInteract.lua").writeText("EInteractDB = {}\n")
         root.resolve(".consoleport-version").writeText("1.5.0-rc2-thor2 2 1\n")
 
@@ -87,6 +87,14 @@ class LocalAddonsInstallTest {
             "ThorPad's saved variables outlived the add-on",
             root.resolve("WTF/Account/PLAYER/SavedVariables/ThorPad.lua").exists(),
         )
+        assertFalse(
+            "the retired skateboard add-on is still in the client",
+            root.resolve("Interface/AddOns/Skateboard").exists(),
+        )
+        assertFalse(
+            "the retired skateboard add-on's saved variables outlived it",
+            root.resolve("WTF/Account/PLAYER/SavedVariables/Skateboard.lua").exists(),
+        )
         // EInteract is shipped again, so its folder is replaced rather than deleted, and the player's
         // saved variables - the key they chose - survive the upgrade.
         assertTrue(
@@ -97,7 +105,7 @@ class LocalAddonsInstallTest {
             "EInteract's saved variables were deleted",
             root.resolve("WTF/Account/PLAYER/SavedVariables/EInteract.lua").isFile,
         )
-        assertEquals("1.5.0-rc2+ei4", root.resolve(".consoleport-version").readText().trim())
+        assertEquals("1.5.0-rc2+ei5", root.resolve(".consoleport-version").readText().trim())
     }
 
     @Test
