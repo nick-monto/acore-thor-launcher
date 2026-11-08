@@ -112,9 +112,9 @@ private const val LOCAL_ADDON_ARCHIVE = "ConsolePortLK-1.5.0-rc2.zip"
 // Bumped whenever any add-on this launcher ships changes, because the marker below is what tells a
 // launch that the client already has them: a changed shipped file without a changed version never
 // reaches an installed client. +ei3 was the refusal-said-once change to Skateboard.lua, +ei4 its
-// boarding cast bar, and +ei5 the retirement of that add-on (which also runs the stale-folder pass
-// on a client that still has it).
-private const val LOCAL_ADDON_VERSION = "1.5.0-rc2+ei5"
+// boarding cast bar, +ei5 the retirement of that add-on (which also runs the stale-folder pass on a
+// client that still has it), and +ei6 installs Runewords, the client half of mod-runewords.
+private const val LOCAL_ADDON_VERSION = "1.5.0-rc2+ei6"
 
 /**
  * The interact add-on: the client half of the realm's mod-e-interact. Shipped as assets rather than an
@@ -123,6 +123,15 @@ private const val LOCAL_ADDON_VERSION = "1.5.0-rc2+ei5"
  */
 private const val LOCAL_INTERACT_ADDON = "einteract"
 private const val LOCAL_INTERACT_ADDON_FOLDER = "EInteract"
+
+/**
+ * The runewords add-on: the client half of the realm's mod-runewords. Shipped as assets too, and
+ * for a stronger reason than EInteract's - its pattern table is generated from the same declarations
+ * the server's SQL is built from (`scripts/runewords/gen_runewords.py --lua`), so it is this
+ * project's file and not a pinned release.
+ */
+private const val LOCAL_RUNEWORD_ADDON = "runewords"
+private const val LOCAL_RUNEWORD_ADDON_FOLDER = "Runewords"
 
 /**
  * Add-ons this launcher used to install and no longer ships, cleaned out on the next launch.
@@ -2043,6 +2052,11 @@ internal fun ensureLocalControllerProfile(context: Context): Int {
  * controller set makes them the mouse buttons - and that is the whole reason the interact key is not
  * hard-wired to the left stick click any more.
  *
+ * Runewords is the client half of the realm's mod-runewords. Runes sit in the bags and a word is a
+ * connected shape of them, which the client can recognise on its own because its table is generated
+ * from the server's own declarations; the one thing it has to ask for is the 1..100 roll each rune
+ * instance carries, and the module answers over an add-on whisper.
+ *
  * Idempotent and self-healing: the marker records the version and keeps a launch from re-extracting the
  * textures, a changed version is installed over the old copy, add-ons the player added are left alone,
  * and the add-ons this launcher used to ship are deleted rather than left behind with no server module
@@ -2062,6 +2076,10 @@ internal fun installLocalAddons(context: Context, clientRoot: File, onStatus: (S
     FileUtils.copy(context, LOCAL_INTERACT_ADDON, File(addOns, LOCAL_INTERACT_ADDON_FOLDER))
     check(File(addOns, "$LOCAL_INTERACT_ADDON_FOLDER/$LOCAL_INTERACT_ADDON_FOLDER.toc").isFile) {
         "Could not install $LOCAL_INTERACT_ADDON_FOLDER into ${addOns.path}."
+    }
+    FileUtils.copy(context, LOCAL_RUNEWORD_ADDON, File(addOns, LOCAL_RUNEWORD_ADDON_FOLDER))
+    check(File(addOns, "$LOCAL_RUNEWORD_ADDON_FOLDER/$LOCAL_RUNEWORD_ADDON_FOLDER.toc").isFile) {
+        "Could not install $LOCAL_RUNEWORD_ADDON_FOLDER into ${addOns.path}."
     }
     RETIRED_ADDONS.forEach { name ->
         File(addOns, name).deleteRecursively()

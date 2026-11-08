@@ -1,0 +1,8 @@
+## Interface: 30300
+## Title: Runewords
+## Version: 1.0.0
+## Notes: The client half of the realm's mod-runewords. Runes sit in your bags and a word is a connected shape of them, so this add-on highlights the runes, names the word they form and shows the real numbers behind the buff they grant. Needs the mod-runewords server module. |cffffd200/rw|r toggles the panel and lists the commands.
+## Notes-ruRU: Клиентская половина серверного модуля mod-runewords. Руны лежат в сумках, а слово — это связная фигура из них, поэтому аддон подсвечивает руны, называет слово, которое они образуют, и показывает настоящие числа вместо текста занятых заклинаний. Нужен серверный модуль mod-runewords. |cffffd200/rw|r включает и выключает панель и показывает команды.
+## SavedVariables: RunewordsDB
+Runewords_Data.lua
+Runewords.lua
