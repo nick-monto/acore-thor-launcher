@@ -51,6 +51,16 @@ class LocalAddonsInstallTest {
             "EInteract's code was not installed",
             root.resolve("Interface/AddOns/EInteract/EInteract.lua").isFile,
         )
+        // Runewords rides beside EInteract for the same reason, and its generated pattern table must
+        // land too: without it the add-on loads its frame and recognises no word at all.
+        assertTrue(
+            "Runewords was not installed",
+            root.resolve("Interface/AddOns/Runewords/Runewords.toc").isFile,
+        )
+        assertTrue(
+            "Runewords' pattern table was not installed",
+            root.resolve("Interface/AddOns/Runewords/Runewords_Data.lua").isFile,
+        )
         // The skateboard add-on was retired with its paused server module: a fresh client gets no
         // bar and no bindings for a deck that refuses every press.
         assertFalse(
@@ -58,7 +68,7 @@ class LocalAddonsInstallTest {
             root.resolve("Interface/AddOns/Skateboard").exists(),
         )
         // One version: the pinned, unpatched archive.
-        assertEquals("1.5.0-rc2+ei5", root.resolve(".consoleport-version").readText().trim())
+        assertEquals("1.5.0-rc2+ei7", root.resolve(".consoleport-version").readText().trim())
     }
 
     @Test
@@ -105,7 +115,7 @@ class LocalAddonsInstallTest {
             "EInteract's saved variables were deleted",
             root.resolve("WTF/Account/PLAYER/SavedVariables/EInteract.lua").isFile,
         )
-        assertEquals("1.5.0-rc2+ei5", root.resolve(".consoleport-version").readText().trim())
+        assertEquals("1.5.0-rc2+ei7", root.resolve(".consoleport-version").readText().trim())
     }
 
     @Test
