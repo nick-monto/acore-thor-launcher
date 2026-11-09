@@ -113,8 +113,9 @@ private const val LOCAL_ADDON_ARCHIVE = "ConsolePortLK-1.5.0-rc2.zip"
 // launch that the client already has them: a changed shipped file without a changed version never
 // reaches an installed client. +ei3 was the refusal-said-once change to Skateboard.lua, +ei4 its
 // boarding cast bar, +ei5 the retirement of that add-on (which also runs the stale-folder pass on a
-// client that still has it), and +ei6 installs Runewords, the client half of mod-runewords.
-private const val LOCAL_ADDON_VERSION = "1.5.0-rc2+ei6"
+// client that still has it), +ei6 installs Runewords, the client half of mod-runewords, and +ei7
+// drops that add-on's ruRU strings so every client carries the one language set.
+private const val LOCAL_ADDON_VERSION = "1.5.0-rc2+ei7"
 
 /**
  * The interact add-on: the client half of the realm's mod-e-interact. Shipped as assets rather than an

@@ -48,29 +48,6 @@ local L = {
     USAGE = "/rw on | off | panel | highlight | sync | debug",
 }
 
-if GetLocale() == "ruRU" then
-    L = {
-        TITLE = "Руны",
-        PENDING = "броски неизвестны",
-        SERVER_MISSING = "на сервере нет mod-runewords: руны здесь ничего не дают.",
-        SERVER_OK = "серверный модуль найден",
-        RUNE = "руна %d из %d",
-        ROLL = "бросок: %d%%",
-        ROLL_UNKNOWN = "бросок: ?",
-        USES = "входит в: %s",
-        NO_WORD_USES = "эта руна ни в одно слово не входит",
-        ON = "вкл",
-        OFF = "выкл",
-        ENABLED = "включён",
-        DISABLED = "выключен",
-        PANEL = "панель: %s",
-        HIGHLIGHT = "подсветка: %s",
-        DEBUG = "отладка: %s",
-        SYNCING = "запрашиваю броски у сервера",
-        USAGE = "/rw on | off | panel | highlight | sync | debug",
-    }
-end
-
 local function Print(msg)
     DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99Runewords:|r " .. msg)
 end
