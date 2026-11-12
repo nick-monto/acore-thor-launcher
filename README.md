@@ -72,13 +72,14 @@ of a Blizzard realm. Six things change for that flavor:
 
   **Runewords**, the add-on in `app/src/main/assets/runewords`, is the client half of the realm's
   `mod-runewords`. Runes are ordinary items in the bags and a word is a
-  connected shape of them over the four-column grid the bag frames draw, so the add-on outlines every
-  rune, marks the ones that make up the word you are currently holding, names that word on a small
-  panel and shows what it is actually worth. It works that shape out itself — `Runewords_Data.lua` is
-  generated from the same declarations the server's SQL comes from, so the cells it highlights are the
-  cells the module matches — and asks the server for the one thing a client cannot see: the 1..100
-  roll each rune carries, which scales the word and lives in the characters database. `/rw` toggles
-  the panel and lists the commands.
+  straight line of them, across one row or down one column of a bag — and one rune can stand in a
+  word across *and* a word down at the same time, so two words can be crossed on a shared rune and
+  the add-on outlines every rune, marks the ones that make up the words you are holding, names them
+  on a small panel with their shape and shows what they are actually worth. It works the lines out
+  itself — `Runewords_Data.lua` is generated from the same declarations the server's SQL comes from,
+  so the cells it highlights are the cells the module matches — and asks the server for the one thing
+  a client cannot see: the 1..100 roll each rune carries, which scales the word and lives in the
+  characters database. `/rw` toggles the panel and lists the commands.
 
   Shift and control sit on the triggers, where ConsolePort expects its two modifiers, so L2+R1 is
   ConsolePort's "shift + right shoulder", and the shoulders themselves keep ConsolePort's default
