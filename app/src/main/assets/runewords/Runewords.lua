@@ -37,6 +37,10 @@ local L = {
     ROLL_UNKNOWN = "roll: ?",
     USES = "used by: %s",
     NO_WORD_USES = "no word uses this rune",
+    WORD_HELD = "hold these runes in one bag  \194\183  /rw for options",
+    WORD_RULE = "the average of the rolls sets the strength",
+    VALUE = "vendor value: %s  (base %s)",
+    VALUE_UNKNOWN = "vendor value: %s",
     ON = "on",
     OFF = "off",
     ENABLED = "enabled",
@@ -164,19 +168,17 @@ local function Placements(word, cells, size)
     return out
 end
 
--- A word is as strong as its weakest rune, floored by the word's own minimum. Unknown rolls
--- are not guessed at: the word is still named, but the number is withheld.
+-- A word is worth the average of its rune rolls, rounded half up and floored by the word's own
+-- minimum - the same rule the module applies, so the panel cannot disagree with the aura. Unknown
+-- rolls are not guessed at: the word is still named, but the number is withheld.
 local function Strength(word, bag, slots)
-    local known, weakest = true, 100
+    local known, sum = true, 0
     for _, slot in ipairs(slots) do
         local roll = RollAt(bag, slot)
-        if roll then
-            if roll < weakest then weakest = roll end
-        else
-            known = false
-        end
+        if roll then sum = sum + roll else known = false end
     end
-    return math.max(word.minPct, weakest), known
+    local count = #slots
+    return math.max(word.minPct, math.floor((sum + count / 2) / count)), known
 end
 
 -- What the bags currently hold. Mirrors the module's rule exactly: only a word the character
@@ -217,13 +219,13 @@ local function Resolve()
         marked[bestBag .. ":" .. slot] = true
     end
 
-    return { word = best, bag = bestBag, pct = pct, known = known, slots = marked }
+    return { word = best, bag = bestBag, pct = pct, known = known, slots = marked, slotList = slots }
 end
 
 -- What the word is actually worth, as a percentage of the stock spell's own value: the word's
--- scale times the weakest rune's roll, the same arithmetic the module feeds to
+-- scale times the average roll, the same arithmetic the module feeds to
 -- SpellEffectInfo::CalcValue. With scale 100 - every word in the shipped table - it is simply
--- the roll, so 87% means the aura is at 87% of the amount the spell itself carries.
+-- the average, so 87% means the aura is at 87% of the amount the spell itself carries.
 local function Worth(word, pct)
     return math.floor(word.scale * pct / 100 + 0.5)
 end
@@ -233,7 +235,7 @@ end
 -- ---------------------------------------------------------------------------
 
 local panel = CreateFrame("Frame", "RunewordsPanel", UIParent)
-panel:SetSize(200, 46)
+panel:SetSize(228, 86)
 panel:SetPoint("CENTER", 0, -190)
 panel:SetBackdrop({
     bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
@@ -264,8 +266,19 @@ wordLabel:SetPoint("TOPLEFT", 8, -20)
 local valueLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 valueLabel:SetPoint("TOPRIGHT", -8, -22)
 
-local hintLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-hintLabel:SetPoint("BOTTOMLEFT", 8, 6)
+-- The runes the word is drawn with, each with its own roll: the number beside a rune is what
+-- that rune contributes, so a word at 50% with one rune at 100 shows which one is carrying it.
+local hintLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+hintLabel:SetPoint("TOPLEFT", 8, -38)
+
+-- Two lines of help under it, because the colour and the percentage mean nothing on their own:
+-- what to keep doing to hold the word, and how the number was reached.
+local ruleLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+ruleLabel:SetPoint("TOPLEFT", 8, -54)
+
+local holdLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+holdLabel:SetPoint("BOTTOMLEFT", 8, 5)
+holdLabel:SetText(GREY .. L.WORD_HELD .. "|r")
 
 local applied
 
@@ -290,11 +303,16 @@ local function Refresh()
         valueLabel:SetText(GREY .. L.PENDING .. "|r")
     end
 
+    -- The cell order is the word's own path, so the line reads in the order the pattern runs.
     local names = {}
-    for _, cell in ipairs(applied.word.cells) do
-        names[#names + 1] = runeData[cell[3]] and runeData[cell[3]].name or "?"
+    for index, cell in ipairs(applied.word.cells) do
+        local rune = runeData[cell[3]]
+        local roll = RollAt(applied.bag, applied.slotList[index])
+        names[#names + 1] = (rune and rune.name or "?") ..
+            (roll and (GOLD .. " " .. roll .. "%|r") or (GREY .. " ?|r"))
     end
-    hintLabel:SetText(GREY .. table.concat(names, " ") .. "|r")
+    hintLabel:SetText(table.concat(names, GREY .. "  9483  " .. "|r"))
+    ruleLabel:SetText(GREY .. L.WORD_RULE .. "|r")
 
     if RunewordsDB.panel then
         panel:Show()
@@ -307,6 +325,21 @@ end
 
 -- One border per item button, made the first time that button shows a rune. It is a child of
 -- the button, so the client moves and hides it with the slot it belongs to.
+-- A cell of a completed word gets two frames: the crisp border that says "this is one of the
+-- runes", and a second, wider border outside it drawn only into the corners, which breathes so
+-- the word reads across a full bag instead of blending into the slot frames. Lone runes keep the
+-- plain blue border.
+local glowing = {}
+
+local glowDriver = CreateFrame("Frame")
+glowDriver:SetScript("OnUpdate", function()
+    -- Slow and shallow: enough movement to catch the eye, not enough to be noise.
+    local alpha = 0.55 + 0.45 * math.abs(math.sin(GetTime() * 2.2))
+    for border in pairs(glowing) do
+        border.glow:SetAlpha(alpha)
+    end
+end)
+
 local function Border(button)
     local border = button.runewordBorder
     if not border then
@@ -320,6 +353,21 @@ local function Border(button)
             insets = { left = 1, right = 1, top = 1, bottom = 1 },
         })
         border:SetBackdropBorderColor(0, 0, 0, 0)
+
+        local glow = CreateFrame("Frame", nil, button)
+        glow:SetPoint("TOPLEFT", -3, 3)
+        glow:SetPoint("BOTTOMRIGHT", 3, -3)
+        glow:SetFrameLevel(button:GetFrameLevel() + 3)
+        glow:SetBackdrop({
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            edgeSize = 18,
+            insets = { left = 2, right = 2, top = 2, bottom = 2 },
+        })
+        glow:SetBackdropBorderColor(1, 0.82, 0, 1)
+        glow:SetAlpha(0)
+        glow:Hide()
+        border.glow = glow
+
         button.runewordBorder = border
     end
     return border
@@ -346,13 +394,20 @@ local function Decorate(frame)
 
             if entry and runeData[entry] then
                 border = Border(button)
-                if applied and applied.slots[bag .. ":" .. (slot - 1)] then
-                    border:SetBackdropBorderColor(1, 0.82, 0, 0.9) -- part of the word
+                local inWord = applied and applied.slots[bag .. ":" .. (slot - 1)]
+                if inWord then
+                    border:SetBackdropBorderColor(1, 0.82, 0, 1)   -- part of the word
+                    border.glow:Show()
+                    glowing[border] = true
                 else
                     border:SetBackdropBorderColor(0.3, 0.6, 1, 0.5) -- a rune on its own
+                    glowing[border] = nil
+                    border.glow:Hide()
                 end
                 border:Show()
             elseif border then
+                glowing[border] = nil
+                border.glow:Hide()
                 border:Hide()
             end
         end
@@ -396,6 +451,19 @@ GameTooltip:HookScript("OnTooltipSetItem", function(self)
         self:AddLine(format(L.ROLL, roll), 0.25, 0.75, 0.25, true)
     else
         self:AddLine(L.ROLL_UNKNOWN, 0.5, 0.5, 0.5, true)
+    end
+
+    -- What a vendor pays: the item's own price is the rarity's floor, and the roll pays up to that
+    -- again. The number comes from Runewords_Data.lua, so it is the same price the SQL writes.
+    local sell = rune.sell or 0
+    if sell > 0 then
+        if roll then
+            -- Integer copper, the same round-down the module's payout does.
+            self:AddLine(format(L.VALUE, GetMoneyString(sell + math.floor(sell * roll / 100), true),
+                GetMoneyString(sell, true)), 0.8, 0.8, 0.8, true)
+        else
+            self:AddLine(format(L.VALUE_UNKNOWN, GetMoneyString(sell, true)), 0.6, 0.6, 0.6, true)
+        end
     end
 
     local users = wordsByRune[entry]
