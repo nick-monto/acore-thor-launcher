@@ -525,6 +525,9 @@ frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 frame:RegisterEvent("BAG_UPDATE")
 frame:RegisterEvent("CHAT_MSG_ADDON")
 frame:RegisterEvent("UNIT_INVENTORY_CHANGED")
+-- The level is part of the match: a word the character outgrew is not one it can form, so the
+-- panel has to re-resolve when the level moves, not when the next bag does.
+frame:RegisterEvent("PLAYER_LEVEL_UP")
 
 -- One sync answers everything: a roll never changes once assigned, so a request after a bag
 -- change is the whole conversation. Debounced, because a loot or a sort fires BAG_UPDATE once
