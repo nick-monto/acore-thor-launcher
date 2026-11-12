@@ -142,15 +142,17 @@ local function ContainerRunes(bag)
     return found and cells or nil, size
 end
 
--- The slot the client draws at a cell, with row 0 the top row and column 0 the left column.
--- Measured from the container buttons themselves: a bag fills from the bottom right, leftwards
--- and upwards, so a container whose slot count is not a multiple of four keeps its short row at
--- the top, right-aligned, and (rows - 1 - row) * COLS + (COLS - 1 - col) is the whole layout.
--- Nil is a cell the container does not have - the top left of a short row.
+-- The slot the client draws at a cell, with row 0 the top row and column 0 the left column. Measured
+-- from the container frames' own buttons, by GetID(): a 22-slot bag puts slot 1 at column 2 of row 0
+-- and slot 22 at column 3 of row 5, so the grid is drawn from the top left, left to right and
+-- downwards, and a bag whose slot count is not a multiple of four leaves the top row short at its left
+-- end. Nil is a cell the container does not have.
 local function SlotAt(size, row, col)
     local rows = math.ceil(size / COLS)
     if row < 0 or col < 0 or row >= rows or col >= COLS then return nil end
-    return (rows - 1 - row) * COLS + (COLS - 1 - col)
+    local index = row * COLS + col - (COLS - size % COLS) % COLS
+    if index < 0 or index >= size then return nil end
+    return index
 end
 
 -- The cells one word occupies when it starts at (row, col), in reading order, or nil when it does
