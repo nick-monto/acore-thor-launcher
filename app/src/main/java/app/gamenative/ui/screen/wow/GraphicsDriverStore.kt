@@ -13,6 +13,7 @@ internal const val BUNDLED_TURNIP_8XX = "Turnip-V32-RP6sched"
 
 private const val PREFS = "wow_graphics_driver"
 private const val SELECTED_DRIVER = "selected_driver"
+private const val TU_DEBUG_OVERRIDE = "tu_debug_override"
 private const val CUSTOM_PREFIX = "custom-"
 private const val MAX_DRIVER_ENTRIES = 128
 private const val MAX_DRIVER_BYTES = 128L * 1024L * 1024L
@@ -46,6 +47,15 @@ internal object GraphicsDriverStore {
     fun select(context: Context, id: String?) {
         prefs(context).edit().apply {
             if (id == null) remove(SELECTED_DRIVER) else putString(SELECTED_DRIVER, id)
+        }.apply()
+    }
+
+    /** Custom TU_DEBUG flags, or empty to keep the detected profile's flags. */
+    fun tuDebug(context: Context): String = prefs(context).getString(TU_DEBUG_OVERRIDE, null).orEmpty()
+
+    fun setTuDebug(context: Context, value: String) {
+        prefs(context).edit().apply {
+            if (value.isBlank()) remove(TU_DEBUG_OVERRIDE) else putString(TU_DEBUG_OVERRIDE, value.trim())
         }.apply()
     }
 

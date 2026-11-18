@@ -162,6 +162,7 @@ fun WoWForeverScreen(
     // null means "auto": the driver matched to the detected GPU. A custom id is persisted, but
     // resolve() falls back to auto if the imported driver was removed or needs a newer API.
     var driverSelection by remember { mutableStateOf(GraphicsDriverStore.selected(context)) }
+    var driverFlags by remember { mutableStateOf(GraphicsDriverStore.tuDebug(context)) }
     var customDrivers by remember { mutableStateOf(GraphicsDriverStore.customDrivers(context)) }
     var showDriverDialog by remember { mutableStateOf(false) }
     var isImportingDriver by remember { mutableStateOf(false) }
@@ -333,7 +334,10 @@ fun WoWForeverScreen(
         launchJob = scope.launch {
             try {
                 val containerId = withContext(Dispatchers.IO) {
-                    val launchGpu = gpu.withDriver(GraphicsDriverStore.resolve(context, gpu.driver))
+                    val launchGpu = gpu.withDriver(
+                        driver = GraphicsDriverStore.resolve(context, gpu.driver),
+                        tuDebug = GraphicsDriverStore.tuDebug(context).ifBlank { gpu.tuDebug },
+                    )
                     prepareLaunch(context, File(gamePath), launchGpu) { msg ->
                         scope.launch(Dispatchers.Main) { statusText = msg }
                     }
@@ -968,11 +972,16 @@ fun WoWForeverScreen(
         GraphicsDriverDialog(
             gpu = gpu,
             selectedId = driverSelection,
+            flags = driverFlags,
             customDrivers = customDrivers,
             importing = isImportingDriver,
             message = driverMessage,
             error = driverError,
             onDismiss = { showDriverDialog = false },
+            onFlags = {
+                driverFlags = it
+                GraphicsDriverStore.setTuDebug(context, it)
+            },
             onSelectAuto = {
                 GraphicsDriverStore.select(context, null)
                 driverSelection = null
@@ -1372,11 +1381,13 @@ private fun DriverOption(
 private fun GraphicsDriverDialog(
     gpu: GpuProfile,
     selectedId: String?,
+    flags: String,
     customDrivers: List<InstalledGraphicsDriver>,
     importing: Boolean,
     message: String?,
     error: String?,
     onDismiss: () -> Unit,
+    onFlags: (String) -> Unit,
     onSelectAuto: () -> Unit,
     onSelect: (InstalledGraphicsDriver) -> Unit,
     onImport: () -> Unit,
@@ -1443,9 +1454,25 @@ private fun GraphicsDriverDialog(
 
                 Spacer(modifier = Modifier.height(10.dp))
                 Text(
-                    text = "A custom driver keeps this device's ${gpu.tuDebug} TU_DEBUG and " +
-                        "${gpu.screenSize} screen size. An incompatible driver can prevent the " +
-                        "game from starting; choose Auto to recover.",
+                    text = "A custom driver keeps this device's ${gpu.screenSize} screen size. An " +
+                        "incompatible driver can prevent the game from starting; choose Auto to recover.",
+                    fontSize = 11.sp,
+                    color = WowSubtle,
+                    lineHeight = 15.sp,
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+                OutlinedTextField(
+                    value = flags,
+                    onValueChange = onFlags,
+                    label = { Text(text = "TU_DEBUG flags", fontSize = 12.sp) },
+                    placeholder = { Text(text = gpu.tuDebug, fontSize = 12.sp) },
+                    singleLine = true,
+                    enabled = !importing,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    text = "Leave blank to use this device's default (${gpu.tuDebug}). Applied on the next launch.",
                     fontSize = 11.sp,
                     color = WowSubtle,
                     lineHeight = 15.sp,
@@ -1703,8 +1730,8 @@ private const val WINCOMPONENTS_OFF =
         "directplay=0,vcrun2010=0,wmdecoder=0,opengl=0"
 
 private data class GpuProfile(val driver: String, val tuDebug: String, val screenSize: String, val label: String, val edition: String) {
-    /** Keep the detected GPU flags and screen size, but use a user-selected driver id. */
-    fun withDriver(driver: String) = copy(driver = driver)
+    /** Keep the detected screen size and profile, but use a user-selected driver id and flags. */
+    fun withDriver(driver: String, tuDebug: String = this.tuDebug) = copy(driver = driver, tuDebug = tuDebug)
 
     companion object {
         fun detect(context: Context) = if (isAdreno8xxDevice(context)) {
