@@ -55,6 +55,8 @@ import app.gamenative.BuildConfig
 import app.gamenative.PluviaApp
 import app.gamenative.R
 import app.gamenative.events.AndroidEvent
+import app.gamenative.skate.SkateInstall
+import app.gamenative.skate.SkatePackage
 import app.gamenative.ui.screen.wow.WowClientDownloader.BUILD_INFO
 import app.gamenative.ui.screen.wow.WowClientDownloader.FLAVOR_DIR
 import app.gamenative.ui.screen.wow.WowClientDownloader.TARGET_PRODUCT
@@ -539,7 +541,11 @@ fun WoWForeverScreen(
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Spacer(modifier = Modifier.height(20.dp))
                 Text(
-                    text = if (flavor.isLocal) "AZEROTHCORE" else "WORLD OF WARCRAFT",
+                    text = when {
+                        flavor.isSkate -> "WRATH OF THE SKATE KING"
+                        flavor.isLocal -> "AZEROTHCORE"
+                        else -> "WORLD OF WARCRAFT"
+                    },
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Black,
                     fontFamily = FontFamily.Serif,
@@ -1211,7 +1217,7 @@ object GamePath {
         return Status(
             exeExists = exe.exists(),
             exeName = exe.name,
-            dataExists = File(root, "Data").listFiles()?.isNotEmpty() == true,
+            dataExists = File(WowFlavor.current.clientDir(root), "Data").listFiles()?.isNotEmpty() == true,
             buildInfoExists = File(root, BUILD_INFO).isFile,
             requiresBuildInfo = !WowFlavor.current.isLocal,
             product = productOf(root).orEmpty(),
@@ -1228,7 +1234,7 @@ object GamePath {
         val usable = if (WowFlavor.current.isLocal) {
             // No .build.info to go by: a local client is the folder that holds Wow.exe and Data/.
             (listOfNotNull(saved, defaultPath) + others).firstOrNull { candidate ->
-                File(candidate, "Data").isDirectory && WowFlavor.current.exeFile(candidate).exists()
+                File(WowFlavor.current.clientDir(candidate), "Data").isDirectory && WowFlavor.current.exeFile(candidate).exists()
             }
         } else {
             (listOfNotNull(saved, defaultPath) + others).firstOrNull { productOf(it) == TARGET_PRODUCT }
@@ -1257,7 +1263,7 @@ object GamePath {
             .filterNotNull()
             .firstOrNull {
                 if (WowFlavor.current.isLocal) {
-                    File(it, "Data").isDirectory && WowFlavor.current.exeFile(it).exists()
+                    File(WowFlavor.current.clientDir(it), "Data").isDirectory && WowFlavor.current.exeFile(it).exists()
                 } else {
                     File(it, BUILD_INFO).isFile
                 }
@@ -1540,7 +1546,7 @@ private fun FlavorSelector(selected: WowFlavor, enabled: Boolean, onSelect: (Wow
             )
         } else {
             FlavorButtonRow(
-                items = listOf(WowFlavor.LOCAL_AC),
+                items = listOf(WowFlavor.LOCAL_AC, WowFlavor.SKATE),
                 text = { it.shortName.uppercase() },
                 isSelected = { it == selected },
                 enabled = enabled,
@@ -1758,8 +1764,9 @@ private fun prepareLaunch(context: Context, gameRoot: File, gpu: GpuProfile, onS
     if (flavor.isLocal) {
         // A 3.3.5a client brings its own Wow.exe + Data/ and no Battle.net metadata, so it must be
         // in place before we launch: there is no CDN to fetch it from.
-        check(File(gameRoot, "Data").isDirectory) { "No Data/ folder in $gameRoot. Copy your 3.3.5a client there." }
-        check(flavor.exeFile(gameRoot).exists()) { "No ${flavor.exeName} in $gameRoot. Copy your 3.3.5a client there." }
+        val clientDir = flavor.clientDir(gameRoot)
+        check(File(clientDir, "Data").isDirectory) { "No Data/ folder in ${clientDir.path}. Copy your 3.3.5a client there." }
+        check(flavor.exeFile(gameRoot).exists()) { "No ${flavor.exeName} in ${clientDir.path}. Copy your 3.3.5a client there." }
     } else {
         check(File(gameRoot, BUILD_INFO).exists()) { "Missing $BUILD_INFO in $gameRoot. Copy it from your WoW install." }
     }
@@ -1768,7 +1775,10 @@ private fun prepareLaunch(context: Context, gameRoot: File, gpu: GpuProfile, onS
         PadSettings.launchProfile(WowFlavor.current.name).takeIf { it > 0 }?.let { PadSettings.loadProfile(it) }
         PadSettings.set(PadSettings.R3_TOGGLE, ButtonPad.r3Toggle(context, WowFlavor.current))
         ensureGameConfig(gameRoot, if (ButtonPad.forceGamepadUi(context, WowFlavor.current)) 0 else 1, gpu.screenSize)
-        if (WowFlavor.current.isLocal) installLocalAddons(context, WowFlavor.current.clientDir(gameRoot), onStatus)
+        when {
+            WowFlavor.current.isSkate -> SkateInstall.ensure(SkatePackage.load(gameRoot), onStatus)
+            WowFlavor.current.isLocal -> installLocalAddons(context, WowFlavor.current.clientDir(gameRoot), onStatus)
+        }
     } catch (e: Exception) {
         if (e.isPermissionDenied()) throw StorageAccessDeniedException(e)
         throw e
@@ -1861,9 +1871,23 @@ private fun containerConfig(
 ): JSONObject {
     val samsungEnv = if (Build.MANUFACTURER.equals("samsung", ignoreCase = true)) " FD_DEV_FEATURES=enable_tp_ubwc_flag_hint=1" else ""
     val envVars = "WRAPPER_MAX_IMAGE_COUNT=0 ZINK_DESCRIPTORS=lazy ZINK_DEBUG=compact,deck_emu MESA_SHADER_CACHE_DISABLE=false MESA_SHADER_CACHE_MAX_SIZE=512MB mesa_glthread=true WINEESYNC=0 MESA_VK_WSI_PRESENT_MODE=mailbox TU_DEBUG=${gpu.tuDebug} VKD3D_SHADER_MODEL=6_0 PULSE_LATENCY_MSEC=144$samsungEnv"
+    // The Skate adapter resolves its files from SOTSK_ROOT and the client's MPQs from SOTSK_DATA.
+    // Both are declared by the package and resolved against the drive the app mounts G: on.
+    val skateEnv = if (flavor.isSkate) {
+        SkatePackage.load(gameRoot).env.entries.joinToString("") { " ${it.key}=${it.value}" }
+    } else {
+        ""
+    }
     return JSONObject().apply {
         put("id", flavor.containerId)
-        put("name", if (flavor.isLocal) "AzerothCore 3.3.5a" else "WoW Forever")
+        put(
+            "name",
+            when {
+                flavor.isSkate -> "Wrath of the Skate King"
+                flavor.isLocal -> "AzerothCore 3.3.5a"
+                else -> "WoW Forever"
+            },
+        )
         put("screenSize", screenSize)
         // The 3.3.5a client is D3D9-only, and DXVK's 32-bit d3d9 (installed in prepareLaunch) is what
         // serves it. WINE_D3D_CONFIG only matters if that file is missing: wined3d's GL renderer trips
@@ -1876,7 +1900,7 @@ private fun containerConfig(
             "envVars",
             if (flavor.isLocal) {
                 "$envVars BOX64_LOG=1 BOX64_DYNAREC_MISSING=1 WINE_D3D_CONFIG=renderer=vulkan " +
-                    "DXVK_LOG_LEVEL=info DXVK_LOG_PATH=G:\\"
+                    "DXVK_LOG_LEVEL=info DXVK_LOG_PATH=G:\\$skateEnv"
             } else {
                 envVars
             },
@@ -1893,8 +1917,16 @@ private fun containerConfig(
             put("fexcoreVersion", "2609-0")
         }
         put("drives", "D:/storage/emulated/0/DownloadE:/data/data/${context.packageName}/storageG:${gameRoot.path}")
-        // A local client sits at the root of its folder; Blizzard's live in their _product_ subfolder.
-        put("executablePath", if (flavor.isLocal) "G:\\$exeName" else "G:\\$FLAVOR_DIR\\$exeName")
+        // A local client sits at the root of its folder; Blizzard's live in their _product_ subfolder,
+        // and the Skate package keeps its client under client/ beside package.json.
+        put(
+            "executablePath",
+            when {
+                flavor.isSkate -> "G:\\${flavor.dir}\\$exeName"
+                flavor.isLocal -> "G:\\$exeName"
+                else -> "G:\\$FLAVOR_DIR\\$exeName"
+            },
+        )
         // 3.3.5a has no -d3d11 switch: D3D9 is its only renderer, and this prefix serves that from
         // Wine's own 32-bit wined3d. The bundled DXVK carries no d3d9.dll and no syswow64/ at all while
         // the prefix overrides d3d9 as "native,builtin" (WineUtils), so the call lands on wined3d by
@@ -1958,6 +1990,9 @@ private fun localConfigDefaults(screenSize: String) = CONFIG_DEFAULTS.also { def
     defaults["realmList"] = "\"$LOCAL_REALM_ADDRESS\""
     defaults["gxWindow"] = "\"1\""
     defaults["gxResolution"] = "\"$screenSize\""
+    // The native pose path writes render-thread bone matrices; the M2 animation worker must be off
+    // or the pose hook reports unsafe_animation_worker and falls back to stock animation.
+    if (WowFlavor.current.isSkate) defaults["M2UseThreads"] = "\"0\""
 }
 
 private val ALWAYS_FORCED_CONFIG_KEYS get() =
@@ -1966,7 +2001,8 @@ private val ALWAYS_FORCED_CONFIG_KEYS get() =
         // server this install runs, and the desktop is fixed by the GPU profile, so a 3.3.5a client
         // that saved its own 640x480 window (or exclusive fullscreen, which cannot change the display
         // mode in this X server) is corrected instead of left that way.
-        listOf("gxApi", "realmList", "gxWindow", "gxMaximize", "gxResolution")
+        listOf("gxApi", "realmList", "gxWindow", "gxMaximize", "gxResolution") +
+            if (WowFlavor.current.isSkate) listOf("M2UseThreads") else emptyList()
     } else {
         listOf("gxApi", "RenderScale", "ResampleQuality") + if (WowFlavor.current.hasRegion) listOf("portal") else emptyList()
     }

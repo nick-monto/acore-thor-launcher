@@ -89,13 +89,30 @@ enum class WowFlavor(
         portal = "us", // unused: RealmList comes from realmlist.wtf, not Config.wtf
         defaultFolder = "AzerothCore 3.3.5a",
     ),
+    SKATE(
+        label = "Wrath of the Skate King",
+        subtitle = "SKATE 3 ON SELF-HOSTED 3.3.5A (32-BIT)",
+        product = "wow_skate_335",
+        // The dropped package keeps its client under client/ beside package.json.
+        dir = "client",
+        exeNames = listOf("Wow.exe"),
+        portal = "us", // unused: RealmList comes from realmlist.wtf, not Config.wtf
+        defaultFolder = "WrathSkate",
+    ),
     ;
 
-    /** True for the self-hosted AzerothCore flavor: no Battle.net, no CDN, no `.build.info`, no region. */
-    val isLocal get() = this == LOCAL_AC
+    /** True for a self-hosted 3.3.5a flavor: no Battle.net, no CDN, no `.build.info`, no region. */
+    val isLocal get() = this == LOCAL_AC || this == SKATE
+
+    /** True for the Skate port, which adds its own package, adapter and container settings. */
+    val isSkate get() = this == SKATE
 
     /** Each flavor boots in its own container, so the two very different Wine profiles never mix. */
-    val containerId get() = if (isLocal) "ac_thor_335" else "wow_forever"
+    val containerId get() = when {
+        isSkate -> "skate_thor_335"
+        isLocal -> "ac_thor_335"
+        else -> "wow_forever"
+    }
 
     /** True for the three Classic products, which share the Classic button and its second row. */
     val isClassic get() = this == CLASSIC_ERA || this == CLASSIC_ANNIVERSARY || this == CLASSIC_MOP
@@ -119,16 +136,21 @@ enum class WowFlavor(
         CLASSIC_ANNIVERSARY -> "TBC Anniversary"
         CLASSIC_MOP -> "MoP Classic"
         LOCAL_AC -> "AzerothCore"
+        SKATE -> "Skate King"
     }
 
     /** Full name shown while the game boots. */
-    val gameName get() = if (isLocal) "AzerothCore 3.3.5a" else "World of Warcraft $shortName"
+    val gameName get() = when {
+        isSkate -> "Wrath of the Skate King"
+        isLocal -> "AzerothCore 3.3.5a"
+        else -> "World of Warcraft $shortName"
+    }
 
     /**
      * The folder holding this flavor's client under the install root. Blizzard's flavors live in their
      * `_product_` subfolder; a 3.3.5a client keeps `Wow.exe`, `Data/` and `WTF/` at the root itself.
      */
-    fun clientDir(root: File): File = if (isLocal) root else File(root, dir)
+    fun clientDir(root: File): File = if (this == LOCAL_AC) root else File(root, dir)
 
     /**
      * The client in this flavor's folder. Blizzard's exe names differ per product, so after the known
