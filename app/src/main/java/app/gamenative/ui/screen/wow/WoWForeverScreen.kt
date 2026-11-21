@@ -1819,6 +1819,7 @@ private fun prepareLaunch(context: Context, gameRoot: File, gpu: GpuProfile, onS
     val container = checkNotNull(containerManager.getContainerById(flavor.containerId)) {
         "Container creation failed. Check system storage and logs."
     }
+    if (flavor.isSkate) writeSkateLaunchRecord(context, gameRoot, config)
     // Second display (if any) shows the 12-button action bar pad when its switch is on.
     container.setExternalDisplayMode(
         if (ButtonPad.isEnabled(context, WowFlavor.current)) {
@@ -1859,6 +1860,26 @@ private fun installD3d9x32(context: Context, container: Container, onStatus: (St
     context.assets.open(D3D9_X32_ASSET).use { source ->
         target.outputStream().use { sink -> source.copyTo(sink) }
     }
+}
+
+/**
+ * Device diagnosis without adb: the exact environment the container is launched with, and which
+ * APK wrote it. No such file means an older launcher is installed.
+ */
+private fun writeSkateLaunchRecord(context: Context, gameRoot: File, config: JSONObject) {
+    val apk = File(context.applicationInfo.sourceDir)
+    val record = buildString {
+        appendLine("package=${context.packageName}")
+        appendLine("version=${BuildConfig.VERSION_NAME}")
+        appendLine("apk=${apk.path}")
+        appendLine("apk_mtime_ms=${apk.lastModified()}")
+        appendLine("executable=${config.optString("executablePath")}")
+        appendLine("drives=${config.optString("drives")}")
+        appendLine("env=${config.optString("envVars")}")
+    }
+    val target = File(gameRoot, "native-probe/app-launch.txt")
+    target.parentFile?.mkdirs()
+    target.writeText(record)
 }
 
 private fun containerConfig(
