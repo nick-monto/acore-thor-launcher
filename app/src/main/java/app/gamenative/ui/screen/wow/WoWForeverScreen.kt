@@ -1873,7 +1873,7 @@ private fun containerConfig(
     val envVars = "WRAPPER_MAX_IMAGE_COUNT=0 ZINK_DESCRIPTORS=lazy ZINK_DEBUG=compact,deck_emu MESA_SHADER_CACHE_DISABLE=false MESA_SHADER_CACHE_MAX_SIZE=512MB mesa_glthread=true WINEESYNC=0 MESA_VK_WSI_PRESENT_MODE=mailbox TU_DEBUG=${gpu.tuDebug} VKD3D_SHADER_MODEL=6_0 PULSE_LATENCY_MSEC=144$samsungEnv"
     // The Skate adapter resolves its files from SOTSK_ROOT and the client's MPQs from SOTSK_DATA.
     // Both are declared by the package and resolved against the drive the app mounts G: on.
-    val skateEnv = if (flavor.isSkate) {
+    val skateEnvVars = if (flavor.isSkate) {
         SkatePackage.load(gameRoot).env.entries.joinToString("") { " ${it.key}=${it.value}" }
     } else {
         ""
@@ -1900,7 +1900,7 @@ private fun containerConfig(
             "envVars",
             if (flavor.isLocal) {
                 "$envVars BOX64_LOG=1 BOX64_DYNAREC_MISSING=1 WINE_D3D_CONFIG=renderer=vulkan " +
-                    "DXVK_LOG_LEVEL=info DXVK_LOG_PATH=G:\\$skateEnv"
+                    "DXVK_LOG_LEVEL=info DXVK_LOG_PATH=G:\\native-probe\\build$skateEnvVars"
             } else {
                 envVars
             },

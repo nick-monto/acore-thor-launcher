@@ -138,6 +138,7 @@ class SkatePackageTest {
         assertEquals("adapter", File(pkg.clientDir, "dinput8.dll").readText())
         assertTrue(File(pkg.clientDir, "Interface/AddOns/WrathRoll/WrathRoll.lua").isFile)
         assertTrue(File(pkg.root, "native-probe/character-pose.request").isFile)
+        assertTrue(File(pkg.root, "native-probe/build").isDirectory)
         assertTrue(File(pkg.clientDir, ".skate-package").isFile)
 
         // A second launch with the same package leaves the marker and the files alone.

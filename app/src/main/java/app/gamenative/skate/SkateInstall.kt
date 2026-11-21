@@ -52,6 +52,9 @@ object SkateInstall {
         check(requests.isNotEmpty()) { "The Skate package has no accepted request flags in ${requestsFrom.path}." }
         for (file in requests) file.copyTo(File(requestsTo, file.name), overwrite = true)
 
+        // The adapter and the helper write their logs and DXVK writes here; neither creates it.
+        File(pkg.root, "native-probe/build").mkdirs()
+
         marker.writeText("$stamp\n")
     }
 }
