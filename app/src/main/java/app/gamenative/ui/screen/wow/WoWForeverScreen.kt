@@ -77,6 +77,7 @@ import com.winlator.contents.ContentsManager
 import com.winlator.core.FileUtils
 import com.winlator.core.GPUInformation
 import com.winlator.core.WineRegistryEditor
+import com.winlator.core.envvars.EnvVars
 import com.winlator.core.TarCompressorUtils
 import com.winlator.inputcontrols.Binding
 import com.winlator.inputcontrols.ControlsProfile
@@ -1907,13 +1908,24 @@ private fun containerConfig(
 ): JSONObject {
     val samsungEnv = if (Build.MANUFACTURER.equals("samsung", ignoreCase = true)) " FD_DEV_FEATURES=enable_tp_ubwc_flag_hint=1" else ""
     val envVars = "WRAPPER_MAX_IMAGE_COUNT=0 ZINK_DESCRIPTORS=lazy ZINK_DEBUG=compact,deck_emu MESA_SHADER_CACHE_DISABLE=false MESA_SHADER_CACHE_MAX_SIZE=512MB mesa_glthread=true WINEESYNC=0 MESA_VK_WSI_PRESENT_MODE=mailbox TU_DEBUG=${gpu.tuDebug} VKD3D_SHADER_MODEL=6_0 PULSE_LATENCY_MSEC=144$samsungEnv"
-    // The Skate adapter resolves its files from SOTSK_ROOT and the client's MPQs from SOTSK_DATA.
-    // Both are declared by the package and resolved against the drive the app mounts G: on.
-    val skateEnvVars = if (flavor.isSkate) {
-        SkatePackage.load(gameRoot).env.entries.joinToString("") { " ${it.key}=${it.value}" }
-    } else {
-        ""
-    }
+    // The adapter resolves its files from SOTSK_ROOT and the client's MPQs from SOTSK_DATA; both are
+    // declared by the package and resolved against the drive the app mounts G: on. Every value here
+    // goes through EnvVars, the format that reads this field back: a raw `G:\` next to a space is an
+    // escape sequence to that parser, and it silently folded the following variables into the root.
+    val localEnv = EnvVars().apply {
+        put("BOX64_LOG", "1")
+        put("BOX64_DYNAREC_MISSING", "1")
+        put("WINE_D3D_CONFIG", "renderer=vulkan")
+        put("DXVK_LOG_LEVEL", "info")
+        put("DXVK_LOG_PATH", "G:\\native-probe\\build")
+        if (flavor.isSkate) {
+            SkatePackage.load(gameRoot).env.forEach { (key, value) -> put(key, value) }
+            // WineUtils registers dinput8 as "builtin,native" (WineUtils.java), which would load
+            // Wine's own dinput8 and ignore the adapter beside Wow.exe. The adapter only
+            // initializes inside the client, so the other processes ignore it.
+            put("WINEDLLOVERRIDES", "dinput8=n,b")
+        }
+    }.toEscapedString()
     return JSONObject().apply {
         put("id", flavor.containerId)
         put(
@@ -1934,17 +1946,7 @@ private fun containerConfig(
         // applied after that.
         put(
             "envVars",
-            if (flavor.isLocal) {
-                // WineUtils registers dinput8 as "builtin,native" (WineUtils.java), which would
-                // load Wine's own dinput8 and ignore the adapter sitting beside Wow.exe. The env
-                // entry overrides that one DLL for every process in the container; the adapter
-                // itself only initializes inside the client (it checks the image name).
-                val dinput = if (flavor.isSkate) " WINEDLLOVERRIDES=dinput8=n,b" else ""
-                "$envVars BOX64_LOG=1 BOX64_DYNAREC_MISSING=1 WINE_D3D_CONFIG=renderer=vulkan " +
-                    "DXVK_LOG_LEVEL=info DXVK_LOG_PATH=G:\\native-probe\\build$skateEnvVars$dinput"
-            } else {
-                envVars
-            },
+            if (flavor.isLocal) "$envVars $localEnv" else envVars,
         )
         put("graphicsDriver", "Wrapper")
         put("graphicsDriverVersion", gpu.driver)
