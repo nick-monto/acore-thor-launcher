@@ -76,6 +76,7 @@ import com.winlator.contents.ContentProfile
 import com.winlator.contents.ContentsManager
 import com.winlator.core.FileUtils
 import com.winlator.core.GPUInformation
+import com.winlator.core.WineRegistryEditor
 import com.winlator.core.TarCompressorUtils
 import com.winlator.inputcontrols.Binding
 import com.winlator.inputcontrols.ControlsProfile
@@ -1838,8 +1839,22 @@ private fun prepareLaunch(context: Context, gameRoot: File, gpu: GpuProfile, onS
         container.putExtra(CONTAINER_EXTRA_PROFILE_ID, ensureLocalControllerProfile(context).toString())
         installD3d9x32(context, container, onStatus)
     }
+    if (flavor.isSkate) ensureNativeDinput8(container)
     container.saveData()
     return flavor.containerId
+}
+
+/**
+ * The adapter is installed as dinput8.dll beside Wow.exe, but WineUtils registers dinput8 as
+ * "builtin,native" in the prefix, so the builtin copy wins. The launch also carries
+ * WINEDLLOVERRIDES; this keeps the prefix itself in agreement for any launch that misses the env.
+ */
+private fun ensureNativeDinput8(container: Container) {
+    val userReg = File(container.getRootDir(), ".wine/user.reg")
+    if (!userReg.isFile) return
+    WineRegistryEditor(userReg).use { editor ->
+        editor.setStringValue("Software\\Wine\\DllOverrides", "dinput8", "native,builtin")
+    }
 }
 
 /**
