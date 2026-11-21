@@ -1899,8 +1899,13 @@ private fun containerConfig(
         put(
             "envVars",
             if (flavor.isLocal) {
+                // WineUtils registers dinput8 as "builtin,native" (WineUtils.java), which would
+                // load Wine's own dinput8 and ignore the adapter sitting beside Wow.exe. The env
+                // entry overrides that one DLL for every process in the container; the adapter
+                // itself only initializes inside the client (it checks the image name).
+                val dinput = if (flavor.isSkate) " WINEDLLOVERRIDES=dinput8=n,b" else ""
                 "$envVars BOX64_LOG=1 BOX64_DYNAREC_MISSING=1 WINE_D3D_CONFIG=renderer=vulkan " +
-                    "DXVK_LOG_LEVEL=info DXVK_LOG_PATH=G:\\native-probe\\build$skateEnvVars"
+                    "DXVK_LOG_LEVEL=info DXVK_LOG_PATH=G:\\native-probe\\build$skateEnvVars$dinput"
             } else {
                 envVars
             },
