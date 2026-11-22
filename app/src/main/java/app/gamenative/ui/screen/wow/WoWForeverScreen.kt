@@ -1835,9 +1835,18 @@ private fun prepareLaunch(context: Context, gameRoot: File, gpu: GpuProfile, onS
     // HODLL run the 32-bit image; the ARM64 clients are unaffected because they never use the wrapper.
     container.putExtra(CONTAINER_EXTRA_SKIP_WINHANDLER, "1")
     if (flavor.isLocal) {
-        // A 3.3.5a client reads no gamepad, so its container gets the profile that turns the pad into
-        // keys and pointer motion instead of the default one, which forwards it as a virtual pad.
-        container.putExtra(CONTAINER_EXTRA_PROFILE_ID, ensureLocalControllerProfile(context).toString())
+        // A 3.3.5a client reads no gamepad, so the realm's container gets the profile that turns the
+        // pad into keys and pointer motion instead of the default one, which forwards it as a pad.
+        //
+        // The Skate flavor must not: dinput8.dll's pad-map.ini already turns the pad into exactly
+        // those keys for ordinary play, and J hands the same pad to the skate layer, which reads it
+        // as XInput. A launcher profile consumes the pad's motion before WinHandler can write it to
+        // the guest's virtual pad, so the pad sits at centre: the pump still arrives (through the
+        // profile's keys) while every trick input lands on an idle stick.
+        container.putExtra(
+            CONTAINER_EXTRA_PROFILE_ID,
+            if (flavor.isSkate) null else ensureLocalControllerProfile(context).toString(),
+        )
         installD3d9x32(context, container, onStatus)
     }
     if (flavor.isSkate) ensureNativeDinput8(container)
