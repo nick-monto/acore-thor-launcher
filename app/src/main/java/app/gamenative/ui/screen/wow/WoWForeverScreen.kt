@@ -117,23 +117,16 @@ private const val LOCAL_ADDON_ARCHIVE = "ConsolePortLK-1.5.0-rc2.zip"
 // launch that the client already has them: a changed shipped file without a changed version never
 // reaches an installed client. +ei3 was the refusal-said-once change to Skateboard.lua, +ei4 its
 // boarding cast bar, +ei5 the retirement of that add-on (which also runs the stale-folder pass on a
-// client that still has it), +ei6 installs Runewords, the client half of mod-runewords, and +ei7
-// drops that add-on's ruRU strings so every client carries the one language set.
-private const val LOCAL_ADDON_VERSION = "1.5.0-rc2+ei7"
+// client that still has it), +ei6 installs Runewords, the client half of mod-runewords, +ei7
+// drops that add-on's ruRU strings so every client carries the one language set, and +ei8 retires
+// EInteract with its server module.
+private const val LOCAL_ADDON_VERSION = "1.5.0-rc2+ei8"
 
 /**
- * The interact add-on: the client half of the realm's mod-e-interact. Shipped as assets rather than an
- * archive because it is this project's own file - it registers a client binding (see [installLocalAddons])
- * that ConsolePort's /cp menu can put on a pad button.
- */
-private const val LOCAL_INTERACT_ADDON = "einteract"
-private const val LOCAL_INTERACT_ADDON_FOLDER = "EInteract"
-
-/**
- * The runewords add-on: the client half of the realm's mod-runewords. Shipped as assets too, and
- * for a stronger reason than EInteract's - its pattern table is generated from the same declarations
- * the server's SQL is built from (`scripts/runewords/gen_runewords.py --lua`), so it is this
- * project's file and not a pinned release.
+ * The runewords add-on: the client half of the realm's mod-runewords. Shipped as assets rather than
+ * an archive because its pattern table is generated from the same declarations the server's SQL is
+ * built from (`scripts/runewords/gen_runewords.py --lua`), so it is this project's file and not a
+ * pinned release.
  */
 private const val LOCAL_RUNEWORD_ADDON = "runewords"
 private const val LOCAL_RUNEWORD_ADDON_FOLDER = "Runewords"
@@ -144,10 +137,12 @@ private const val LOCAL_RUNEWORD_ADDON_FOLDER = "Runewords"
  * ThorPad's module is gone. Skateboard is the client half of mod-skateboard, which the realm now
  * ships switched off while the deck's development is paused: an installed add-on would only draw a
  * bar and five bindings whose every press the server answers "The skateboard is disabled on this
- * realm.". Its `Skateboard.lua` and `.toc` remain in this repository's history; reinstalling one
- * means putting the assets back beside EInteract and bumping the version above.
+ * realm.". EInteract is the client half of mod-e-interact, which the server no longer carries: its
+ * key opened loot and gossip by asking the module over an add-on whisper, and nothing answers that
+ * whisper now. Their `.lua` and `.toc` files remain in this repository's history; reinstalling one
+ * means putting the assets back beside Runewords and bumping the version above.
  */
-private val RETIRED_ADDONS = listOf("ThorPad", "Skateboard")
+private val RETIRED_ADDONS = listOf("ThorPad", "Skateboard", "EInteract")
 
 /** Marks the client root as carrying [LOCAL_ADDON_VERSION], so a launch does not re-extract it. */
 private const val LOCAL_ADDON_MARKER = ".consoleport-version"
@@ -2085,9 +2080,8 @@ private val LEGACY_CONFIG_VALUES = mapOf(
  * control are its two modifiers, which the triggers hold. Anything else would make ConsolePort draw
  * "L1" on a prompt for a button on the right hand.
  *
- * The left stick click sends E, the realm's interact key (EInteract, the client half of
- * mod-e-interact). It is the only letter key in the profile: everything else is a key ConsolePort
- * already knows, so the one binding EInteract has to own is the one ConsolePort does not use.
+ * Every key in the profile is one ConsolePort already knows: its `/cp` setup is what turns them into
+ * actions, and the pad's own defaults are ConsolePort's.
  *
  * The codes come from the app's own axis convention rather than literals, and the profile is only ever
  * written when a profile of this name does not exist yet: after the first launch it belongs to the
@@ -2134,12 +2128,6 @@ internal fun ensureLocalControllerProfile(context: Context): Int {
 
     for ((keyCode, binding) in THOR_SHOULDER_KEYS) bind(keyCode, binding)
 
-    // The left stick click sends the interact key. EInteract binds that key on its first run, so the
-    // button works out of the box; ConsolePort's /cp menu lists the same action, and a player who
-    // assigns it somewhere else - or gives this button to ConsolePort's left click - is choosing in
-    // the one place that owns the pad's keys.
-    bind(KeyEvent.KEYCODE_BUTTON_THUMBL, Binding.KEY_E)
-
     bind(axis(MotionEvent.AXIS_Y, -1), Binding.KEY_W)
     bind(axis(MotionEvent.AXIS_Y, 1), Binding.KEY_S)
     bind(axis(MotionEvent.AXIS_X, -1), Binding.KEY_A)
@@ -2161,13 +2149,6 @@ internal fun ensureLocalControllerProfile(context: Context): Int {
  * as its release publishes it: its binding templates are its own defaults, and the pad is calibrated
  * once with `/cp`, which is what ConsolePort's setup is for.
  *
- * Beside it goes EInteract, the client half of the realm's mod-e-interact. It binds no key of its own
- * choosing: it declares a client binding (`CLICK EInteractButton:LeftButton`) and appends a row for it
- * to ConsolePort's `/cp` list, so the pad button that fires the interact key is the player's choice in
- * ConsolePort's own menu, not a key this launcher injects. ConsolePort owns L3 and R3 - its default
- * controller set makes them the mouse buttons - and that is the whole reason the interact key is not
- * hard-wired to the left stick click any more.
- *
  * Runewords is the client half of the realm's mod-runewords. Runes sit in the bags and a word is a
  * connected shape of them, which the client can recognise on its own because its table is generated
  * from the server's own declarations; the one thing it has to ask for is the 1..100 roll each rune
@@ -2187,11 +2168,6 @@ internal fun installLocalAddons(context: Context, clientRoot: File, onStatus: (S
     addOns.mkdirs()
     check(FileUtils.extractZipFromAssets(context, "bundled_components/$LOCAL_ADDON_ARCHIVE", addOns)) {
         "Could not install $LOCAL_ADDON_ARCHIVE into ${addOns.path}."
-    }
-    // The interact add-on is this project's own file, not a pinned release, so it ships as assets.
-    FileUtils.copy(context, LOCAL_INTERACT_ADDON, File(addOns, LOCAL_INTERACT_ADDON_FOLDER))
-    check(File(addOns, "$LOCAL_INTERACT_ADDON_FOLDER/$LOCAL_INTERACT_ADDON_FOLDER.toc").isFile) {
-        "Could not install $LOCAL_INTERACT_ADDON_FOLDER into ${addOns.path}."
     }
     FileUtils.copy(context, LOCAL_RUNEWORD_ADDON, File(addOns, LOCAL_RUNEWORD_ADDON_FOLDER))
     check(File(addOns, "$LOCAL_RUNEWORD_ADDON_FOLDER/$LOCAL_RUNEWORD_ADDON_FOLDER.toc").isFile) {

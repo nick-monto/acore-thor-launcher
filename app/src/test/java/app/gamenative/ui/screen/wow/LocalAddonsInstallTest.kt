@@ -42,17 +42,8 @@ class LocalAddonsInstallTest {
                 root.resolve("Interface/AddOns/$name/$name.toc").isFile,
             )
         }
-        // The interact add-on rides beside it, as this project's own files.
-        assertTrue(
-            "EInteract was not installed",
-            root.resolve("Interface/AddOns/EInteract/EInteract.toc").isFile,
-        )
-        assertTrue(
-            "EInteract's code was not installed",
-            root.resolve("Interface/AddOns/EInteract/EInteract.lua").isFile,
-        )
-        // Runewords rides beside EInteract for the same reason, and its generated pattern table must
-        // land too: without it the add-on loads its frame and recognises no word at all.
+        // Runewords rides beside ConsolePort as this project's own files, and its generated pattern
+        // table must land too: without it the add-on loads its frame and recognises no word at all.
         assertTrue(
             "Runewords was not installed",
             root.resolve("Interface/AddOns/Runewords/Runewords.toc").isFile,
@@ -62,13 +53,18 @@ class LocalAddonsInstallTest {
             root.resolve("Interface/AddOns/Runewords/Runewords_Data.lua").isFile,
         )
         // The skateboard add-on was retired with its paused server module: a fresh client gets no
-        // bar and no bindings for a deck that refuses every press.
+        // bar and no bindings for a deck that refuses every press. EInteract was retired with its
+        // server module too, so no client is asked to install a key that whispers to nothing.
         assertFalse(
             "Skateboard is retired but was installed",
             root.resolve("Interface/AddOns/Skateboard").exists(),
         )
+        assertFalse(
+            "EInteract is retired but was installed",
+            root.resolve("Interface/AddOns/EInteract").exists(),
+        )
         // One version: the pinned, unpatched archive.
-        assertEquals("1.5.0-rc2+ei7", root.resolve(".consoleport-version").readText().trim())
+        assertEquals("1.5.0-rc2+ei8", root.resolve(".consoleport-version").readText().trim())
     }
 
     @Test
@@ -105,17 +101,17 @@ class LocalAddonsInstallTest {
             "the retired skateboard add-on's saved variables outlived it",
             root.resolve("WTF/Account/PLAYER/SavedVariables/Skateboard.lua").exists(),
         )
-        // EInteract is shipped again, so its folder is replaced rather than deleted, and the player's
-        // saved variables - the key they chose - survive the upgrade.
-        assertTrue(
-            "EInteract was not reinstalled over the old copy",
-            root.resolve("Interface/AddOns/EInteract/EInteract.lua").isFile,
+        // EInteract is retired now, so the stale folder and the key the player chose for it go with
+        // the module that answered it.
+        assertFalse(
+            "the retired interact add-on is still in the client",
+            root.resolve("Interface/AddOns/EInteract").exists(),
         )
-        assertTrue(
-            "EInteract's saved variables were deleted",
-            root.resolve("WTF/Account/PLAYER/SavedVariables/EInteract.lua").isFile,
+        assertFalse(
+            "the retired interact add-on's saved variables outlived it",
+            root.resolve("WTF/Account/PLAYER/SavedVariables/EInteract.lua").exists(),
         )
-        assertEquals("1.5.0-rc2+ei7", root.resolve(".consoleport-version").readText().trim())
+        assertEquals("1.5.0-rc2+ei8", root.resolve(".consoleport-version").readText().trim())
     }
 
     @Test

@@ -55,10 +55,9 @@ class LocalPadProfileTest {
         assertEquals(Binding.KEY_F5, keys[KeyEvent.KEYCODE_BUTTON_SELECT])
         assertEquals(Binding.KEY_F6, keys[KeyEvent.KEYCODE_BUTTON_START])
         assertEquals(Binding.KEY_KP_MULTIPLY, keys[KeyEvent.KEYCODE_BUTTON_MODE])
-        // The left stick click is the realm's interact key: EInteract binds E, and ConsolePort lists the
-        // same action in /cp for a player who wants it on another button. The right stick click stays
-        // free for ConsolePort's own cursor toggle.
-        assertEquals(Binding.KEY_E, keys[KeyEvent.KEYCODE_BUTTON_THUMBL])
+        // No letter keys: the stick clicks stay free for ConsolePort's own mouse buttons, which is
+        // what /cp maps them to.
+        assertNull("the left stick click stays free", keys[KeyEvent.KEYCODE_BUTTON_THUMBL])
         assertNull("the right stick click stays free", keys[KeyEvent.KEYCODE_BUTTON_THUMBR])
         // ConsolePort's two shoulder buttons are F7/F8 and its two modifiers are shift/control, so the
         // pad's shoulders carry the first pair and its triggers the second: a prompt that says "L1"
@@ -124,7 +123,7 @@ class LocalPadProfileTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val id = ensureLocalControllerProfile(context)
 
-        // The player moved the interact key off the left stick click and put something else there.
+        // The player gave the left stick click a key of their own.
         rewriteBindings(context, id, mapOf(KeyEvent.KEYCODE_BUTTON_THUMBL to Binding.KEY_F5))
 
         assertEquals(id, ensureLocalControllerProfile(context))

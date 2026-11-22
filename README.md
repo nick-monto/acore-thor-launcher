@@ -60,15 +60,8 @@ of a Blizzard realm. Six things change for that flavor:
   shoulders on F7/F8, the triggers on shift/control, the left stick on WASD, and the right stick on
   relative pointer motion, which turns the camera while ConsolePort holds mouse look. The add-on's
   bindings are its own defaults: `/cp` maps the pad once, which is how ConsolePort learns which button
-  is which, and its default action per button is what every character then gets. The one exception is
-  the left stick click, which sends `E` for the realm's interact key.
-
-  That key is [EInteract](https://github.com/Rainblower/mod-e-interact)'s add-on, the client half of
-  the server's `mod-e-interact`: one press loots the nearest corpse, skins or gathers it, opens a
-  chest or node, or talks to the nearest NPC. It declares a client binding rather than an override on
-  a literal key, and appends a named row to ConsolePort's `/cp` list, so a pad button can be assigned
-  to it there — ConsolePort's own left click is one of the choices, and the row sits beside it.
-  `/ei key <key>` moves it to a plain key, `/ei` prints its state.
+  is which, and its default action per button is what every character then gets. Every key the
+  profile sends is one ConsolePort already knows, so the pad is entirely ConsolePort's to map.
 
   **Runewords**, the add-on in `app/src/main/assets/runewords`, is the client half of the realm's
   `mod-runewords`. Runes are ordinary items in the bags and a word is a
