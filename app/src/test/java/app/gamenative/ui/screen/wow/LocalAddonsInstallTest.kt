@@ -72,7 +72,7 @@ class LocalAddonsInstallTest {
     }
 
     @Test
-    fun `a client root left by an older launch loses the retired add-ons and keeps the interact one`() {
+    fun `a client root left by an older launch loses every retired add-on`() {
         val root = context.cacheDir.resolve("client-root-stale").apply { mkdirs() }
         // What an earlier launch left: every add-on it shipped, their saved variables and its marker.
         root.resolve("Interface/AddOns/ThorPad").mkdirs()
