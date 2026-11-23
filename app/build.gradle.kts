@@ -1,3 +1,4 @@
+import org.gradle.api.tasks.testing.Test
 import java.util.Properties
 import java.io.FileInputStream
 
@@ -238,4 +239,15 @@ dependencies {
     testImplementation(libs.zstd.jni)
     testImplementation(libs.orgJson)
     testImplementation(libs.mockwebserver)
+}
+
+// Robolectric downloads its android-all jar itself, inside the test JVM, from repo1.maven.org. That
+// host answers shared CI runner IPs with 429, and one failed fetch fails every Robolectric test in
+// the run. Maven Central's Google-hosted mirror serves the same artifacts from a CDN built for build
+// traffic; the fetch is plain HTTPS either way, so the trust placed in it is unchanged.
+tasks.withType<Test>().configureEach {
+    systemProperty(
+        "robolectric.dependency.repo.url",
+        "https://maven-central.storage-download.googleapis.com/maven2/",
+    )
 }
