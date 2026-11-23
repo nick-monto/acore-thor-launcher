@@ -74,7 +74,7 @@ class LocalAddonsInstallTest {
             root.resolve("Interface/AddOns/EInteract").exists(),
         )
         // One version: the pinned, unpatched archive.
-        assertEquals("1.5.0-rc2+ei12", root.resolve(".consoleport-version").readText().trim())
+        assertEquals("1.5.0-rc2+ei13", root.resolve(".consoleport-version").readText().trim())
     }
 
     @Test
@@ -121,7 +121,7 @@ class LocalAddonsInstallTest {
             "the retired interact add-on's saved variables outlived it",
             root.resolve("WTF/Account/PLAYER/SavedVariables/EInteract.lua").exists(),
         )
-        assertEquals("1.5.0-rc2+ei12", root.resolve(".consoleport-version").readText().trim())
+        assertEquals("1.5.0-rc2+ei13", root.resolve(".consoleport-version").readText().trim())
     }
 
     @Test

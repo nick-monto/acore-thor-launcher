@@ -121,8 +121,9 @@ private const val LOCAL_ADDON_ARCHIVE = "ConsolePortLK-1.5.0-rc2.zip"
 // drops that add-on's ruRU strings so every client carries the one language set, +ei8 retires
 // EInteract with its server module, +ei9 installs CreatureAffixes, the client half of the
 // creature-marker add-on, +ei11 moves the displayed labels into the server creature name, and
-// +ei12 adds the Zombified/Corrupted marker and effect aura names.
-private const val LOCAL_ADDON_VERSION = "1.5.0-rc2+ei12"
+// +ei12 adds the Zombified/Corrupted marker and effect aura names; +ei13
+// drops the stale stock damage aura name after the level-scaled effect chain.
+private const val LOCAL_ADDON_VERSION = "1.5.0-rc2+ei13"
 
 /**
  * The runewords add-on: the client half of the realm's mod-runewords. Shipped as assets rather than
