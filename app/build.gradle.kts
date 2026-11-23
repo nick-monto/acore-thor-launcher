@@ -1,5 +1,3 @@
-import org.gradle.api.tasks.Sync
-import org.gradle.api.tasks.testing.Test
 import java.util.Properties
 import java.io.FileInputStream
 
@@ -240,34 +238,4 @@ dependencies {
     testImplementation(libs.zstd.jni)
     testImplementation(libs.orgJson)
     testImplementation(libs.mockwebserver)
-}
-
-// Robolectric resolves its android-all jar at test runtime through its own Maven fetcher, outside
-// Gradle's dependency cache. On a clean CI runner that is the test suite's one network dependency,
-// and a transient Maven failure fails every Robolectric test with a MavenArtifactFetcher IOException.
-// Resolve the SDK 34 artifact as a normal Gradle dependency into a Maven-layout repository and point
-// Robolectric's local repository at it; Gradle owns the download and retry, and the test JVM reads
-// only local files. 14 is the flavor's pinned SDK 34; 15 is the JVM default for tests outside
-// testModern/resources.
-val robolectricAndroidAll14 = "14-robolectric-10818077-i7"
-val robolectricAndroidAll15 = "15-robolectric-12650502-i7"
-val robolectricRepo = layout.buildDirectory.dir("robolectric-repo")
-// One configuration per version: a single one would let Gradle select only the highest version.
-val robolectricDeps14 = configurations.create("robolectricDeps14")
-val robolectricDeps15 = configurations.create("robolectricDeps15")
-dependencies {
-    robolectricDeps14("org.robolectric:android-all-instrumented:$robolectricAndroidAll14")
-    robolectricDeps15("org.robolectric:android-all-instrumented:$robolectricAndroidAll15")
-}
-val prepareRobolectricRepo by tasks.registering(Sync::class) {
-    from(robolectricDeps14, robolectricDeps15)
-    eachFile {
-        val version = name.removePrefix("android-all-instrumented-").removeSuffix(".jar")
-        path = "$version/$name"
-    }
-    into(robolectricRepo.map { it.dir("org/robolectric/android-all-instrumented") })
-}
-tasks.withType<Test>().configureEach {
-    dependsOn(prepareRobolectricRepo)
-    systemProperty("maven.repo.local", robolectricRepo.get().asFile.absolutePath)
 }

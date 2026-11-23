@@ -32,6 +32,16 @@ jobs:
       - name: Fetch runtime components
         run: tools/fetch_components.sh
 
+      # Robolectric fetches its android-all-instrumented jar (~145 MB) from Maven Central into
+      # ~/.m2/repository the first time a test JVM asks for it, outside Gradle. A runner that gets
+      # rate-limited (429) at that moment fails every Robolectric test, so restore the jar instead
+      # and the suite makes no network calls at all.
+      - name: Cache Robolectric SDK jars
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/org/robolectric/android-all-instrumented
+          key: robolectric-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
+
       - name: Unit tests
         run: ./gradlew testModernDebugUnitTest
 
