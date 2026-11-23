@@ -118,9 +118,10 @@ private const val LOCAL_ADDON_ARCHIVE = "ConsolePortLK-1.5.0-rc2.zip"
 // reaches an installed client. +ei3 was the refusal-said-once change to Skateboard.lua, +ei4 its
 // boarding cast bar, +ei5 the retirement of that add-on (which also runs the stale-folder pass on a
 // client that still has it), +ei6 installs Runewords, the client half of mod-runewords, +ei7
-// drops that add-on's ruRU strings so every client carries the one language set, and +ei8 retires
-// EInteract with its server module.
-private const val LOCAL_ADDON_VERSION = "1.5.0-rc2+ei8"
+// drops that add-on's ruRU strings so every client carries the one language set, +ei8 retires
+// EInteract with its server module, and +ei9 installs CreatureAffixes, the client half of the
+// hidden creature-marker add-on.
+private const val LOCAL_ADDON_VERSION = "1.5.0-rc2+ei9"
 
 /**
  * The runewords add-on: the client half of the realm's mod-runewords. Shipped as assets rather than
@@ -130,6 +131,13 @@ private const val LOCAL_ADDON_VERSION = "1.5.0-rc2+ei8"
  */
 private const val LOCAL_RUNEWORD_ADDON = "runewords"
 private const val LOCAL_RUNEWORD_ADDON_FOLDER = "Runewords"
+
+/**
+ * The creature-affixes add-on: the client half of the realm's mod-creature-affixes. It reads the
+ * hidden stock marker auras and composes the target name; TidyPlates is optional.
+ */
+private const val LOCAL_CREATURE_AFFIXES_ADDON = "creatureaffixes"
+private const val LOCAL_CREATURE_AFFIXES_ADDON_FOLDER = "CreatureAffixes"
 
 /**
  * Add-ons this launcher used to install and no longer ships, cleaned out on the next launch.
@@ -2154,6 +2162,10 @@ internal fun ensureLocalControllerProfile(context: Context): Int {
  * from the server's own declarations; the one thing it has to ask for is the 1..100 roll each rune
  * instance carries, and the module answers over an add-on whisper.
  *
+ * CreatureAffixes is the client half of the realm's mod-creature-affixes. It reads the hidden stock
+ * marker auras and composes the target frame name; if TidyPlates is present it also names the target
+ * and mouseover plates. It needs no client patch.
+ *
  * Idempotent and self-healing: the marker records the version and keeps a launch from re-extracting the
  * textures, a changed version is installed over the old copy, add-ons the player added are left alone,
  * and the add-ons this launcher used to ship are deleted rather than left behind with no server module
@@ -2172,6 +2184,10 @@ internal fun installLocalAddons(context: Context, clientRoot: File, onStatus: (S
     FileUtils.copy(context, LOCAL_RUNEWORD_ADDON, File(addOns, LOCAL_RUNEWORD_ADDON_FOLDER))
     check(File(addOns, "$LOCAL_RUNEWORD_ADDON_FOLDER/$LOCAL_RUNEWORD_ADDON_FOLDER.toc").isFile) {
         "Could not install $LOCAL_RUNEWORD_ADDON_FOLDER into ${addOns.path}."
+    }
+    FileUtils.copy(context, LOCAL_CREATURE_AFFIXES_ADDON, File(addOns, LOCAL_CREATURE_AFFIXES_ADDON_FOLDER))
+    check(File(addOns, "$LOCAL_CREATURE_AFFIXES_ADDON_FOLDER/$LOCAL_CREATURE_AFFIXES_ADDON_FOLDER.toc").isFile) {
+        "Could not install $LOCAL_CREATURE_AFFIXES_ADDON_FOLDER into ${addOns.path}."
     }
     RETIRED_ADDONS.forEach { name ->
         File(addOns, name).deleteRecursively()

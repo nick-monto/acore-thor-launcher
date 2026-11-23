@@ -52,6 +52,20 @@ class LocalAddonsInstallTest {
             "Runewords' pattern table was not installed",
             root.resolve("Interface/AddOns/Runewords/Runewords_Data.lua").isFile,
         )
+        // CreatureAffixes rides beside Runewords as this project's own files. Its TOC includes the
+        // TidyPlates companion and the marker table; both must land or the add-on loads half.
+        assertTrue(
+            "CreatureAffixes was not installed",
+            root.resolve("Interface/AddOns/CreatureAffixes/CreatureAffixes.toc").isFile,
+        )
+        assertTrue(
+            "CreatureAffixes' marker table was not installed",
+            root.resolve("Interface/AddOns/CreatureAffixes/CreatureAffixes_Data.lua").isFile,
+        )
+        assertTrue(
+            "CreatureAffixes' TidyPlates companion was not installed",
+            root.resolve("Interface/AddOns/CreatureAffixes/CreatureAffixes_Plates.lua").isFile,
+        )
         // The skateboard add-on was retired with its paused server module: a fresh client gets no
         // bar and no bindings for a deck that refuses every press. EInteract was retired with its
         // server module too, so no client is asked to install a key that whispers to nothing.
@@ -64,7 +78,7 @@ class LocalAddonsInstallTest {
             root.resolve("Interface/AddOns/EInteract").exists(),
         )
         // One version: the pinned, unpatched archive.
-        assertEquals("1.5.0-rc2+ei8", root.resolve(".consoleport-version").readText().trim())
+        assertEquals("1.5.0-rc2+ei9", root.resolve(".consoleport-version").readText().trim())
     }
 
     @Test
@@ -111,7 +125,7 @@ class LocalAddonsInstallTest {
             "the retired interact add-on's saved variables outlived it",
             root.resolve("WTF/Account/PLAYER/SavedVariables/EInteract.lua").exists(),
         )
-        assertEquals("1.5.0-rc2+ei8", root.resolve(".consoleport-version").readText().trim())
+        assertEquals("1.5.0-rc2+ei9", root.resolve(".consoleport-version").readText().trim())
     }
 
     @Test
