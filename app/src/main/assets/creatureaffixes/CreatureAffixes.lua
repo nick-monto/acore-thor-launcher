@@ -1,9 +1,10 @@
 -- CreatureAffixes: the client half of the realm's mod-creature-affixes.
 --
--- The server puts hidden stock dummy auras on a modified creature. The auras
--- are sent to the client but carry SPELL_ATTR0_DO_NOT_DISPLAY, so the aura bar
--- stays clean; this add-on reads their stock spell names from UnitAura and
--- composes the configured prefix and affix into the target name.
+-- The server puts stock permanent dummy auras on a modified creature. They
+-- carry no visuals and no DO_NOT_DISPLAY bit, because the client filters that
+-- bit out of UnitAura; this add-on reads their names from UnitAura, composes
+-- the configured prefix and affix into the target name, and hides the marker's
+-- buttons on the target frame.
 --
 -- The hidden size layer has no aura, no marker and no client data.
 
@@ -59,6 +60,31 @@ function Addon:ComposeName(base, prefix, affix)
     return text
 end
 
+-- The marker auras are client-visible so UnitAura can return their names;
+-- hiding their target/focus buttons keeps them out of the aura bar anyway.
+local function HideUnitIcons(unit, framePrefix)
+    if not unit or UnitIsPlayer(unit) then
+        return
+    end
+    for index = 1, 16 do
+        local name = UnitBuff(unit, index)
+        if name and Markers[name] then
+            local button = _G[framePrefix .. "Buff" .. index]
+            if button then button:Hide() end
+        end
+        name = UnitDebuff(unit, index)
+        if name and Markers[name] then
+            local button = _G[framePrefix .. "Debuff" .. index]
+            if button then button:Hide() end
+        end
+    end
+end
+
+local function HideCarrierIcons()
+    HideUnitIcons("target", "TargetFrame")
+    HideUnitIcons("focus", "FocusFrame")
+end
+
 local function UpdateName()
     local frame = GetNameFrame()
     local base = UnitName("target")
@@ -71,7 +97,14 @@ local function UpdateName()
 end
 
 if type(hooksecurefunc) == "function" and type(TargetFrame_Update) == "function" then
-    hooksecurefunc("TargetFrame_Update", UpdateName)
+    hooksecurefunc("TargetFrame_Update", function()
+        UpdateName()
+        HideCarrierIcons()
+    end)
+end
+
+if type(hooksecurefunc) == "function" and type(TargetFrame_UpdateAuras) == "function" then
+    hooksecurefunc("TargetFrame_UpdateAuras", HideCarrierIcons)
 end
 
 local frame = CreateFrame("Frame")
@@ -79,6 +112,7 @@ frame:RegisterEvent("PLAYER_LOGIN")
 frame:RegisterEvent("PLAYER_TARGET_CHANGED")
 frame:RegisterEvent("UNIT_AURA")
 frame:SetScript("OnEvent", function(_, event, unit)
-    if event == "UNIT_AURA" and unit ~= "target" then return end
+    if event == "UNIT_AURA" and unit ~= "target" and unit ~= "focus" then return end
     UpdateName()
+    HideCarrierIcons()
 end)

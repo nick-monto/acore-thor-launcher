@@ -2,7 +2,7 @@
 --
 -- Stock 3.3.5a has no C_NamePlate unit tokens. TidyPlates only resolves a GUID
 -- for the target and mouseover plates (TidyPlatesCore.lua), so those are the
--- only plates that can be tied to our hidden marker auras. Other nameplates
+-- only plates that can be tied to our marker auras. Other nameplates
 -- keep the stock name; showing affixes on every plate would need a client
 -- nameplate API or a client patch, not a database change.
 --

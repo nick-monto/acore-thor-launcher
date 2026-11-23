@@ -121,7 +121,7 @@ private const val LOCAL_ADDON_ARCHIVE = "ConsolePortLK-1.5.0-rc2.zip"
 // drops that add-on's ruRU strings so every client carries the one language set, +ei8 retires
 // EInteract with its server module, and +ei9 installs CreatureAffixes, the client half of the
 // hidden creature-marker add-on.
-private const val LOCAL_ADDON_VERSION = "1.5.0-rc2+ei9"
+private const val LOCAL_ADDON_VERSION = "1.5.0-rc2+ei10"
 
 /**
  * The runewords add-on: the client half of the realm's mod-runewords. Shipped as assets rather than

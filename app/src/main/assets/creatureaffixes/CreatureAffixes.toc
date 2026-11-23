@@ -1,7 +1,7 @@
 ## Interface: 30300
 ## Title: CreatureAffixes
-## Version: 0.2.0
-## Notes: Shows the realm's creature prefixes and affixes on the target frame and TidyPlates target/mouseover nameplates. Needs the server's mod-creature-affixes; the hidden size layer is intentionally not shown.
+## Version: 0.3.0
+## Notes: Shows the realm's creature prefixes and affixes on the target frame and TidyPlates target/mouseover nameplates, and keeps the marker auras out of the aura bar. Needs the server's mod-creature-affixes; the hidden size layer is intentionally not shown.
 ## OptionalDeps: TidyPlates
 CreatureAffixes_Data.lua
 CreatureAffixes.lua
