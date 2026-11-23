@@ -119,9 +119,9 @@ private const val LOCAL_ADDON_ARCHIVE = "ConsolePortLK-1.5.0-rc2.zip"
 // boarding cast bar, +ei5 the retirement of that add-on (which also runs the stale-folder pass on a
 // client that still has it), +ei6 installs Runewords, the client half of mod-runewords, +ei7
 // drops that add-on's ruRU strings so every client carries the one language set, +ei8 retires
-// EInteract with its server module, and +ei9 installs CreatureAffixes, the client half of the
-// hidden creature-marker add-on.
-private const val LOCAL_ADDON_VERSION = "1.5.0-rc2+ei10"
+// EInteract with its server module, +ei9 installs CreatureAffixes, the client half of the
+// creature-marker add-on, and +ei11 moves the displayed labels into the server creature name.
+private const val LOCAL_ADDON_VERSION = "1.5.0-rc2+ei11"
 
 /**
  * The runewords add-on: the client half of the realm's mod-runewords. Shipped as assets rather than
@@ -133,8 +133,8 @@ private const val LOCAL_RUNEWORD_ADDON = "runewords"
 private const val LOCAL_RUNEWORD_ADDON_FOLDER = "Runewords"
 
 /**
- * The creature-affixes add-on: the client half of the realm's mod-creature-affixes. It reads the
- * hidden stock marker auras and composes the target name; TidyPlates is optional.
+ * The creature-affixes add-on: the client half of the realm's mod-creature-affixes. The server
+ * writes the labels into the creature name; this add-on only hides the marker auras.
  */
 private const val LOCAL_CREATURE_AFFIXES_ADDON = "creatureaffixes"
 private const val LOCAL_CREATURE_AFFIXES_ADDON_FOLDER = "CreatureAffixes"
@@ -2162,9 +2162,9 @@ internal fun ensureLocalControllerProfile(context: Context): Int {
  * from the server's own declarations; the one thing it has to ask for is the 1..100 roll each rune
  * instance carries, and the module answers over an add-on whisper.
  *
- * CreatureAffixes is the client half of the realm's mod-creature-affixes. It reads the hidden stock
- * marker auras and composes the target frame name; if TidyPlates is present it also names the target
- * and mouseover plates. It needs no client patch.
+ * CreatureAffixes is the client half of the realm's mod-creature-affixes. The server writes the
+ * labels into the creature name, so the target frame and every nameplate carry them; this add-on
+ * only hides the marker auras. It needs no client patch.
  *
  * Idempotent and self-healing: the marker records the version and keeps a launch from re-extracting the
  * textures, a changed version is installed over the old copy, add-ons the player added are left alone,
