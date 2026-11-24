@@ -14,4 +14,11 @@ CreatureAffixesData = {
         ["Green Ghost Visual"] = true,
         ["Corruption of Time"] = true,
     },
+    labels = {
+        ["CP Test Spell 2"]   = { text = "Vicious",     kind = "prefix" },
+        ["Dummy Riding Aura"] = { text = "Gilded",      kind = "prefix" },
+        ["Mote of Anger"]     = { text = "of the Bear", kind = "affix"  },
+        ["Debug Debuff"]      = { text = "Zombified",   kind = "prefix" },
+        ["Unscathed (DND)"]   = { text = "of the Corruption", kind = "affix"  },
+    },
 }

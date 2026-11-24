@@ -1,9 +1,9 @@
 -- CreatureAffixes: the client half of the realm's mod-creature-affixes.
 --
--- The server writes the configured prefix and affix into the creature's name,
--- so the target frame, TidyPlates and the stock nameplates all read the same
--- string. The stock permanent dummy auras are still present only so this
--- add-on can hide their target/focus buttons; they carry no displayed labels.
+-- The server composes the creature's server-side name, but 3.3.5a clients
+-- resolve creature names from entry-keyed query data, so a live SetName does
+-- not change the target frame. This add-on composes the displayed target and
+-- focus names from the carrier auras instead, and hides those carrier buttons.
 
 local Data = CreatureAffixesData
 if type(Data) ~= "table" or type(Data.markers) ~= "table" then
@@ -12,6 +12,7 @@ if type(Data) ~= "table" or type(Data.markers) ~= "table" then
 end
 
 local Markers = Data.markers
+local Labels = type(Data.labels) == "table" and Data.labels or {}
 
 local function HideUnitIcons(unit, framePrefix)
     if not unit or UnitIsPlayer(unit) then
@@ -36,19 +37,62 @@ local function HideCarrierIcons()
     HideUnitIcons("focus", "FocusFrame")
 end
 
+local function ComposeName(unit)
+    local prefix, affix
+    for index = 1, 16 do
+        local name = UnitBuff(unit, index)
+        local label = name and Labels[name]
+        if label then
+            if label.kind == "prefix" then prefix = label.text else affix = label.text end
+        end
+        name = UnitDebuff(unit, index)
+        label = name and Labels[name]
+        if label then
+            if label.kind == "prefix" then prefix = label.text else affix = label.text end
+        end
+    end
+
+    local base = UnitName(unit)
+    if not base or base == "" then return nil end
+    return (prefix and prefix .. " " or "") .. base .. (affix and " " .. affix or "")
+end
+
+local function UpdateHeaderName(unit, fontString)
+    if not fontString or not UnitExists(unit) then return end
+    local name = ComposeName(unit)
+    if name then fontString:SetText(name) end
+end
+
+local function UpdateHeaderNames()
+    UpdateHeaderName("target", TargetFrameTextureFrameName)
+    UpdateHeaderName("focus", FocusFrameTextureFrameName)
+end
+
 if type(hooksecurefunc) == "function" and type(TargetFrame_Update) == "function" then
-    hooksecurefunc("TargetFrame_Update", HideCarrierIcons)
+    hooksecurefunc("TargetFrame_Update", function()
+        HideCarrierIcons()
+        UpdateHeaderNames()
+    end)
 end
 
 if type(hooksecurefunc) == "function" and type(TargetFrame_UpdateAuras) == "function" then
-    hooksecurefunc("TargetFrame_UpdateAuras", HideCarrierIcons)
+    hooksecurefunc("TargetFrame_UpdateAuras", function()
+        HideCarrierIcons()
+        UpdateHeaderNames()
+    end)
+end
+
+if type(hooksecurefunc) == "function" and type(FocusFrame_Update) == "function" then
+    hooksecurefunc("FocusFrame_Update", UpdateHeaderNames)
 end
 
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("PLAYER_LOGIN")
 frame:RegisterEvent("PLAYER_TARGET_CHANGED")
+frame:RegisterEvent("PLAYER_FOCUS_CHANGED")
 frame:RegisterEvent("UNIT_AURA")
 frame:SetScript("OnEvent", function(_, event, unit)
     if event == "UNIT_AURA" and unit ~= "target" and unit ~= "focus" then return end
     HideCarrierIcons()
+    UpdateHeaderNames()
 end)

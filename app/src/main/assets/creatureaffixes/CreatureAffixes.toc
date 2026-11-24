@@ -1,6 +1,6 @@
 ## Interface: 30300
 ## Title: CreatureAffixes
-## Version: 0.3.3
-## Notes: The server writes creature prefixes and affixes into the creature name, so target frames and all nameplates show them. This add-on keeps the marker and effect aura buttons out of the aura bar. Needs the server's mod-creature-affixes; the hidden size layer is intentionally not shown.
+## Version: 0.3.4
+## Notes: The add-on hides marker and effect aura buttons and composes the target/focus names from the carrier auras. Stock nameplates keep the client's entry-keyed name. Needs the server's mod-creature-affixes; the hidden size layer is intentionally not shown.
 CreatureAffixes_Data.lua
 CreatureAffixes.lua
