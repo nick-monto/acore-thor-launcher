@@ -127,8 +127,10 @@ private const val LOCAL_ADDON_ARCHIVE = "ConsolePortLK-1.5.0-rc2.zip"
 // TidyPlates target/mouseover nameplate labels from the same auras; +ei16
 // consumes the native adapter's WrathNameplateGUID table for every TidyPlates
 // plate and keeps the target/mouseover fallback when the adapter is absent;
-// +ei17 asks the server for the affix labels by GUID over the CAFF channel.
-private const val LOCAL_ADDON_VERSION = "1.5.0-rc2+ei17"
+// +ei17 asks the server for the affix labels by GUID over the CAFF channel;
+// +ei18 ships the 15/15 modifier pool, visible carrier replacements and the
+// stock visual markers.
+private const val LOCAL_ADDON_VERSION = "1.5.0-rc2+ei18"
 
 /**
  * The runewords add-on: the client half of the realm's mod-runewords. Shipped as assets rather than
