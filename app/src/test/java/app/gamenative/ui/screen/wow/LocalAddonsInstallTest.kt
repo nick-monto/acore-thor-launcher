@@ -53,7 +53,7 @@ class LocalAddonsInstallTest {
             root.resolve("Interface/AddOns/Runewords/Runewords_Data.lua").isFile,
         )
         // CreatureAffixes rides beside Runewords as this project's own files. Its TOC includes the
-        // marker table; both must land or the add-on loads half.
+        // marker table and the TidyPlates nameplate module; all must land or the add-on loads half.
         assertTrue(
             "CreatureAffixes was not installed",
             root.resolve("Interface/AddOns/CreatureAffixes/CreatureAffixes.toc").isFile,
@@ -61,6 +61,10 @@ class LocalAddonsInstallTest {
         assertTrue(
             "CreatureAffixes' marker table was not installed",
             root.resolve("Interface/AddOns/CreatureAffixes/CreatureAffixes_Data.lua").isFile,
+        )
+        assertTrue(
+            "CreatureAffixes' TidyPlates module was not installed",
+            root.resolve("Interface/AddOns/CreatureAffixes/CreatureAffixes_Plates.lua").isFile,
         )
         // The skateboard add-on was retired with its paused server module: a fresh client gets no
         // bar and no bindings for a deck that refuses every press. EInteract was retired with its
@@ -74,7 +78,7 @@ class LocalAddonsInstallTest {
             root.resolve("Interface/AddOns/EInteract").exists(),
         )
         // One version: the pinned, unpatched archive.
-        assertEquals("1.5.0-rc2+ei14", root.resolve(".consoleport-version").readText().trim())
+        assertEquals("1.5.0-rc2+ei15", root.resolve(".consoleport-version").readText().trim())
     }
 
     @Test
@@ -121,7 +125,7 @@ class LocalAddonsInstallTest {
             "the retired interact add-on's saved variables outlived it",
             root.resolve("WTF/Account/PLAYER/SavedVariables/EInteract.lua").exists(),
         )
-        assertEquals("1.5.0-rc2+ei14", root.resolve(".consoleport-version").readText().trim())
+        assertEquals("1.5.0-rc2+ei15", root.resolve(".consoleport-version").readText().trim())
     }
 
     @Test

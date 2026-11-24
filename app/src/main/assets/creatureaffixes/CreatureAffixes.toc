@@ -1,6 +1,8 @@
 ## Interface: 30300
 ## Title: CreatureAffixes
-## Version: 0.3.4
-## Notes: The add-on hides marker and effect aura buttons and composes the target/focus names from the carrier auras. Stock nameplates keep the client's entry-keyed name. Needs the server's mod-creature-affixes; the hidden size layer is intentionally not shown.
+## Version: 0.3.5
+## Notes: Composes target/focus names and TidyPlates target/mouseover nameplates from the carrier auras. Stock nameplates and untargeted TidyPlates keep the client's entry-keyed name. Needs the server's mod-creature-affixes; TidyPlates is optional.
+## OptionalDeps: TidyPlates
 CreatureAffixes_Data.lua
 CreatureAffixes.lua
+CreatureAffixes_Plates.lua
