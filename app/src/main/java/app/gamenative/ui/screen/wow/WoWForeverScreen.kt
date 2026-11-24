@@ -124,8 +124,11 @@ private const val LOCAL_ADDON_ARCHIVE = "ConsolePortLK-1.5.0-rc2.zip"
 // +ei12 adds the Zombified/Corrupted marker and effect aura names; +ei13
 // drops the stale stock damage aura name after the level-scaled effect chain;
 // +ei14 composes target/focus labels from the carrier auras; +ei15 composes
-// TidyPlates target/mouseover nameplate labels from the same auras.
-private const val LOCAL_ADDON_VERSION = "1.5.0-rc2+ei15"
+// TidyPlates target/mouseover nameplate labels from the same auras; +ei16
+// consumes the native adapter's WrathNameplateGUID table for every TidyPlates
+// plate and keeps the target/mouseover fallback when the adapter is absent;
+// +ei17 asks the server for the affix labels by GUID over the CAFF channel.
+private const val LOCAL_ADDON_VERSION = "1.5.0-rc2+ei17"
 
 /**
  * The runewords add-on: the client half of the realm's mod-runewords. Shipped as assets rather than
@@ -140,8 +143,9 @@ private const val LOCAL_RUNEWORD_ADDON_FOLDER = "Runewords"
  * The creature-affixes add-on: the client half of the realm's mod-creature-affixes. The server
  * writes the labels into the creature name, but a 3.3.5a client resolves target and nameplate names
  * from entry-keyed data. The add-on composes target/focus names and, when TidyPlates is installed,
- * its target/mouseover nameplate names from the hidden carrier auras. Untargeted nameplates keep the
- * client's stock name because stock 3.3.5a exposes no unit token for them.
+ * nameplate names from the hidden carrier auras. The native adapter publishes the nameplate GUIDs;
+ * without it the add-on keeps the target/mouseover fallback, because stock 3.3.5a exposes no unit
+ * token for untargeted plates.
  */
 private const val LOCAL_CREATURE_AFFIXES_ADDON = "creatureaffixes"
 private const val LOCAL_CREATURE_AFFIXES_ADDON_FOLDER = "CreatureAffixes"

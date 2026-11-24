@@ -4,8 +4,9 @@
 -- resolve creature names from entry-keyed query data, so a live SetName does
 -- not change the target frame. This add-on composes the displayed target and
 -- focus names from the carrier auras instead, and hides those carrier buttons.
--- CreatureAffixes_Plates.lua uses the same marker lookup on TidyPlates target
--- and mouseover plates.
+-- CreatureAffixes_Plates.lua uses the same marker lookup on every TidyPlates
+-- plate through the native adapter's GUID bridge, falling back to target and
+-- mouseover when the adapter is absent.
 
 local _, Addon = ...
 if type(Addon) ~= "table" then Addon = {} end
